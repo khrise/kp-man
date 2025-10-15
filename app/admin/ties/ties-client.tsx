@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
-import { useTranslation } from "@/lib/i18n"
+import { useTranslation, translations } from "@/lib/i18n"
 
 type Tie = {
   id: number
@@ -47,6 +47,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const router = useRouter()
   const { t } = useTranslation()
   const [isAdding, setIsAdding] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importUrl, setImportUrl] = useState("")
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     seasonId: seasons[0] ? String(seasons[0].id) : "",
@@ -58,6 +60,20 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     isHome: true,
     notes: "",
   })
+  const [importSeasonId, setImportSeasonId] = useState(seasons[0] ? String(seasons[0].id) : "")
+  const [importTeamId, setImportTeamId] = useState(teams[0] ? String(teams[0].id) : "")
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<string | null>(null)
+  const [parsedTies, setParsedTies] = useState<Array<{
+    id: string
+    opponent: string
+    dateText: string
+    dateIso: string
+    location: string
+    isHome: boolean
+    selected: boolean
+  }>>([])
+  const [importingSelected, setImportingSelected] = useState(false)
 
   const handleEdit = (tie: Tie) => {
     setEditingId(tie.id)
@@ -130,6 +146,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
         <Button onClick={() => setIsAdding(true)}>
           <Plus className="mr-2 h-4 w-4" />
           {t('addTie')}
+        </Button>
+        <Button variant="outline" onClick={() => setIsImporting(true)} className="ml-3">
+          {t('importTies' as keyof typeof translations.de)}
         </Button>
       </div>
 
@@ -244,6 +263,331 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                 </Button>
               </div>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {isImporting && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{t('importTies' as keyof typeof translations.de)}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="importUrl">{t('importUrl' as keyof typeof translations.de)}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="importUrl"
+                    value={importUrl}
+                    onChange={(e) => setImportUrl(e.target.value)}
+                    placeholder={t('importUrlPlaceholder' as keyof typeof translations.de)}
+                  />
+                  <Button
+                    onClick={async () => {
+                      setImporting(true)
+                      setImportResult(null)
+                      setParsedTies([])
+                      try {
+                        // Fetch the remote page via our proxy to avoid CORS
+                        const res = await fetch('/api/proxy-fetch', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({ url: importUrl }),
+                        })
+                        if (!res.ok) {
+                          const errorData = await res.json().catch(() => ({}))
+                          throw new Error(errorData.error || `${res.status} ${res.statusText}`)
+                        }
+                        const { html: text } = await res.json()
+                        // Parse HTML in the client
+                        const parser = new DOMParser()
+                        const doc = parser.parseFromString(text, 'text/html')
+                        // Select all tables with class 'result-set'
+                        const tables = Array.from(doc.querySelectorAll('table.result-set'))
+                        console.log('Debug: Found tables with class "result-set":', tables.length)
+                        tables.forEach((t, i) => console.log(`Table ${i}:`, t.outerHTML.substring(0, 200) + '...'))
+                        
+                        if (tables.length < 2) throw new Error(t('importTableNotFound' as keyof typeof translations.de))
+                        const table = tables[1] as HTMLTableElement
+                        const rows = Array.from(table.querySelectorAll('tbody tr'))
+                        console.log('Debug: Found tbody rows:', rows.length)
+                        
+                        // Also try without tbody as fallback
+                        if (rows.length === 0) {
+                          const allRows = Array.from(table.querySelectorAll('tr'))
+                          console.log('Debug: Found all tr rows (fallback):', allRows.length)
+                          rows.push(...allRows.slice(1)) // Skip header row
+                        }
+                        const parsed: Array<{
+                          id: string
+                          opponent: string
+                          dateText: string
+                          dateIso: string
+                          location: string
+                          isHome: boolean
+                          selected: boolean
+                        }> = []
+                        
+                        for (let i = 0; i < rows.length; i++) {
+                          const row = rows[i]
+                          const cells = Array.from(row.querySelectorAll('td'))
+                          console.log(`Debug Row ${i}: Found ${cells.length} cells`, cells.map(c => c.textContent?.trim()))
+                          // Adjusted for colspan: Skip [0], Date+Time [1], Skip [2], Location [3], Home [4], Guest [5]
+                          if (cells.length < 6) {
+                            console.log(`Debug: Skipping row ${i} - only ${cells.length} cells (need at least 6)`)
+                            continue
+                          }
+                          const dateTimeText = cells[1].textContent?.trim() || '' // Date and time in format "22.11.2025 10:00"
+                          const locationText = cells[3].textContent?.trim() || ''
+                          const homeCell = cells[4]
+                          const guestCell = cells[5]
+
+                          let teamIsHome = true
+                          let opponent = ''
+
+                          // If homeCell contains a link, then opponent is home and our team is away
+                          const homeLink = homeCell.querySelector('a')
+                          if (homeLink) {
+                            teamIsHome = false
+                            opponent = homeCell.textContent?.trim() || ''
+                          } else {
+                            teamIsHome = true
+                            opponent = guestCell.textContent?.trim() || ''
+                          }
+
+                          // Parse date and time. Format: "22.11.2025 10:00"
+                          let dateIso = ''
+                          const d = dateTimeText
+                          const dateTimeMatch = d.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})\s+(\d{1,2}):(\d{2})/) // "22.11.2025 10:00"
+                          if (dateTimeMatch) {
+                            const day = dateTimeMatch[1].padStart(2, '0')
+                            const month = dateTimeMatch[2].padStart(2, '0')
+                            const year = dateTimeMatch[3]
+                            const hour = dateTimeMatch[4].padStart(2, '0')
+                            const minute = dateTimeMatch[5]
+                            const fullYear = year.length === 2 ? '20' + year : year
+                            dateIso = `${fullYear}-${month}-${day}T${hour}:${minute}:00`
+                          } else {
+                            // Fallback: try just date part if time is missing
+                            const dotMatch = d.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/) // Just "22.11.2025"
+                            if (dotMatch) {
+                              const day = dotMatch[1].padStart(2, '0')
+                              const month = dotMatch[2].padStart(2, '0')
+                              const year = dotMatch[3]
+                              const fullYear = year.length === 2 ? '20' + year : year
+                              dateIso = `${fullYear}-${month}-${day}T00:00:00`
+                            } else {
+                              // Last fallback: try Date.parse
+                              const parsed = new Date(d)
+                              if (!isNaN(parsed.getTime())) {
+                                dateIso = parsed.toISOString()
+                              } else {
+                                // Skip unparseable rows
+                                console.log(`Debug: Skipping row ${i} - unparseable date: "${d}"`)
+                                continue
+                              }
+                            }
+                          }
+
+                          parsed.push({
+                            id: `tie-${i}`,
+                            opponent,
+                            dateText: dateTimeText, // Show the original date+time text
+                            dateIso,
+                            location: locationText,
+                            isHome: teamIsHome,
+                            selected: true // Default to selected
+                          })
+                        }
+
+                        setParsedTies(parsed)
+                        setImportResult(`${t('parsedTies' as keyof typeof translations.de)}: ${parsed.length}`)
+                      } catch (err) {
+                        console.error('Import failed', err)
+                        const msg = err instanceof Error ? err.message : String(err)
+                        setImportResult(`${t('importFailed' as keyof typeof translations.de)}: ${msg}`)
+                      } finally {
+                        setImporting(false)
+                      }
+                    }}
+                    disabled={!importUrl || importing}
+                  >
+                    {importing ? t('parsing' as keyof typeof translations.de) : t('fetch' as keyof typeof translations.de)}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="importSeason">{t('season')}</Label>
+                <Select value={importSeasonId} onValueChange={(v) => setImportSeasonId(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {seasons.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="importTeam">{t('team')}</Label>
+                <Select value={importTeamId} onValueChange={(v) => setImportTeamId(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={String(team.id)}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {importResult && (
+                <div className="md:col-span-2 mt-2">
+                  <p className="text-sm text-gray-700">{importResult}</p>
+                </div>
+              )}
+
+              {parsedTies.length > 0 && (
+                <div className="md:col-span-2 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">{t('previewTies' as keyof typeof translations.de)}</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <input
+                              type="checkbox"
+                              checked={parsedTies.every(t => t.selected)}
+                              onChange={(e) => {
+                                const allSelected = e.target.checked
+                                setParsedTies(parsedTies.map(t => ({ ...t, selected: allSelected })))
+                              }}
+                              className="rounded"
+                            />
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {t('date')}
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {t('opponent')}
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {t('location')}
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {t('homeAway')}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {parsedTies.map((tie, index) => (
+                          <tr key={tie.id} className={tie.selected ? 'bg-blue-50' : ''}>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={tie.selected}
+                                onChange={(e) => {
+                                  const newParsedTies = [...parsedTies]
+                                  newParsedTies[index].selected = e.target.checked
+                                  setParsedTies(newParsedTies)
+                                }}
+                                className="rounded"
+                              />
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {tie.dateText}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {tie.opponent}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {tie.location}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                tie.isHome ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {tie.isHome ? t('home') : t('away')}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      onClick={async () => {
+                        const selectedTies = parsedTies.filter(t => t.selected)
+                        if (selectedTies.length === 0) return
+                        
+                        setImportingSelected(true)
+                        let imported = 0
+                        
+                        try {
+                          for (const tie of selectedTies) {
+                            const fd = new FormData()
+                            fd.append('season_id', importSeasonId || formData.seasonId)
+                            fd.append('team_id', importTeamId || formData.teamId)
+                            fd.append('opponent', tie.opponent)
+                            fd.append('date_time', tie.dateIso)
+                            fd.append('location', tie.location)
+                            fd.append('is_home', String(tie.isHome))
+
+                            try {
+                              await createTieAction(fd)
+                              imported++
+                            } catch (err) {
+                              console.error('Import error for tie:', tie, err)
+                            }
+                          }
+
+                          setImportResult(`${imported}/${selectedTies.length} ${t('imported' as keyof typeof translations.de)}`)
+                          setParsedTies([]) // Clear the preview
+                          router.refresh()
+                        } catch (err) {
+                          console.error('Batch import failed', err)
+                          const msg = err instanceof Error ? err.message : String(err)
+                          setImportResult(`${t('importFailed' as keyof typeof translations.de)}: ${msg}`)
+                        } finally {
+                          setImportingSelected(false)
+                        }
+                      }}
+                      disabled={importingSelected || parsedTies.filter(t => t.selected).length === 0}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {importingSelected ? 
+                        t('importing' as keyof typeof translations.de) : 
+                        `${t('importSelected' as keyof typeof translations.de)} (${parsedTies.filter(t => t.selected).length})`
+                      }
+                    </Button>
+                    <Button
+                      onClick={() => setParsedTies([])}
+                      variant="outline"
+                    >
+                      {t('clearPreview' as keyof typeof translations.de)}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="md:col-span-2 mt-4 flex gap-2">
+                <Button onClick={() => setIsImporting(false)} variant="outline">
+                  {t('close')}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
