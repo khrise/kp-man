@@ -11,12 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
+import { useTranslation } from "@/lib/i18n"
 
 type Tie = {
   id: number
   teamId: number
   opponent: string
-  tieDate: string
+  tieDate: Date
   location: string | null
   isHome: boolean
   notes: string | null
@@ -44,6 +45,7 @@ type TiesClientProps = {
 
 export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const router = useRouter()
+  const { t } = useTranslation()
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
@@ -87,7 +89,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
     if (editingId !== null) {
       formDataToSend.append("id", String(editingId))
-      await updateTieAction(formDataToSend)
+      await updateTieAction(String(editingId), formDataToSend)
     } else {
       await createTieAction(formDataToSend)
     }
@@ -122,12 +124,12 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     <main className="mx-auto max-w-7xl px-6 py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Ties</h2>
-          <p className="mt-2 text-gray-600">Manage your matches</p>
+          <h2 className="text-3xl font-bold text-gray-900">{t('ties')}</h2>
+          <p className="mt-2 text-gray-600">{t('manageMatches')}</p>
         </div>
         <Button onClick={() => setIsAdding(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Tie
+          {t('addTie')}
         </Button>
       </div>
 
@@ -216,7 +218,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="isHome">Home/Away</Label>
+                  <Label htmlFor="isHome">{t('homeAway')}</Label>
                   <Select
                     value={formData.isHome.toString()}
                     onValueChange={(value) => setFormData({ ...formData, isHome: value === "true" })}
@@ -225,8 +227,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="true">Home</SelectItem>
-                      <SelectItem value="false">Away</SelectItem>
+                      <SelectItem value="true">{t('home')}</SelectItem>
+                      <SelectItem value="false">{t('away')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -248,16 +250,16 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
       <div className="grid gap-4">
         {initialTies.map((tie) => {
-          const date = new Date(tie.tieDate)
+          console.log("Rendering tie with date:", tie.tieDate)
           return (
             <Card key={tie.id}>
               <CardContent className="flex items-center justify-between p-6">
                 <div>
                   <h3 className="text-lg font-semibold">
-                    {tie.teamName} vs {tie.opponent}
+                    {tie.teamName} {t('vs')} {tie.opponent}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {tie.tieDate.toLocaleDateString()} {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </p>
                   <p className="text-sm text-gray-600">{tie.location}</p>
                   <span
@@ -265,7 +267,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       tie.isHome ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    {tie.isHome ? "Home" : "Away"}
+                    {tie.isHome ? t('home') : t('away')}
                   </span>
                 </div>
                 <div className="flex gap-2">

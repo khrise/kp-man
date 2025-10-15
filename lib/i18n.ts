@@ -125,6 +125,7 @@ export const translations = {
     home: "Heim",
     away: "Auswärts",
     vs: "gegen",
+    manageMatches: "Spieltage verwalten",
     confirmDeleteTie: "Sind Sie sicher, dass Sie diesen Spieltag löschen möchten?",
   },
   en: {
@@ -251,6 +252,7 @@ export const translations = {
     home: "Home",
     away: "Away",
     vs: "vs",
+    manageMatches: "Manage your ties",
     confirmDeleteTie: "Are you sure you want to delete this tie?",
   },
 }
