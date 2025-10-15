@@ -15,6 +15,12 @@ import { TieDetailsDialog } from "@/components/tie-details-dialog"
 import { ParticipationCommentDialog } from "@/components/participation-comment-dialog"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useTranslation } from "@/lib/i18n"
+
+// Utility functions for ICS generation
+const formatDateForICS = (date: Date): string => {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+}
+
 export type SpieltagePlayer = {
   id: number
   firstName: string
@@ -60,7 +66,52 @@ export function SpieltageClient() {
     tieId: number
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
+  console.log("Current locale:", locale)
+
+  // Utility functions for ICS generation (inside component to access t)
+  const generateICSContent = (tie: TieWithDetails): string => {
+    const startDate = new Date(tie.tieDate)
+    // Assume 4-hour duration for tennis matches
+    const endDate = new Date(startDate.getTime() + 4 * 60 * 60 * 1000)
+    
+    const summary = `${tie.teamName} ${t('vs')} ${tie.opponent}`
+    const location = tie.location || ''
+    const description = `Tennis: ${summary}${tie.isHome ? ` (${t('home')})` : ` (${t('away')})`}`
+    
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Tennis Club//Match Calendar//EN',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:tie-${tie.id}@tennisclub.local`,
+      `DTSTART:${formatDateForICS(startDate)}`,
+      `DTEND:${formatDateForICS(endDate)}`,
+      `SUMMARY:${summary}`,
+      `DESCRIPTION:${description}`,
+      `LOCATION:${location}`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n')
+    
+    return icsContent
+  }
+
+  const downloadICS = (tie: TieWithDetails) => {
+    const icsContent = generateICSContent(tie)
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `tennis-match-${tie.teamName.replace(/\s+/g, '-')}-vs-${tie.opponent.replace(/\s+/g, '-')}.ics`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -333,10 +384,14 @@ export function SpieltageClient() {
                     <span className="text-sm">
                       {formatDate(tie.tieDate)} {formatTime(tie.tieDate)}
                     </span>
-                    <span className="ml-auto inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                    <button
+                      onClick={() => downloadICS(tie)}
+                      className="ml-auto inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-300"
+                      title="Download calendar event"
+                    >
                       <Download className="h-3 w-3" />
                       ICS
-                    </span>
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-3 text-white">
