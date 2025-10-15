@@ -16,7 +16,6 @@ import { Label } from "@/components/ui/label"
 interface ParticipationCommentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  status: "confirmed" | "maybe" | "declined"
   onConfirm: (comment: string) => void
   translations: {
     title: string
@@ -31,7 +30,6 @@ interface ParticipationCommentDialogProps {
 export function ParticipationCommentDialog({
   open,
   onOpenChange,
-  status,
   onConfirm,
   translations,
 }: ParticipationCommentDialogProps) {

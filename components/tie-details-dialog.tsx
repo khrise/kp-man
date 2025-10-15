@@ -88,7 +88,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                       </span>
                       {p.comment && (
                         <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
-                          "{p.comment}"
+                          &quot;{p.comment}&quot;
                         </span>
                       )}
                     </div>
@@ -114,7 +114,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                       </span>
                       {p.comment && (
                         <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
-                          "{p.comment}"
+                          &quot;{p.comment}&quot;
                         </span>
                       )}
                     </div>
@@ -140,7 +140,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                       </span>
                       {p.comment && (
                         <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
-                          "{p.comment}"
+                          &quot;{p.comment}&quot;
                         </span>
                       )}
                     </div>

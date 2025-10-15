@@ -35,10 +35,10 @@ export default function PlayersPage() {
   }
 
   const handleEdit = (player: Player) => {
-    setEditingId(player.id)
+    setEditingId(String(player.id))
     setFormData({
-      firstName: player.first_name,
-      lastName: player.last_name,
+      firstName: player.firstName,
+      lastName: player.lastName,
       email: player.email || "",
       phone: player.phone || "",
     })
@@ -218,7 +218,7 @@ export default function PlayersPage() {
                 <CardContent className="flex items-center justify-between p-6">
                   <div>
                     <h3 className="text-lg font-semibold">
-                      {player.first_name} {player.last_name}
+                      {player.firstName} {player.lastName}
                     </h3>
                     {player.email && <p className="text-sm text-gray-600">{player.email}</p>}
                     {player.phone && <p className="text-sm text-gray-600">{player.phone}</p>}
@@ -227,7 +227,7 @@ export default function PlayersPage() {
                     <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(player.id)}>
+                    <Button variant="outline" size="sm" onClick={() => handleDelete(String(player.id))}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

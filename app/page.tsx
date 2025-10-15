@@ -42,6 +42,7 @@ export default function HomePage() {
         setError(t("invalidAccessCode"))
       }
     } catch (err) {
+      console.error("invalidAccessCode", err)
       setError(t("invalidAccessCode"))
     } finally {
       setLoading(false)

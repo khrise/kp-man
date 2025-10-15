@@ -468,7 +468,6 @@ export function SpieltageClient() {
       <ParticipationCommentDialog
         open={showCommentDialog}
         onOpenChange={setShowCommentDialog}
-        status={pendingParticipation?.status || "confirmed"}
         onConfirm={handleCommentConfirm}
         translations={{
           title: t("participationComment"),
