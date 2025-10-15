@@ -19,7 +19,6 @@ export type SpieltagePlayer = {
   id: number
   firstName: string
   lastName: string
-  email: string | null
 }
 
 export type SpieltageParticipation = {
@@ -80,17 +79,16 @@ export function SpieltageClient() {
           id: Number(player.id),
           firstName: player.firstName,
           lastName: player.lastName,
-          email: player.email ?? null,
         }))
 
         setPlayers(mappedPlayers)
 
         // Load participations for each tie
         const tiesWithDetails = await Promise.all(
-          (tiesData as any[]).map(async (tie) => {
+          (tiesData).map(async (tie) => {
             const participations = await getParticipationsForTie(String(tie.id))
 
-            const participationsWithPlayers: SpieltageParticipation[] = participations.map((p: any) => ({
+            const participationsWithPlayers: SpieltageParticipation[] = participations.map((p) => ({
               id: p.id,
               tieId: p.tieId,
               playerId: p.playerId,
@@ -101,7 +99,6 @@ export function SpieltageClient() {
                 id: p.playerId,
                 firstName: p.firstName,
                 lastName: p.lastName,
-                email: p.email ?? null,
               },
             }))
 
@@ -174,7 +171,7 @@ export function SpieltageClient() {
       await updateParticipation(String(tieId), String(selectedPlayerId), status, comment || '')
 
       const participations = await getParticipationsForTie(String(tieId))
-      const participationsWithPlayers: SpieltageParticipation[] = participations.map((p: any) => ({
+      const participationsWithPlayers: SpieltageParticipation[] = participations.map((p) => ({
         id: p.id,
         tieId: p.tieId,
         playerId: p.playerId,
@@ -185,7 +182,6 @@ export function SpieltageClient() {
           id: p.playerId,
           firstName: p.firstName,
           lastName: p.lastName,
-          email: p.email ?? null,
         },
       }))
 
