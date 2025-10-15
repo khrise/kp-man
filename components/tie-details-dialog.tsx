@@ -14,8 +14,6 @@ interface TieDetailsDialogProps {
 export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogProps) {
   const { t } = useTranslation()
 
-  // console.log(tie)
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString("de-DE", {
@@ -84,8 +82,15 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 </div>
                 <div className="space-y-1">
                   {confirmedPlayers.map((p) => (
-                    <div key={p.id} className="rounded bg-green-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.firstName} {p.player.lastName} ({p.playerRank})
+                    <div key={p.id} className="flex items-center gap-2 rounded bg-green-50 px-3 py-2 text-sm text-gray-700">
+                      <span>
+                        {p.player.firstName} {p.player.lastName} ({p.playerRank})
+                      </span>
+                      {p.comment && (
+                        <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
+                          "{p.comment}"
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -103,8 +108,15 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 </div>
                 <div className="space-y-1">
                   {maybePlayers.map((p) => (
-                    <div key={p.id} className="rounded bg-yellow-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.firstName} {p.player.lastName} ({p.playerRank})
+                    <div key={p.id} className="flex items-center gap-2 rounded bg-yellow-50 px-3 py-2 text-sm text-gray-700">
+                      <span>
+                        {p.player.firstName} {p.player.lastName} ({p.playerRank})
+                      </span>
+                      {p.comment && (
+                        <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
+                          "{p.comment}"
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -122,8 +134,15 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 </div>
                 <div className="space-y-1">
                   {declinedPlayers.map((p) => (
-                    <div key={p.id} className="rounded bg-red-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.firstName} {p.player.lastName} ({p.playerRank})
+                    <div key={p.id} className="flex items-center gap-2 rounded bg-red-50 px-3 py-2 text-sm text-gray-700">
+                      <span>
+                        {p.player.firstName} {p.player.lastName} ({p.playerRank})
+                      </span>
+                      {p.comment && (
+                        <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
+                          "{p.comment}"
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
