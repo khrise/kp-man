@@ -11,13 +11,14 @@ import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { createSeasonAction, updateSeasonAction, deleteSeasonAction } from "@/app/actions/seasons"
 
 type Season = {
-  id: string
+  id: number
   name: string
-  start_date: string
-  end_date: string
-  access_code: string
-  created_at: string
-  updated_at: string
+  startDate: string
+  endDate: string
+  accessCode: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 function generateAccessCode(): string {
@@ -31,21 +32,21 @@ function generateAccessCode(): string {
 
 export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) {
   const [isAdding, setIsAdding] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     name: "",
-    start_date: "",
-    end_date: "",
-    access_code: "",
+    startDate: "",
+    endDate: "",
+    accessCode: "",
   })
 
   const handleAddNew = () => {
     setIsAdding(true)
     setFormData({
       name: "",
-      start_date: "",
-      end_date: "",
-      access_code: generateAccessCode(),
+      startDate: "",
+      endDate: "",
+      accessCode: generateAccessCode(),
     })
   }
 
@@ -58,9 +59,9 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
 
     setFormData({
       name: season.name,
-      start_date: formatDate(season.start_date),
-      end_date: formatDate(season.end_date),
-      access_code: season.access_code,
+      startDate: formatDate(season.startDate),
+      endDate: formatDate(season.endDate),
+      accessCode: season.accessCode,
     })
   }
 
@@ -68,30 +69,30 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
     e.preventDefault()
     const formDataObj = new FormData()
     formDataObj.append("name", formData.name)
-    formDataObj.append("start_date", formData.start_date)
-    formDataObj.append("end_date", formData.end_date)
-    formDataObj.append("access_code", formData.access_code)
+    formDataObj.append("start_date", formData.startDate)
+    formDataObj.append("end_date", formData.endDate)
+    formDataObj.append("access_code", formData.accessCode)
 
-    if (editingId) {
-      await updateSeasonAction(editingId, formDataObj)
+    if (editingId !== null) {
+      await updateSeasonAction(String(editingId), formDataObj)
       setEditingId(null)
     } else {
       await createSeasonAction(formDataObj)
       setIsAdding(false)
     }
 
-    setFormData({ name: "", start_date: "", end_date: "", access_code: "" })
+    setFormData({ name: "", startDate: "", endDate: "", accessCode: "" })
   }
 
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
-    setFormData({ name: "", start_date: "", end_date: "", access_code: "" })
+    setFormData({ name: "", startDate: "", endDate: "", accessCode: "" })
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm("Are you sure you want to delete this season?")) {
-      await deleteSeasonAction(id)
+      await deleteSeasonAction(String(id))
     }
   }
 
@@ -130,8 +131,8 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                   <Label htmlFor="access_code">Access Code</Label>
                   <Input
                     id="access_code"
-                    value={formData.access_code}
-                    onChange={(e) => setFormData({ ...formData, access_code: e.target.value })}
+                    value={formData.accessCode}
+                    onChange={(e) => setFormData({ ...formData, accessCode: e.target.value })}
                     placeholder="e.g., SEASON2025"
                     required
                   />
@@ -141,8 +142,8 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                   <Input
                     id="start_date"
                     type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                     required
                   />
                 </div>
@@ -151,8 +152,8 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                   <Input
                     id="end_date"
                     type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                     required
                   />
                 </div>
@@ -179,9 +180,9 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
               <div>
                 <h3 className="text-lg font-semibold">{season.name}</h3>
                 <p className="text-sm text-gray-600">
-                  {new Date(season.start_date).toLocaleDateString()} - {new Date(season.end_date).toLocaleDateString()}
+                  {new Date(season.startDate).toLocaleDateString()} - {new Date(season.endDate).toLocaleDateString()}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">Access Code: {season.access_code}</p>
+                <p className="mt-1 text-sm text-gray-600">Access Code: {season.accessCode}</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleEdit(season)}>

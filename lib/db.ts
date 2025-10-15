@@ -1,251 +1,418 @@
-import { neon } from "@neondatabase/serverless"
+import { Pool } from "@neondatabase/serverless"
+import {
+  CamelCasePlugin,
+  ColumnType,
+  Generated,
+  Insertable,
+  Kysely,
+  PostgresDialect,
+  Selectable,
+  Updateable,
+  sql,
+} from "kysely"
 
-const sql = neon(process.env.DATABASE_URL!)
-
-export { sql }
-
-// Database query functions
-export async function getSeasons() {
-  const seasons = await sql`SELECT * FROM seasons ORDER BY start_date DESC`
-  return seasons
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not set")
 }
 
-export async function getSeasonById(id: string) {
-  const [season] = await sql`SELECT * FROM seasons WHERE id = ${id}`
-  return season
+type TimestampColumn = ColumnType<string, string | Date | undefined, string | Date | undefined>
+type DateColumn = ColumnType<string, string | Date, string | Date>
+type NullableStringColumn = ColumnType<string | null, string | null | undefined, string | null | undefined>
+
+interface UsersTable {
+  id: Generated<number>
+  username: string
+  passwordHash: string
+  email: string
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
 }
 
-export async function getSeasonByAccessCode(accessCode: string) {
-  const [season] = await sql`SELECT * FROM seasons WHERE access_code = ${accessCode}`
-  return season
+interface SeasonsTable {
+  id: Generated<number>
+  name: string
+  startDate: DateColumn
+  endDate: DateColumn
+  accessCode: string
+  isActive: ColumnType<boolean, boolean | undefined, boolean | undefined>
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
 }
 
-export async function createSeason(data: { name: string; start_date: string; end_date: string; access_code: string }) {
-  const [season] = await sql`
-    INSERT INTO seasons (name, start_date, end_date, access_code)
-    VALUES (${data.name}, ${data.start_date}, ${data.end_date}, ${data.access_code})
-    RETURNING *
-  `
-  return season
+interface TeamsTable {
+  id: Generated<number>
+  seasonId: number
+  name: string
+  league: NullableStringColumn
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
 }
 
-export async function updateSeason(
-  id: string,
-  data: {
-    name: string
-    start_date: string
-    end_date: string
-    access_code: string
-  },
-) {
-  const [season] = await sql`
-    UPDATE seasons
-    SET name = ${data.name}, start_date = ${data.start_date}, end_date = ${data.end_date}, access_code = ${data.access_code}
-    WHERE id = ${id}
-    RETURNING *
-  `
-  return season
+interface PlayersTable {
+  id: Generated<number>
+  firstName: string
+  lastName: string
+  email: NullableStringColumn
+  phone: NullableStringColumn
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
 }
 
-export async function deleteSeason(id: string) {
-  await sql`DELETE FROM seasons WHERE id = ${id}`
+interface TeamPlayersTable {
+  id: Generated<number>
+  teamId: number
+  playerId: number
+  playerRank: number
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
 }
 
-// Teams
-export async function getTeams() {
-  const teams = await sql`SELECT * FROM teams ORDER BY name`
-  return teams
-}
-
-export async function getTeamById(id: string) {
-  const [team] = await sql`SELECT * FROM teams WHERE id = ${id}`
-  return team
-}
-
-export async function createTeam(data: { season_id: string; name: string; league: string }) {
-  const [team] = await sql`
-    INSERT INTO teams (season_id, name, league)
-    VALUES (${data.season_id}, ${data.name}, ${data.league})
-    RETURNING *
-  `
-  return team
-}
-
-export async function updateTeam(id: string, data: { season_id: string; name: string; league: string }) {
-  const [team] = await sql`
-    UPDATE teams
-    SET season_id = ${data.season_id}, name = ${data.name}, league = ${data.league}
-    WHERE id = ${id}
-    RETURNING *
-  `
-  return team
-}
-
-export async function deleteTeam(id: string) {
-  await sql`DELETE FROM teams WHERE id = ${id}`
-}
-
-// Team Players
-export async function getTeamPlayers(teamId: string) {
-  const players = await sql`
-    SELECT p.id, p.first_name, p.last_name, p.email, p.created_at, tp.team_id, tp.player_id, tp.player_rank
-    FROM players p
-    JOIN team_players tp ON p.id = tp.player_id
-    WHERE tp.team_id = ${teamId}
-    ORDER BY tp.player_rank
-  `
-  return players
-}
-
-export async function setTeamPlayers(teamId: string, playerIds: string[]) {
-  // Delete existing team players
-  await sql`DELETE FROM team_players WHERE team_id = ${teamId}`
-
-  // Insert new team players with ranks using individual inserts
-  for (let i = 0; i < playerIds.length; i++) {
-    const playerId = playerIds[i]
-    const rank = i + 1
-    await sql`
-      INSERT INTO team_players (team_id, player_id, player_rank)
-      VALUES (${teamId}, ${playerId}, ${rank})
-    `
-  }
-}
-
-// Players
-export async function getPlayers() {
-  const players = await sql`SELECT * FROM players ORDER BY last_name, first_name`
-  return players
-}
-
-export async function getPlayerById(id: string) {
-  const [player] = await sql`SELECT * FROM players WHERE id = ${id}`
-  return player
-}
-
-export async function createPlayer(data: { first_name: string; last_name: string; email: string }) {
-  const [player] = await sql`
-    INSERT INTO players (first_name, last_name, email)
-    VALUES (${data.first_name}, ${data.last_name}, ${data.email})
-    RETURNING *
-  `
-  return player
-}
-
-export async function updatePlayer(id: string, data: { first_name: string; last_name: string; email: string }) {
-  const [player] = await sql`
-    UPDATE players
-    SET first_name = ${data.first_name}, last_name = ${data.last_name}, email = ${data.email}
-    WHERE id = ${id}
-    RETURNING *
-  `
-  return player
-}
-
-export async function deletePlayer(id: string) {
-  await sql`DELETE FROM players WHERE id = ${id}`
-}
-
-// Ties
-export async function getTies() {
-  const ties = await sql`
-    SELECT t.*, tm.name as team_name, s.name as season_name
-    FROM ties t
-    JOIN teams tm ON t.team_id = tm.id
-    JOIN seasons s ON tm.season_id = s.id
-    ORDER BY t.tie_date DESC
-  `
-  return ties
-}
-
-export async function getTiesBySeasonId(seasonId: string) {
-  const ties = await sql`
-    SELECT t.id, t.team_id, t.opponent, t.tie_date as date_time, t.location, t.is_home, t.created_at, tm.name as team_name
-    FROM ties t
-    JOIN teams tm ON t.team_id = tm.id
-    WHERE tm.season_id = ${seasonId}
-    ORDER BY t.tie_date ASC
-  `
-  return ties
-}
-
-export async function getTieById(id: string) {
-  const [tie] = await sql`SELECT * FROM ties WHERE id = ${id}`
-  return tie
-}
-
-export async function createTie(data: {
-  team_id: string
+interface TiesTable {
+  id: Generated<number>
+  teamId: number
   opponent: string
-  tie_date: string
-  location: string
-  is_home: boolean
-}) {
-  const [tie] = await sql`
-    INSERT INTO ties (team_id, opponent, tie_date, location, is_home)
-    VALUES (${data.team_id}, ${data.opponent}, ${data.tie_date}, ${data.location}, ${data.is_home})
-    RETURNING *
-  `
-  return tie
+  tieDate: DateColumn
+  location: NullableStringColumn
+  isHome: ColumnType<boolean, boolean | undefined, boolean | undefined>
+  notes: NullableStringColumn
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
 }
 
-export async function updateTie(
-  id: string,
-  data: {
-    team_id: string
-    opponent: string
-    tie_date: string
-    location: string
-    is_home: boolean
-  },
-) {
-  const [tie] = await sql`
-    UPDATE ties
-    SET team_id = ${data.team_id}, opponent = ${data.opponent}, 
-        tie_date = ${data.tie_date}, location = ${data.location}, is_home = ${data.is_home}
-    WHERE id = ${id}
-    RETURNING *
-  `
-  return tie
-}
-
-export async function deleteTie(id: string) {
-  await sql`DELETE FROM ties WHERE id = ${id}`
-}
-
-// Participations
-export async function getParticipations(tieId: string) {
-  const participations = await sql`
-    SELECT p.*, pl.first_name, pl.last_name, tp.player_rank as player_rank
-    FROM participations p
-    JOIN players pl ON p.player_id = pl.id
-    JOIN ties t ON p.tie_id = t.id
-    JOIN teams tm ON t.team_id = tm.id
-    JOIN team_players tp ON pl.id = tp.player_id AND tm.id = tp.team_id
-    WHERE p.tie_id = ${tieId}
-    ORDER BY p.status, pl.last_name, pl.first_name
-  `
-  return participations
-}
-
-export async function upsertParticipation(data: {
-  tie_id: string
-  player_id: string
+interface ParticipationsTable {
+  id: Generated<number>
+  tieId: number
+  playerId: number
   status: "confirmed" | "maybe" | "declined"
-  comment?: string | null
-}) {
-  const [participation] = await sql`
-    INSERT INTO participations (tie_id, player_id, status, comment)
-    VALUES (${data.tie_id}, ${data.player_id}, ${data.status}, ${data.comment || null})
-    ON CONFLICT (tie_id, player_id)
-    DO UPDATE SET status = ${data.status}, comment = ${data.comment || null}, updated_at = NOW()
-    RETURNING *
-  `
-  return participation
+  comment: NullableStringColumn
+  respondedAt: TimestampColumn
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
 }
 
-// Users (Admin)
-export async function getUserByUsername(username: string) {
-  const [user] = await sql`SELECT * FROM users WHERE username = ${username}`
-  return user
+export interface Database {
+  users: UsersTable
+  seasons: SeasonsTable
+  teams: TeamsTable
+  players: PlayersTable
+  teamPlayers: TeamPlayersTable
+  ties: TiesTable
+  participations: ParticipationsTable
+}
+
+const globalForDb = globalThis as unknown as {
+  db?: Kysely<Database>
+}
+
+export const db =
+  globalForDb.db ??
+  (globalForDb.db = new Kysely<Database>({
+    dialect: new PostgresDialect({
+      pool: new Pool({
+        connectionString: process.env.DATABASE_URL,
+      }),
+    }),
+    plugins: [new CamelCasePlugin()],
+  }))
+
+export type User = Selectable<UsersTable>
+export type Season = Selectable<SeasonsTable>
+export type NewSeason = Insertable<SeasonsTable>
+export type UpdateSeason = Updateable<SeasonsTable>
+
+export type Team = Selectable<TeamsTable>
+export type NewTeam = Insertable<TeamsTable>
+export type UpdateTeam = Updateable<TeamsTable>
+
+export type Player = Selectable<PlayersTable>
+export type NewPlayer = Insertable<PlayersTable>
+export type UpdatePlayer = Updateable<PlayersTable>
+
+export type Tie = Selectable<TiesTable>
+export type NewTie = Insertable<TiesTable>
+export type UpdateTie = Updateable<TiesTable>
+
+export type Participation = Selectable<ParticipationsTable>
+export type NewParticipation = Insertable<ParticipationsTable>
+export type UpdateParticipation = Updateable<ParticipationsTable>
+
+export async function getSeasons(): Promise<Season[]> {
+  return db.selectFrom("seasons").selectAll().orderBy("startDate", "desc").execute()
+}
+
+export async function getSeasonById(id: number): Promise<Season | undefined> {
+  return db.selectFrom("seasons").selectAll().where("id", "=", id).executeTakeFirst()
+}
+
+export async function getSeasonByAccessCode(accessCode: string): Promise<Season | undefined> {
+  return db.selectFrom("seasons").selectAll().where("accessCode", "=", accessCode).executeTakeFirst()
+}
+
+type CreateSeasonInput = Pick<Insertable<SeasonsTable>, "name" | "startDate" | "endDate" | "accessCode" | "isActive">
+
+export async function createSeason(data: CreateSeasonInput): Promise<Season> {
+  const inserted = await db.insertInto("seasons").values(data).returningAll().executeTakeFirst()
+  if (!inserted) {
+    throw new Error("Failed to create season")
+  }
+  return inserted
+}
+
+type UpdateSeasonInput = Pick<Updateable<SeasonsTable>, "name" | "startDate" | "endDate" | "accessCode" | "isActive">
+
+export async function updateSeason(id: number, data: UpdateSeasonInput): Promise<Season | undefined> {
+  return db.updateTable("seasons").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+}
+
+export async function deleteSeason(id: number) {
+  await db.deleteFrom("seasons").where("id", "=", id).execute()
+}
+
+export async function getTeams(): Promise<Team[]> {
+  return db.selectFrom("teams").selectAll().orderBy("name").execute()
+}
+
+export async function getTeamById(id: number): Promise<Team | undefined> {
+  return db.selectFrom("teams").selectAll().where("id", "=", id).executeTakeFirst()
+}
+
+type CreateTeamInput = Pick<Insertable<TeamsTable>, "seasonId" | "name" | "league">
+
+export async function createTeam(data: CreateTeamInput): Promise<Team> {
+  const inserted = await db.insertInto("teams").values(data).returningAll().executeTakeFirst()
+  if (!inserted) {
+    throw new Error("Failed to create team")
+  }
+  return inserted
+}
+
+type UpdateTeamInput = Pick<Updateable<TeamsTable>, "seasonId" | "name" | "league">
+
+export async function updateTeam(id: number, data: UpdateTeamInput): Promise<Team | undefined> {
+  return db.updateTable("teams").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+}
+
+export async function deleteTeam(id: number) {
+  await db.deleteFrom("teams").where("id", "=", id).execute()
+}
+
+export type TeamPlayerWithDetails = {
+  id: number
+  firstName: string
+  lastName: string
+  email: string | null
+  createdAt: string
+  teamId: number
+  playerId: number
+  playerRank: number
+}
+
+export async function getTeamPlayers(teamId: number): Promise<TeamPlayerWithDetails[]> {
+  return db
+    .selectFrom("players as p")
+    .innerJoin("teamPlayers as tp", "tp.playerId", "p.id")
+    .select([
+      "p.id",
+      "p.firstName",
+      "p.lastName",
+      "p.email",
+      "p.createdAt",
+      "tp.teamId",
+      "tp.playerId",
+      "tp.playerRank",
+    ])
+    .where("tp.teamId", "=", teamId)
+    .orderBy("tp.playerRank")
+    .execute()
+}
+
+export async function setTeamPlayers(teamId: number, playerIds: number[]) {
+  await db.transaction().execute(async (trx) => {
+    await trx.deleteFrom("teamPlayers").where("teamId", "=", teamId).execute()
+
+    if (playerIds.length === 0) {
+      return
+    }
+
+    await trx
+      .insertInto("teamPlayers")
+      .values(
+        playerIds.map((playerId, index) => ({
+          teamId,
+          playerId,
+          playerRank: index + 1,
+        })),
+      )
+      .execute()
+  })
+}
+
+export async function getPlayers(): Promise<Player[]> {
+  return db.selectFrom("players").selectAll().orderBy("lastName").orderBy("firstName").execute()
+}
+
+export async function getPlayerById(id: number): Promise<Player | undefined> {
+  return db.selectFrom("players").selectAll().where("id", "=", id).executeTakeFirst()
+}
+
+type CreatePlayerInput = Pick<Insertable<PlayersTable>, "firstName" | "lastName" | "email">
+
+export async function createPlayer(data: CreatePlayerInput): Promise<Player> {
+  const inserted = await db.insertInto("players").values(data).returningAll().executeTakeFirst()
+  if (!inserted) {
+    throw new Error("Failed to create player")
+  }
+  return inserted
+}
+
+type UpdatePlayerInput = Pick<Updateable<PlayersTable>, "firstName" | "lastName" | "email">
+
+export async function updatePlayer(id: number, data: UpdatePlayerInput): Promise<Player | undefined> {
+  return db.updateTable("players").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+}
+
+export async function deletePlayer(id: number) {
+  await db.deleteFrom("players").where("id", "=", id).execute()
+}
+
+export type TieWithSeasonAndTeam = Tie & {
+  teamName: string
+  seasonName: string
+  seasonId: number
+}
+
+export async function getTies(): Promise<TieWithSeasonAndTeam[]> {
+  return db
+    .selectFrom("ties as t")
+    .innerJoin("teams as tm", "tm.id", "t.teamId")
+    .innerJoin("seasons as s", "s.id", "tm.seasonId")
+    .selectAll("t")
+    .select((eb) => [
+      eb.ref("tm.name").as("teamName"),
+      eb.ref("s.name").as("seasonName"),
+      eb.ref("tm.seasonId").as("seasonId"),
+    ])
+    .orderBy("t.tieDate", "desc")
+    .execute()
+}
+
+export type TieWithTeamName = {
+  id: number
+  teamId: number
+  opponent: string
+  tieDate: string
+  location: string | null
+  isHome: boolean
+  createdAt: string
+  teamName: string
+}
+
+export async function getTiesBySeasonId(seasonId: number): Promise<TieWithTeamName[]> {
+  return db
+    .selectFrom("ties as t")
+    .innerJoin("teams as tm", "tm.id", "t.teamId")
+    .where("tm.seasonId", "=", seasonId)
+    .select([
+      "t.id",
+      "t.teamId",
+      "t.opponent",
+      "t.tieDate",
+      "t.location",
+      "t.isHome",
+      "t.createdAt",
+    ])
+    .select((eb) => eb.ref("tm.name").as("teamName"))
+    .orderBy("t.tieDate", "asc")
+    .execute()
+}
+
+export async function getTieById(id: number): Promise<Tie | undefined> {
+  return db.selectFrom("ties").selectAll().where("id", "=", id).executeTakeFirst()
+}
+
+type CreateTieInput = Pick<Insertable<TiesTable>, "teamId" | "opponent" | "tieDate" | "location" | "isHome" | "notes">
+
+export async function createTie(data: CreateTieInput): Promise<Tie> {
+  const inserted = await db.insertInto("ties").values(data).returningAll().executeTakeFirst()
+  if (!inserted) {
+    throw new Error("Failed to create tie")
+  }
+  return inserted
+}
+
+type UpdateTieInput = Pick<Updateable<TiesTable>, "teamId" | "opponent" | "tieDate" | "location" | "isHome" | "notes">
+
+export async function updateTie(id: number, data: UpdateTieInput): Promise<Tie | undefined> {
+  return db.updateTable("ties").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+}
+
+export async function deleteTie(id: number) {
+  await db.deleteFrom("ties").where("id", "=", id).execute()
+}
+
+export type ParticipationWithPlayer = Participation & {
+  firstName: string
+  lastName: string
+  playerRank: number
+}
+
+export async function getParticipations(tieId: number): Promise<ParticipationWithPlayer[]> {
+  return db
+    .selectFrom("participations as p")
+    .innerJoin("players as pl", "pl.id", "p.playerId")
+    .innerJoin("ties as t", "t.id", "p.tieId")
+    .innerJoin("teams as tm", "tm.id", "t.teamId")
+    .innerJoin("teamPlayers as tp", (join) =>
+      join
+        .onRef("pl.id", "=", "tp.playerId")
+        .onRef("tm.id", "=", "tp.teamId"),
+    )
+    .select([
+      "p.id",
+      "p.tieId",
+      "p.playerId",
+      "p.status",
+      "p.comment",
+      "p.respondedAt",
+      "p.createdAt",
+      "p.updatedAt",
+    ])
+    .select(["pl.firstName", "pl.lastName", "pl.email", "tp.playerRank"])
+    .where("p.tieId", "=", tieId)
+    .orderBy("p.status")
+    .orderBy("pl.lastName")
+    .orderBy("pl.firstName")
+    .execute()
+}
+
+type UpsertParticipationInput = Pick<
+  Insertable<ParticipationsTable>,
+  "tieId" | "playerId" | "status" | "comment"
+>
+
+export async function upsertParticipation(data: UpsertParticipationInput): Promise<Participation> {
+  const inserted = await db
+    .insertInto("participations")
+    .values({
+      ...data,
+    })
+    .onConflict((oc) =>
+      oc.columns(["tieId", "playerId"]).doUpdateSet({
+        status: data.status,
+        comment: data.comment ?? null,
+        updatedAt: sql`now()`,
+      }),
+    )
+    .returningAll()
+    .executeTakeFirst()
+
+  if (!inserted) {
+    throw new Error("Failed to upsert participation")
+  }
+
+  return inserted
+}
+
+export async function getUserByUsername(username: string): Promise<User | undefined> {
+  return db.selectFrom("users").selectAll().where("username", "=", username).executeTakeFirst()
 }

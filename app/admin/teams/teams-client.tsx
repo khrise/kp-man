@@ -12,24 +12,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Edit, Trash2, Check, X, ChevronUp, ChevronDown, UserMinus } from "lucide-react"
 import { createTeamAction, updateTeamAction, deleteTeamAction } from "@/app/actions/teams"
 
+type TeamPlayer = {
+  id: number
+  firstName: string
+  lastName: string
+  email: string | null
+  playerRank: number
+}
+
 type Team = {
-  id: string
-  season_id: string
+  id: number
+  seasonId: number
   name: string
-  league: string
-  players?: Array<{ id: string; first_name: string; last_name: string; email: string; rank: number }>
+  league: string | null
+  players?: TeamPlayer[]
 }
 
 type Season = {
-  id: string
+  id: number
   name: string
 }
 
 type Player = {
-  id: string
-  first_name: string
-  last_name: string
-  email: string
+  id: number
+  firstName: string
+  lastName: string
+  email: string | null
 }
 
 export function TeamsClient({
@@ -43,12 +51,12 @@ export function TeamsClient({
 }) {
   const router = useRouter()
   const [isAdding, setIsAdding] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [selectKey, setSelectKey] = useState(0)
   const [formData, setFormData] = useState({
     name: "",
     league: "",
-    season_id: seasons[0]?.id || "",
+    seasonId: seasons[0] ? String(seasons[0].id) : "",
     playerIds: [] as string[],
   })
 
@@ -57,7 +65,7 @@ export function TeamsClient({
     setFormData({
       name: team.name,
       league: team.league || "",
-      season_id: team.season_id,
+      seasonId: String(team.seasonId),
       playerIds: team.players?.map((p) => String(p.id)) || [],
     })
   }
@@ -67,30 +75,30 @@ export function TeamsClient({
     const formDataObj = new FormData()
     formDataObj.append("name", formData.name)
     formDataObj.append("league", formData.league)
-    formDataObj.append("season_id", formData.season_id)
+    formDataObj.append("season_id", formData.seasonId)
     formDataObj.append("player_ids", JSON.stringify(formData.playerIds))
 
-    if (editingId) {
-      await updateTeamAction(editingId, formDataObj)
+    if (editingId !== null) {
+      await updateTeamAction(String(editingId), formDataObj)
       setEditingId(null)
     } else {
       await createTeamAction(formDataObj)
       setIsAdding(false)
     }
 
-    setFormData({ name: "", league: "", season_id: seasons[0]?.id || "", playerIds: [] })
+    setFormData({ name: "", league: "", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
     router.refresh()
   }
 
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
-    setFormData({ name: "", league: "", season_id: seasons[0]?.id || "", playerIds: [] })
+    setFormData({ name: "", league: "", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm("Are you sure you want to delete this team?")) {
-      await deleteTeamAction(id)
+      await deleteTeamAction(String(id))
       router.refresh()
     }
   }
@@ -169,15 +177,15 @@ export function TeamsClient({
                 <div className="space-y-2">
                   <Label htmlFor="season">Season</Label>
                   <Select
-                    value={formData.season_id}
-                    onValueChange={(value) => setFormData({ ...formData, season_id: value })}
+                    value={formData.seasonId}
+                    onValueChange={(value) => setFormData({ ...formData, seasonId: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {seasons.map((season) => (
-                        <SelectItem key={season.id} value={season.id}>
+                        <SelectItem key={season.id} value={String(season.id)}>
                           {season.name}
                         </SelectItem>
                       ))}
@@ -196,7 +204,7 @@ export function TeamsClient({
                     <SelectContent>
                       {availablePlayers.map((player) => (
                         <SelectItem key={player.id} value={String(player.id)}>
-                          {player.first_name} {player.last_name}
+                          {player.firstName} {player.lastName}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -219,7 +227,7 @@ export function TeamsClient({
                             </span>
                             <div>
                               <p className="font-medium">
-                                {player.first_name} {player.last_name}
+                                {player.firstName} {player.lastName}
                               </p>
                               <p className="text-xs text-gray-500">{player.email}</p>
                             </div>
@@ -280,30 +288,30 @@ export function TeamsClient({
         {initialTeams.map((team) => (
           <Card key={team.id}>
             <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold">{team.name}</h3>
-                  <p className="text-sm text-gray-600">{team.league}</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Season: {seasons.find((s) => s.id === team.season_id)?.name}
-                  </p>
-                  {team.players && team.players.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Roster ({team.players.length} players):</p>
-                      <div className="flex flex-wrap gap-2">
-                        {team.players.map((player, index) => (
-                          <div
-                            key={player.id}
-                            className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
-                          >
-                            <span className="font-semibold text-blue-700">{index + 1}.</span>
-                            <span>
-                              {player.first_name} {player.last_name}
-                            </span>
-                          </div>
-                        ))}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold">{team.name}</h3>
+                    <p className="text-sm text-gray-600">{team.league ?? "–"}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Season: {seasons.find((s) => s.id === team.seasonId)?.name}
+                    </p>
+                    {team.players && team.players.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm font-medium text-gray-700 mb-2">Roster ({team.players.length} players):</p>
+                        <div className="flex flex-wrap gap-2">
+                          {team.players.map((player, index) => (
+                            <div
+                              key={player.id}
+                              className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
+                            >
+                              <span className="font-semibold text-blue-700">{index + 1}.</span>
+                              <span>
+                                {player.firstName} {player.lastName}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
                   )}
                 </div>
                 <div className="flex gap-2">

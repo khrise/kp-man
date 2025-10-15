@@ -12,19 +12,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
 
+type Tie = {
+  id: number
+  teamId: number
+  opponent: string
+  tieDate: string
+  location: string | null
+  isHome: boolean
+  notes: string | null
+  seasonId: number
+  teamName: string
+  seasonName: string
+}
+
+type Team = {
+  id: number
+  seasonId: number
+  name: string
+}
+
+type Season = {
+  id: number
+  name: string
+}
+
 type TiesClientProps = {
-  initialTies: any[]
-  teams: any[]
-  seasons: any[]
+  initialTies: Tie[]
+  teams: Team[]
+  seasons: Season[]
 }
 
 export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const router = useRouter()
   const [isAdding, setIsAdding] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
-    seasonId: seasons[0]?.id || "",
-    teamId: teams[0]?.id || "",
+    seasonId: seasons[0] ? String(seasons[0].id) : "",
+    teamId: teams[0] ? String(teams[0].id) : "",
     opponent: "",
     tieDate: "",
     tieTime: "",
@@ -33,19 +57,19 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     notes: "",
   })
 
-  const handleEdit = (tie: any) => {
+  const handleEdit = (tie: Tie) => {
     setEditingId(tie.id)
-    const date = new Date(tie.date_time)
+    const date = new Date(tie.tieDate)
     const dateStr = date.toISOString().split("T")[0]
     const timeStr = date.toTimeString().slice(0, 5)
     setFormData({
-      seasonId: tie.season_id,
-      teamId: tie.team_id,
+      seasonId: String(tie.seasonId),
+      teamId: String(tie.teamId),
       opponent: tie.opponent,
       tieDate: dateStr,
       tieTime: timeStr,
       location: tie.location || "",
-      isHome: tie.is_home,
+      isHome: tie.isHome,
       notes: tie.notes || "",
     })
   }
@@ -61,8 +85,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     formDataToSend.append("location", formData.location)
     formDataToSend.append("is_home", formData.isHome.toString())
 
-    if (editingId) {
-      formDataToSend.append("id", editingId)
+    if (editingId !== null) {
+      formDataToSend.append("id", String(editingId))
       await updateTieAction(formDataToSend)
     } else {
       await createTieAction(formDataToSend)
@@ -76,8 +100,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     setIsAdding(false)
     setEditingId(null)
     setFormData({
-      seasonId: seasons[0]?.id || "",
-      teamId: teams[0]?.id || "",
+      seasonId: seasons[0] ? String(seasons[0].id) : "",
+      teamId: teams[0] ? String(teams[0].id) : "",
       opponent: "",
       tieDate: "",
       tieTime: "",
@@ -87,11 +111,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     })
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm("Are you sure you want to delete this tie?")) {
-      const formData = new FormData()
-      formData.append("id", id)
-      await deleteTieAction(formData)
+      await deleteTieAction(String(id))
       router.refresh()
     }
   }
@@ -128,7 +150,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                     </SelectTrigger>
                     <SelectContent>
                       {seasons.map((season) => (
-                        <SelectItem key={season.id} value={season.id}>
+                        <SelectItem key={season.id} value={String(season.id)}>
                           {season.name}
                         </SelectItem>
                       ))}
@@ -146,7 +168,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                     </SelectTrigger>
                     <SelectContent>
                       {teams.map((team) => (
-                        <SelectItem key={team.id} value={team.id}>
+                        <SelectItem key={team.id} value={String(team.id)}>
                           {team.name}
                         </SelectItem>
                       ))}
@@ -226,13 +248,13 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
       <div className="grid gap-4">
         {initialTies.map((tie) => {
-          const date = new Date(tie.date_time)
+          const date = new Date(tie.tieDate)
           return (
             <Card key={tie.id}>
               <CardContent className="flex items-center justify-between p-6">
                 <div>
                   <h3 className="text-lg font-semibold">
-                    {tie.team_name} vs {tie.opponent}
+                    {tie.teamName} vs {tie.opponent}
                   </h3>
                   <p className="text-sm text-gray-600">
                     {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -240,10 +262,10 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                   <p className="text-sm text-gray-600">{tie.location}</p>
                   <span
                     className={`mt-2 inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                      tie.is_home ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
+                      tie.isHome ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    {tie.is_home ? "Home" : "Away"}
+                    {tie.isHome ? "Home" : "Away"}
                   </span>
                 </div>
                 <div className="flex gap-2">

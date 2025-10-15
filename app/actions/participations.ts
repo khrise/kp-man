@@ -9,11 +9,21 @@ export async function updateParticipationAction(
   status: "confirmed" | "maybe" | "declined",
   comment?: string | null,
 ) {
+  const numericTieId = Number(tieId)
+  if (Number.isNaN(numericTieId)) {
+    throw new Error("Invalid tie id")
+  }
+
+  const numericPlayerId = Number(playerId)
+  if (Number.isNaN(numericPlayerId)) {
+    throw new Error("Invalid player id")
+  }
+
   await db.upsertParticipation({
-    tie_id: tieId,
-    player_id: playerId,
+    tieId: numericTieId,
+    playerId: numericPlayerId,
     status,
-    comment,
+    comment: comment ?? null,
   })
 
   revalidatePath("/spieltage")

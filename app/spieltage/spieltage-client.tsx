@@ -15,47 +15,50 @@ import { TieDetailsDialog } from "@/components/tie-details-dialog"
 import { ParticipationCommentDialog } from "@/components/participation-comment-dialog"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useTranslation } from "@/lib/i18n"
-import { TieWithDetails } from "@/lib/types"
-
-type Player = {
-  id: string
-  first_name: string
-  last_name: string
-  email: string
+export type SpieltagePlayer = {
+  id: number
+  firstName: string
+  lastName: string
+  email: string | null
 }
 
-type Tie = {
-  id: string
-  team_id: string
-  opponent: string
-  date_time: string
-  location: string
-  is_home: boolean
-  team_name: string
-  team_player_ids: string[] // Added to track team membership
-}
-
-type Participation = {
-  id: string
-  tie_id: string
-  player_id: string
+export type SpieltageParticipation = {
+  id: number
+  tieId: number
+  playerId: number
   status: "confirmed" | "maybe" | "declined"
-  comment?: string // Added to track comments
+  comment: string | null
+  playerRank: number
+  player: SpieltagePlayer
 }
 
+export type TieWithDetails = {
+  id: number
+  teamId: number
+  opponent: string
+  tieDate: string
+  location: string | null
+  isHome: boolean
+  teamName: string
+  teamPlayerIds: number[]
+  participations: SpieltageParticipation[]
+  confirmedCount: number
+  maybeCount: number
+  declinedCount: number
+}
 
 export function SpieltageClient() {
   const router = useRouter()
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string>("")
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [ties, setTies] = useState<TieWithDetails[]>([])
-  const [players, setPlayers] = useState<Player[]>([])
+  const [players, setPlayers] = useState<SpieltagePlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTie, setSelectedTie] = useState<TieWithDetails | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [showCommentDialog, setShowCommentDialog] = useState(false)
   const [pendingParticipation, setPendingParticipation] = useState<{
-    tieId: string
+    tieId: number
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
   const { t } = useTranslation()
@@ -73,24 +76,48 @@ export function SpieltageClient() {
       try {
         const [tiesData, playersData] = await Promise.all([getTiesForSeason(seasonId), getPlayersForSeason(seasonId)])
 
-        setPlayers(playersData as Player[])
+        const mappedPlayers: SpieltagePlayer[] = (playersData as SpieltagePlayer[]).map((player) => ({
+          id: Number(player.id),
+          firstName: player.firstName,
+          lastName: player.lastName,
+          email: player.email ?? null,
+        }))
+
+        setPlayers(mappedPlayers)
 
         // Load participations for each tie
         const tiesWithDetails = await Promise.all(
-          tiesData.map(async (tie: any) => {
-            const participations = await getParticipationsForTie(tie.id)
+          (tiesData as any[]).map(async (tie) => {
+            const participations = await getParticipationsForTie(String(tie.id))
 
-            const participationsWithPlayers = participations.map((p: any) => ({
-              ...p,
-              player: playersData.find((player: any) => player.id === p.player_id)!,
+            const participationsWithPlayers: SpieltageParticipation[] = participations.map((p: any) => ({
+              id: p.id,
+              tieId: p.tieId,
+              playerId: p.playerId,
+              status: p.status,
+              comment: p.comment ?? null,
+              playerRank: p.playerRank,
+              player: {
+                id: p.playerId,
+                firstName: p.firstName,
+                lastName: p.lastName,
+                email: p.email ?? null,
+              },
             }))
 
             return {
-              ...tie,
+              id: tie.id,
+              teamId: tie.teamId,
+              opponent: tie.opponent,
+              tieDate: tie.tieDate,
+              location: tie.location ?? null,
+              isHome: tie.isHome,
+              teamName: tie.teamName,
+              teamPlayerIds: tie.teamPlayerIds ?? [],
               participations: participationsWithPlayers,
-              confirmedCount: participations.filter((p: any) => p.status === "confirmed").length,
-              maybeCount: participations.filter((p: any) => p.status === "maybe").length,
-              declinedCount: participations.filter((p: any) => p.status === "declined").length,
+              confirmedCount: participationsWithPlayers.filter((p) => p.status === "confirmed").length,
+              maybeCount: participationsWithPlayers.filter((p) => p.status === "maybe").length,
+              declinedCount: participationsWithPlayers.filter((p) => p.status === "declined").length,
             }
           }),
         )
@@ -98,8 +125,8 @@ export function SpieltageClient() {
         setTies(tiesWithDetails)
 
         // Set first player as default if not set
-        if (playersData.length > 0 && !selectedPlayerId) {
-          setSelectedPlayerId(playersData[0].id)
+        if (mappedPlayers.length > 0 && selectedPlayerId === null) {
+          setSelectedPlayerId(mappedPlayers[0].id)
         }
       } catch (error) {
         console.error("Failed to load data:", error)
@@ -117,13 +144,16 @@ export function SpieltageClient() {
     router.push("/")
   }
 
-  const getPlayerParticipation = (tieId: string) => {
-    const tie = ties.find((t) => `${t.id}` === tieId)
-    return tie?.participations.find((p) => `${p.playerId}` === selectedPlayerId)
+  const getPlayerParticipation = (tieId: number) => {
+    if (selectedPlayerId === null) {
+      return undefined
+    }
+    const tie = ties.find((t) => t.id === tieId)
+    return tie?.participations.find((p) => p.playerId === selectedPlayerId)
   }
 
-  const handleParticipationClick = async (tieId: string, status: "confirmed" | "maybe" | "declined") => {
-    if (!selectedPlayerId) return
+  const handleParticipationClick = async (tieId: number, status: "confirmed" | "maybe" | "declined") => {
+    if (selectedPlayerId === null) return
 
     const currentParticipation = getPlayerParticipation(tieId)
 
@@ -136,28 +166,38 @@ export function SpieltageClient() {
   }
 
   const handleCommentConfirm = async (comment: string) => {
-    if (!pendingParticipation || !selectedPlayerId) return
+    if (!pendingParticipation || selectedPlayerId === null) return
 
     const { tieId, status } = pendingParticipation
 
     try {
-      await updateParticipation(tieId, selectedPlayerId, status, comment || null)
+      await updateParticipation(String(tieId), String(selectedPlayerId), status, comment || '')
 
-      const participations = await getParticipationsForTie(tieId)
-      const participationsWithPlayers = participations.map((p: any) => ({
-        ...p,
-        player: players.find((player) => player.id === p.player_id)!,
+      const participations = await getParticipationsForTie(String(tieId))
+      const participationsWithPlayers: SpieltageParticipation[] = participations.map((p: any) => ({
+        id: p.id,
+        tieId: p.tieId,
+        playerId: p.playerId,
+        status: p.status,
+        comment: p.comment ?? null,
+        playerRank: p.playerRank,
+        player: {
+          id: p.playerId,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          email: p.email ?? null,
+        },
       }))
 
       setTies((prevTies) =>
         prevTies.map((tie) => {
-          if (`${tie.id}` === tieId) {
+          if (tie.id === tieId) {
             return {
               ...tie,
               participations: participationsWithPlayers,
-              confirmedCount: participations.filter((p: any) => p.status === "confirmed").length,
-              maybeCount: participations.filter((p: any) => p.status === "maybe").length,
-              declinedCount: participations.filter((p: any) => p.status === "declined").length,
+              confirmedCount: participationsWithPlayers.filter((p) => p.status === "confirmed").length,
+              maybeCount: participationsWithPlayers.filter((p) => p.status === "maybe").length,
+              declinedCount: participationsWithPlayers.filter((p) => p.status === "declined").length,
             }
           }
           return tie
@@ -192,9 +232,9 @@ export function SpieltageClient() {
     })
   }
 
-  const isPlayerOnTeam = (tie: Tie) => {
-    if (!selectedPlayerId) return false
-    return tie.team_player_ids.includes(selectedPlayerId)
+  const isPlayerOnTeam = (tie: TieWithDetails) => {
+    if (selectedPlayerId === null) return false
+    return tie.teamPlayerIds.includes(selectedPlayerId)
   }
 
   if (loading) {
@@ -253,14 +293,17 @@ export function SpieltageClient() {
         {/* Filter Section */}
         <div className="mb-8 flex items-center gap-4">
           <label className="text-base text-white">{t("impersonatePlayer")}</label>
-          <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
+          <Select
+            value={selectedPlayerId !== null ? String(selectedPlayerId) : ""}
+            onValueChange={(value) => setSelectedPlayerId(value ? Number(value) : null)}
+          >
             <SelectTrigger className="w-[250px] border-gray-300 bg-white text-gray-900">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {players.map((player) => (
-                <SelectItem key={player.id} value={player.id}>
-                  {player.first_name} {player.last_name}
+                <SelectItem key={player.id} value={String(player.id)}>
+                  {player.firstName} {player.lastName}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -285,14 +328,14 @@ export function SpieltageClient() {
             return (
               <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg">
                 <h2 className="mb-4 text-xl font-semibold text-white">
-                  {tie.team_name} {t("vs")} {tie.opponent}
+                  {tie.teamName} {t("vs")} {tie.opponent}
                 </h2>
 
                 <div className="mb-4 space-y-3">
                   <div className="flex items-center gap-3 text-white">
                     <Calendar className="h-5 w-5" />
                     <span className="text-sm">
-                      {formatDate(tie.date_time)} {formatTime(tie.date_time)}
+                      {formatDate(tie.tieDate)} {formatTime(tie.tieDate)}
                     </span>
                     <span className="ml-auto inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
                       <Download className="h-3 w-3" />
@@ -302,7 +345,7 @@ export function SpieltageClient() {
 
                   <div className="flex items-center gap-3 text-white">
                     <MapPin className="h-5 w-5" />
-                    <span className="text-sm">{tie.location}</span>
+                    <span className="text-sm">{tie.location || "—"}</span>
                   </div>
 
                   <div className="flex items-center gap-3 text-white">
@@ -324,7 +367,7 @@ export function SpieltageClient() {
                 {canParticipate ? (
                   <div className="grid grid-cols-3 gap-2">
                     <button
-                      onClick={() => handleParticipationClick(`${tie.id}`, "confirmed")}
+                      onClick={() => handleParticipationClick(tie.id, "confirmed")}
                       className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
                         status === "confirmed"
                           ? "border-green-500 bg-white text-green-600"
@@ -334,7 +377,7 @@ export function SpieltageClient() {
                       {t("confirm")}
                     </button>
                     <button
-                      onClick={() => handleParticipationClick(`${tie.id}`, "maybe")}
+                      onClick={() => handleParticipationClick(tie.id, "maybe")}
                       className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
                         status === "maybe"
                           ? "border-yellow-500 bg-white text-yellow-600"
@@ -344,7 +387,7 @@ export function SpieltageClient() {
                       {t("maybe")}
                     </button>
                     <button
-                      onClick={() => handleParticipationClick(`${tie.id}`, "declined")}
+                      onClick={() => handleParticipationClick(tie.id, "declined")}
                       className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
                         status === "declined"
                           ? "border-red-500 bg-white text-red-600"

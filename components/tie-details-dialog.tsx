@@ -3,37 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar, MapPin, Users, CheckCircle, HelpCircle, XCircle } from "lucide-react"
 import { useTranslation } from "@/lib/i18n"
-import { TieWithDetails } from "@/app/spieltage/spieltage-client"
-
-type Player = {
-  id: string
-  first_name: string
-  last_name: string
-  email: string
-}
-
-type Participation = {
-  id: string
-  tie_id: string
-  player_id: string
-  player_rank: number | null
-  status: "confirmed" | "maybe" | "declined"
-  player: Player
-}
-
-// type TieWithDetails = {
-//   id: string
-//   team_id: string
-//   opponent: string
-//   date_time: string
-//   location: string
-//   is_home: boolean
-//   team_name: string
-//   participations: Participation[]
-//   confirmedCount: number
-//   maybeCount: number
-//   declinedCount: number
-// }
+import type { TieWithDetails } from "@/app/spieltage/spieltage-client"
 
 interface TieDetailsDialogProps {
   tie: TieWithDetails
@@ -73,7 +43,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl">
-            {tie.team_name} {t("vs")} {tie.opponent}
+            {tie.teamName} {t("vs")} {tie.opponent}
           </DialogTitle>
         </DialogHeader>
 
@@ -83,7 +53,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
             <div className="flex items-center gap-3 text-gray-700">
               <Calendar className="h-5 w-5" />
               <span>
-                {formatDate(tie.date_time)} um {formatTime(tie.date_time)}
+                {formatDate(tie.tieDate)} um {formatTime(tie.tieDate)}
               </span>
             </div>
 
@@ -115,7 +85,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 <div className="space-y-1">
                   {confirmedPlayers.map((p) => (
                     <div key={p.id} className="rounded bg-green-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.first_name} {p.player.last_name} ({p.player_rank})
+                      {p.player.firstName} {p.player.lastName} ({p.playerRank})
                     </div>
                   ))}
                 </div>
@@ -134,7 +104,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 <div className="space-y-1">
                   {maybePlayers.map((p) => (
                     <div key={p.id} className="rounded bg-yellow-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.first_name} {p.player.last_name} ({p.player_rank})
+                      {p.player.firstName} {p.player.lastName} ({p.playerRank})
                     </div>
                   ))}
                 </div>
@@ -153,7 +123,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 <div className="space-y-1">
                   {declinedPlayers.map((p) => (
                     <div key={p.id} className="rounded bg-red-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.first_name} {p.player.last_name} ({p.player_rank})
+                      {p.player.firstName} {p.player.lastName} ({p.playerRank})
                     </div>
                   ))}
                 </div>

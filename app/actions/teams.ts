@@ -4,17 +4,30 @@ import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
 
 export async function createTeamAction(formData: FormData) {
+  const seasonId = Number(formData.get("season_id"))
+  if (Number.isNaN(seasonId)) {
+    throw new Error("Invalid season id")
+  }
+
+  const leagueValue = (formData.get("league") as string) || null
+
   const data = {
-    season_id: formData.get("season_id") as string,
+    seasonId,
     name: formData.get("name") as string,
-    league: formData.get("league") as string,
+    league: leagueValue,
   }
 
   const team = await db.createTeam(data)
 
   const playerIds = formData.get("player_ids") as string
   if (playerIds) {
-    const parsedPlayerIds = JSON.parse(playerIds)
+    const parsedPlayerIds = (JSON.parse(playerIds) as Array<string | number>).map((playerId, index) => {
+      const numericId = Number(playerId)
+      if (Number.isNaN(numericId)) {
+        throw new Error(`Invalid player id at index ${index}`)
+      }
+      return numericId
+    })
     await db.setTeamPlayers(team.id, parsedPlayerIds)
   }
 
@@ -23,18 +36,36 @@ export async function createTeamAction(formData: FormData) {
 }
 
 export async function updateTeamAction(id: string, formData: FormData) {
-  const data = {
-    season_id: formData.get("season_id") as string,
-    name: formData.get("name") as string,
-    league: formData.get("league") as string,
+  const teamId = Number(id)
+  if (Number.isNaN(teamId)) {
+    throw new Error("Invalid team id")
   }
 
-  await db.updateTeam(id, data)
+  const seasonId = Number(formData.get("season_id"))
+  if (Number.isNaN(seasonId)) {
+    throw new Error("Invalid season id")
+  }
+
+  const leagueValue = (formData.get("league") as string) || null
+
+  const data = {
+    seasonId,
+    name: formData.get("name") as string,
+    league: leagueValue,
+  }
+
+  await db.updateTeam(teamId, data)
 
   const playerIds = formData.get("player_ids") as string
   if (playerIds) {
-    const parsedPlayerIds = JSON.parse(playerIds)
-    await db.setTeamPlayers(id, parsedPlayerIds)
+    const parsedPlayerIds = (JSON.parse(playerIds) as Array<string | number>).map((playerId, index) => {
+      const numericId = Number(playerId)
+      if (Number.isNaN(numericId)) {
+        throw new Error(`Invalid player id at index ${index}`)
+      }
+      return numericId
+    })
+    await db.setTeamPlayers(teamId, parsedPlayerIds)
   }
 
   revalidatePath("/admin/teams")
@@ -42,7 +73,12 @@ export async function updateTeamAction(id: string, formData: FormData) {
 }
 
 export async function deleteTeamAction(id: string) {
-  await db.deleteTeam(id)
+  const teamId = Number(id)
+  if (Number.isNaN(teamId)) {
+    throw new Error("Invalid team id")
+  }
+
+  await db.deleteTeam(teamId)
   revalidatePath("/admin/teams")
   return { success: true }
 }

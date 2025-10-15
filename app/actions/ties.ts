@@ -4,13 +4,22 @@ import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
 
 export async function createTieAction(formData: FormData) {
+  const teamId = Number(formData.get("team_id"))
+  if (Number.isNaN(teamId)) {
+    throw new Error("Invalid team id")
+  }
+
+  const tieDate = formData.get("date_time") as string
+  const location = (formData.get("location") as string) || null
+  const isHome = formData.get("is_home") === "true"
+
   const data = {
-    season_id: formData.get("season_id") as string,
-    team_id: formData.get("team_id") as string,
+    teamId,
     opponent: formData.get("opponent") as string,
-    date_time: formData.get("date_time") as string,
-    location: formData.get("location") as string,
-    is_home: formData.get("is_home") === "true",
+    tieDate,
+    location,
+    isHome,
+    notes: null,
   }
 
   await db.createTie(data)
@@ -19,22 +28,41 @@ export async function createTieAction(formData: FormData) {
 }
 
 export async function updateTieAction(id: string, formData: FormData) {
-  const data = {
-    season_id: formData.get("season_id") as string,
-    team_id: formData.get("team_id") as string,
-    opponent: formData.get("opponent") as string,
-    date_time: formData.get("date_time") as string,
-    location: formData.get("location") as string,
-    is_home: formData.get("is_home") === "true",
+  const tieId = Number(id)
+  if (Number.isNaN(tieId)) {
+    throw new Error("Invalid tie id")
   }
 
-  await db.updateTie(id, data)
+  const teamId = Number(formData.get("team_id"))
+  if (Number.isNaN(teamId)) {
+    throw new Error("Invalid team id")
+  }
+
+  const tieDate = formData.get("date_time") as string
+  const location = (formData.get("location") as string) || null
+  const isHome = formData.get("is_home") === "true"
+
+  const data = {
+    teamId,
+    opponent: formData.get("opponent") as string,
+    tieDate,
+    location,
+    isHome,
+    notes: null,
+  }
+
+  await db.updateTie(tieId, data)
   revalidatePath("/admin/ties")
   return { success: true }
 }
 
 export async function deleteTieAction(id: string) {
-  await db.deleteTie(id)
+  const tieId = Number(id)
+  if (Number.isNaN(tieId)) {
+    throw new Error("Invalid tie id")
+  }
+
+  await db.deleteTie(tieId)
   revalidatePath("/admin/ties")
   return { success: true }
 }

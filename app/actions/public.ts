@@ -8,14 +8,19 @@ export async function validateAccessCode(accessCode: string) {
 }
 
 export async function getTiesForSeason(seasonId: string) {
-  const ties = await db.getTiesBySeasonId(seasonId)
+  const numericSeasonId = Number(seasonId)
+  if (Number.isNaN(numericSeasonId)) {
+    throw new Error("Invalid season id")
+  }
+
+  const ties = await db.getTiesBySeasonId(numericSeasonId)
 
   const tiesWithTeamPlayers = await Promise.all(
-    ties.map(async (tie: any) => {
-      const teamPlayers = await db.getTeamPlayers(tie.team_id)
+    ties.map(async (tie) => {
+      const teamPlayers = await db.getTeamPlayers(tie.teamId)
       return {
         ...tie,
-        team_player_ids: teamPlayers.map((p: any) => p.id),
+        teamPlayerIds: teamPlayers.map((p) => p.id),
       }
     }),
   )
@@ -24,30 +29,56 @@ export async function getTiesForSeason(seasonId: string) {
 }
 
 export async function getPlayersForSeason(seasonId: string) {
+  const numericSeasonId = Number(seasonId)
+  if (Number.isNaN(numericSeasonId)) {
+    throw new Error("Invalid season id")
+  }
+
   // Get all teams for the season
   const teams = await db.getTeams()
-  const seasonTeams = teams.filter((t: any) => `${t.season_id}` === seasonId)
+  const seasonTeams = teams.filter((team) => team.seasonId === numericSeasonId)
 
   // Get all unique players from these teams
-  const playerIds = new Set<string>()
+  const playerIds = new Set<number>()
   for (const team of seasonTeams) {
     const teamPlayers = await db.getTeamPlayers(team.id)
-    teamPlayers.forEach((p: any) => playerIds.add(p.id))
+    teamPlayers.forEach((player) => playerIds.add(player.id))
   }
 
   // Fetch full player details
   const allPlayers = await db.getPlayers()
-  return allPlayers.filter((p: any) => playerIds.has(p.id))
+  return allPlayers.filter((player) => playerIds.has(player.id))
 }
 
 export async function getParticipationsForTie(tieId: string) {
-  return await db.getParticipations(tieId)
+  const numericTieId = Number(tieId)
+  if (Number.isNaN(numericTieId)) {
+    throw new Error("Invalid tie id")
+  }
+
+  return await db.getParticipations(numericTieId)
 }
 
-export async function updateParticipation(tieId: string, playerId: string, status: "confirmed" | "maybe" | "declined") {
+export async function updateParticipation(
+  tieId: string,
+  playerId: string,
+  status: "confirmed" | "maybe" | "declined",
+  comment: string,
+) {
+  const numericTieId = Number(tieId)
+  if (Number.isNaN(numericTieId)) {
+    throw new Error("Invalid tie id")
+  }
+
+  const numericPlayerId = Number(playerId)
+  if (Number.isNaN(numericPlayerId)) {
+    throw new Error("Invalid player id")
+  }
+
   return await db.upsertParticipation({
-    tie_id: tieId,
-    player_id: playerId,
+    tieId: numericTieId,
+    playerId: numericPlayerId,
     status,
+    comment,
   })
 }

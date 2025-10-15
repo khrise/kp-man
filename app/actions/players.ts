@@ -8,10 +8,12 @@ export async function getPlayers() {
 }
 
 export async function createPlayerAction(formData: FormData) {
+  const emailValue = (formData.get("email") as string) || null
+
   const data = {
-    first_name: formData.get("first_name") as string,
-    last_name: formData.get("last_name") as string,
-    email: formData.get("email") as string,
+    firstName: formData.get("first_name") as string,
+    lastName: formData.get("last_name") as string,
+    email: emailValue,
   }
 
   await db.createPlayer(data)
@@ -20,19 +22,31 @@ export async function createPlayerAction(formData: FormData) {
 }
 
 export async function updatePlayerAction(id: string, formData: FormData) {
-  const data = {
-    first_name: formData.get("first_name") as string,
-    last_name: formData.get("last_name") as string,
-    email: formData.get("email") as string,
+  const playerId = Number(id)
+  if (Number.isNaN(playerId)) {
+    throw new Error("Invalid player id")
   }
 
-  await db.updatePlayer(id, data)
+  const emailValue = (formData.get("email") as string) || null
+
+  const data = {
+    firstName: formData.get("first_name") as string,
+    lastName: formData.get("last_name") as string,
+    email: emailValue,
+  }
+
+  await db.updatePlayer(playerId, data)
   revalidatePath("/admin/players")
   return { success: true }
 }
 
 export async function deletePlayerAction(id: string) {
-  await db.deletePlayer(id)
+  const playerId = Number(id)
+  if (Number.isNaN(playerId)) {
+    throw new Error("Invalid player id")
+  }
+
+  await db.deletePlayer(playerId)
   revalidatePath("/admin/players")
   return { success: true }
 }

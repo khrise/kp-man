@@ -9,7 +9,16 @@ export default async function TeamsPage() {
   const teamsWithPlayers = await Promise.all(
     teams.map(async (team) => {
       const teamPlayers = await db.getTeamPlayers(team.id)
-      return { ...team, players: teamPlayers }
+      return {
+        ...team,
+        players: teamPlayers.map((player) => ({
+          id: player.id,
+          firstName: player.firstName,
+          lastName: player.lastName,
+          email: player.email,
+          playerRank: player.playerRank,
+        })),
+      }
     }),
   )
 
