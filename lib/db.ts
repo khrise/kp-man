@@ -31,7 +31,12 @@ export async function createSeason(data: { name: string; start_date: string; end
 
 export async function updateSeason(
   id: string,
-  data: { name: string; start_date: string; end_date: string; access_code: string },
+  data: {
+    name: string
+    start_date: string
+    end_date: string
+    access_code: string
+  },
 ) {
   const [season] = await sql`
     UPDATE seasons
@@ -211,9 +216,12 @@ export async function deleteTie(id: string) {
 // Participations
 export async function getParticipations(tieId: string) {
   const participations = await sql`
-    SELECT p.*, pl.first_name, pl.last_name
+    SELECT p.*, pl.first_name, pl.last_name, tp.player_rank as player_rank
     FROM participations p
     JOIN players pl ON p.player_id = pl.id
+    JOIN ties t ON p.tie_id = t.id
+    JOIN teams tm ON t.team_id = tm.id
+    JOIN team_players tp ON pl.id = tp.player_id AND tm.id = tp.team_id
     WHERE p.tie_id = ${tieId}
     ORDER BY p.status, pl.last_name, pl.first_name
   `

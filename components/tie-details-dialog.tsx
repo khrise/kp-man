@@ -1,6 +1,9 @@
+"use client"
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar, MapPin, Users, CheckCircle, HelpCircle, XCircle } from "lucide-react"
 import { useTranslation } from "@/lib/i18n"
+import { TieWithDetails } from "@/app/spieltage/spieltage-client"
 
 type Player = {
   id: string
@@ -13,23 +16,24 @@ type Participation = {
   id: string
   tie_id: string
   player_id: string
+  player_rank: number | null
   status: "confirmed" | "maybe" | "declined"
   player: Player
 }
 
-type TieWithDetails = {
-  id: string
-  team_id: string
-  opponent: string
-  date_time: string
-  location: string
-  is_home: boolean
-  team_name: string
-  participations: Participation[]
-  confirmedCount: number
-  maybeCount: number
-  declinedCount: number
-}
+// type TieWithDetails = {
+//   id: string
+//   team_id: string
+//   opponent: string
+//   date_time: string
+//   location: string
+//   is_home: boolean
+//   team_name: string
+//   participations: Participation[]
+//   confirmedCount: number
+//   maybeCount: number
+//   declinedCount: number
+// }
 
 interface TieDetailsDialogProps {
   tie: TieWithDetails
@@ -39,6 +43,8 @@ interface TieDetailsDialogProps {
 
 export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogProps) {
   const { t } = useTranslation()
+
+  // console.log(tie)
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -109,7 +115,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 <div className="space-y-1">
                   {confirmedPlayers.map((p) => (
                     <div key={p.id} className="rounded bg-green-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.first_name} {p.player.last_name}
+                      {p.player.first_name} {p.player.last_name} ({p.player_rank})
                     </div>
                   ))}
                 </div>
@@ -128,7 +134,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 <div className="space-y-1">
                   {maybePlayers.map((p) => (
                     <div key={p.id} className="rounded bg-yellow-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.first_name} {p.player.last_name}
+                      {p.player.first_name} {p.player.last_name} ({p.player_rank})
                     </div>
                   ))}
                 </div>
@@ -147,7 +153,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                 <div className="space-y-1">
                   {declinedPlayers.map((p) => (
                     <div key={p.id} className="rounded bg-red-50 px-3 py-2 text-sm text-gray-700">
-                      {p.player.first_name} {p.player.last_name}
+                      {p.player.first_name} {p.player.last_name} ({p.player_rank})
                     </div>
                   ))}
                 </div>

@@ -26,7 +26,7 @@ export async function getTiesForSeason(seasonId: string) {
 export async function getPlayersForSeason(seasonId: string) {
   // Get all teams for the season
   const teams = await db.getTeams()
-  const seasonTeams = teams.filter((t: any) => t.season_id === seasonId)
+  const seasonTeams = teams.filter((t: any) => `${t.season_id}` === seasonId)
 
   // Get all unique players from these teams
   const playerIds = new Set<string>()

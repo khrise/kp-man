@@ -15,6 +15,7 @@ import { TieDetailsDialog } from "@/components/tie-details-dialog"
 import { ParticipationCommentDialog } from "@/components/participation-comment-dialog"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useTranslation } from "@/lib/i18n"
+import { TieWithDetails } from "@/lib/types"
 
 type Player = {
   id: string
@@ -42,12 +43,6 @@ type Participation = {
   comment?: string // Added to track comments
 }
 
-type TieWithDetails = Tie & {
-  participations: (Participation & { player: Player })[]
-  confirmedCount: number
-  maybeCount: number
-  declinedCount: number
-}
 
 export function SpieltageClient() {
   const router = useRouter()
@@ -123,8 +118,8 @@ export function SpieltageClient() {
   }
 
   const getPlayerParticipation = (tieId: string) => {
-    const tie = ties.find((t) => t.id === tieId)
-    return tie?.participations.find((p) => p.player_id === selectedPlayerId)
+    const tie = ties.find((t) => `${t.id}` === tieId)
+    return tie?.participations.find((p) => `${p.playerId}` === selectedPlayerId)
   }
 
   const handleParticipationClick = async (tieId: string, status: "confirmed" | "maybe" | "declined") => {
@@ -156,7 +151,7 @@ export function SpieltageClient() {
 
       setTies((prevTies) =>
         prevTies.map((tie) => {
-          if (tie.id === tieId) {
+          if (`${tie.id}` === tieId) {
             return {
               ...tie,
               participations: participationsWithPlayers,
@@ -329,7 +324,7 @@ export function SpieltageClient() {
                 {canParticipate ? (
                   <div className="grid grid-cols-3 gap-2">
                     <button
-                      onClick={() => handleParticipationClick(tie.id, "confirmed")}
+                      onClick={() => handleParticipationClick(`${tie.id}`, "confirmed")}
                       className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
                         status === "confirmed"
                           ? "border-green-500 bg-white text-green-600"
@@ -339,7 +334,7 @@ export function SpieltageClient() {
                       {t("confirm")}
                     </button>
                     <button
-                      onClick={() => handleParticipationClick(tie.id, "maybe")}
+                      onClick={() => handleParticipationClick(`${tie.id}`, "maybe")}
                       className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
                         status === "maybe"
                           ? "border-yellow-500 bg-white text-yellow-600"
@@ -349,7 +344,7 @@ export function SpieltageClient() {
                       {t("maybe")}
                     </button>
                     <button
-                      onClick={() => handleParticipationClick(tie.id, "declined")}
+                      onClick={() => handleParticipationClick(`${tie.id}`, "declined")}
                       className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
                         status === "declined"
                           ? "border-red-500 bg-white text-red-600"
