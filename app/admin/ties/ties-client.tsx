@@ -2,14 +2,14 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, Check, X } from "lucide-react"
+import { Plus, Edit, Trash2, Check, X, ArrowUpDown } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
 import { useTranslation, translations } from "@/lib/i18n"
 
@@ -50,6 +50,10 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const [isImporting, setIsImporting] = useState(false)
   const [importUrl, setImportUrl] = useState("")
   const [editingId, setEditingId] = useState<number | null>(null)
+  
+  // Sorting and filtering state
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('all')
   const [formData, setFormData] = useState({
     seasonId: seasons[0] ? String(seasons[0].id) : "",
     teamId: teams[0] ? String(teams[0].id) : "",
@@ -74,6 +78,47 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     selected: boolean
   }>>([])
   const [importingSelected, setImportingSelected] = useState(false)
+
+  // Extract unique team-season combinations for filtering
+  const availableTeams = useMemo(() => {
+    const teamSeasonSet = new Set<string>()
+    initialTies.forEach(tie => {
+      const teamSeasonCombo = `${tie.teamName}|${tie.seasonName}`
+      teamSeasonSet.add(teamSeasonCombo)
+    })
+    return Array.from(teamSeasonSet)
+      .map(combo => {
+        const [teamName, seasonName] = combo.split('|')
+        return {
+          value: combo,
+          label: `${teamName} (${seasonName})`,
+          teamName
+        }
+      })
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [initialTies])
+
+  // Filter and sort ties
+  const filteredAndSortedTies = useMemo(() => {
+    let filtered = initialTies
+
+    // Filter by team if a specific team is selected
+    if (selectedTeamFilter !== 'all') {
+      const [teamName, seasonName] = selectedTeamFilter.split('|')
+      filtered = filtered.filter(tie => 
+        tie.teamName === teamName && tie.seasonName === seasonName
+      )
+    }
+
+    // Sort by tie date
+    const sorted = [...filtered].sort((a, b) => {
+      const dateA = new Date(a.tieDate).getTime()
+      const dateB = new Date(b.tieDate).getTime()
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+    })
+
+    return sorted
+  }, [initialTies, selectedTeamFilter, sortOrder])
 
   const handleEdit = (tie: Tie) => {
     setEditingId(tie.id)
@@ -592,40 +637,104 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
         </Card>
       )}
 
+      {/* Sorting and Filtering Controls */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="teamFilter">Filter by Team</Label>
+              <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Teams</SelectItem>
+                  {availableTeams.map((team) => (
+                    <SelectItem key={team.value} value={team.value}>
+                      {team.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="sortOrder">Sort by Date</Label>
+              <Button
+                variant="outline"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="w-full justify-start"
+              >
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+              </Button>
+            </div>
+            <div className="sm:self-end">
+              <p className="text-sm text-gray-600">
+                {filteredAndSortedTies.length} of {initialTies.length} ties
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4">
-        {initialTies.map((tie) => {
-          console.log("Rendering tie with date:", tie.tieDate)
-          return (
-            <Card key={tie.id}>
-              <CardContent className="flex items-center justify-between p-6">
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    {tie.teamName} {t('vs')} {tie.opponent}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {tie.tieDate.toLocaleDateString()} {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                  <p className="text-sm text-gray-600">{tie.location}</p>
-                  <span
-                    className={`mt-2 inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                      tie.isHome ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
-                    }`}
+        {filteredAndSortedTies.length === 0 ? (
+          <Card>
+            <CardContent className="flex items-center justify-center p-8">
+              <div className="text-center">
+                <p className="text-gray-500">
+                  {selectedTeamFilter === 'all' 
+                    ? 'No ties found.' 
+                    : `No ties found for ${availableTeams.find(t => t.value === selectedTeamFilter)?.label || selectedTeamFilter}.`}
+                </p>
+                {selectedTeamFilter !== 'all' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedTeamFilter('all')}
+                    className="mt-2"
                   >
-                    {tie.isHome ? t('home') : t('away')}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(tie)}>
-                    <Edit className="h-4 w-4" />
+                    Show all teams
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(tie.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredAndSortedTies.map((tie) => {
+            console.log("Rendering tie with date:", tie.tieDate)
+            return (
+              <Card key={tie.id}>
+                <CardContent className="flex items-center justify-between p-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {tie.teamName} {t('vs')} {tie.opponent}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {tie.tieDate.toLocaleDateString()} {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                    <p className="text-sm text-gray-600">{tie.location}</p>
+                    <span
+                      className={`mt-2 inline-block rounded-full px-2 py-1 text-xs font-medium ${
+                        tie.isHome ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {tie.isHome ? t('home') : t('away')}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(tie)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleDelete(tie.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
       </div>
     </main>
   )
