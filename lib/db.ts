@@ -1,4 +1,4 @@
-import { Pool } from "@neondatabase/serverless"
+import { Pool } from "pg"
 import {
   CamelCasePlugin,
   ColumnType,
@@ -11,12 +11,8 @@ import {
   sql,
 } from "kysely"
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set")
-}
-
-type TimestampColumn = ColumnType<string, string | Date | undefined, string | Date | undefined>
-type DateColumn = ColumnType<string, string | Date, string | Date>
+type TimestampColumn = ColumnType<Date, string | Date | undefined, string | Date | undefined>
+type DateColumn = ColumnType<Date, string | Date, string | Date>
 type NullableStringColumn = ColumnType<string | null, string | null | undefined, string | null | undefined>
 
 interface UsersTable {
@@ -104,16 +100,58 @@ const globalForDb = globalThis as unknown as {
   db?: Kysely<Database>
 }
 
-export const db =
-  globalForDb.db ??
-  (globalForDb.db = new Kysely<Database>({
-    dialect: new PostgresDialect({
-      pool: new Pool({
-        connectionString: process.env.DATABASE_URL,
+function createDatabase(): Kysely<Database> {
+  console.log("[DB] Creating database connection...")
+
+  if (!process.env.DATABASE_URL) {
+    console.error("[DB] DATABASE_URL is not set")
+    throw new Error("DATABASE_URL is not set")
+  }
+
+  // Validate DATABASE_URL format
+  try {
+    const url = new URL(process.env.DATABASE_URL)
+    console.log("[DB] DATABASE_URL is valid, protocol:", url.protocol)
+  } catch (error) {
+    console.error("[DB] Invalid DATABASE_URL format:", process.env.DATABASE_URL, error)
+    throw new Error(`Invalid DATABASE_URL format: ${error}`)
+  }
+
+  try {
+    console.log("[DB] Creating Kysely instance...")
+    const db = new Kysely<Database>({
+      dialect: new PostgresDialect({
+        pool: new Pool({
+          connectionString: process.env.DATABASE_URL,
+        }),
       }),
-    }),
-    plugins: [new CamelCasePlugin()],
-  }))
+      plugins: [new CamelCasePlugin()],
+    })
+    console.log("[DB] Database connection created successfully")
+    return db
+  } catch (error) {
+    console.error("[DB] Failed to create database connection:", error)
+    throw error
+  }
+}
+
+function getDb(): Kysely<Database> {
+  if (!globalForDb.db) {
+    globalForDb.db = createDatabase()
+  }
+  return globalForDb.db
+}
+
+export const db = new Proxy({} as Kysely<Database>, {
+  get(target, prop, receiver) {
+    const dbInstance = getDb()
+    const value = Reflect.get(dbInstance, prop, receiver)
+    if (typeof value === "function") {
+      return value.bind(dbInstance)
+    }
+    return value
+  },
+})
 
 export type User = Selectable<UsersTable>
 export type Season = Selectable<SeasonsTable>
@@ -137,7 +175,8 @@ export type NewParticipation = Insertable<ParticipationsTable>
 export type UpdateParticipation = Updateable<ParticipationsTable>
 
 export async function getSeasons(): Promise<Season[]> {
-  return db.selectFrom("seasons").selectAll().orderBy("startDate", "desc").execute()
+  const result = await db.selectFrom("seasons").selectAll().orderBy("startDate", "desc").execute()
+  return result
 }
 
 export async function getSeasonById(id: number): Promise<Season | undefined> {
@@ -169,7 +208,8 @@ export async function deleteSeason(id: number) {
 }
 
 export async function getTeams(): Promise<Team[]> {
-  return db.selectFrom("teams").selectAll().orderBy("name").execute()
+  const result = await db.selectFrom("teams").selectAll().orderBy("name").execute()
+  return result
 }
 
 export async function getTeamById(id: number): Promise<Team | undefined> {
@@ -201,7 +241,7 @@ export type TeamPlayerWithDetails = {
   firstName: string
   lastName: string
   email: string | null
-  createdAt: string
+  createdAt: Date
   teamId: number
   playerId: number
   playerRank: number
@@ -300,10 +340,10 @@ export type TieWithTeamName = {
   id: number
   teamId: number
   opponent: string
-  tieDate: string
+  tieDate: Date
   location: string | null
   isHome: boolean
-  createdAt: string
+  createdAt: Date
   teamName: string
 }
 
@@ -312,15 +352,7 @@ export async function getTiesBySeasonId(seasonId: number): Promise<TieWithTeamNa
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .where("tm.seasonId", "=", seasonId)
-    .select([
-      "t.id",
-      "t.teamId",
-      "t.opponent",
-      "t.tieDate",
-      "t.location",
-      "t.isHome",
-      "t.createdAt",
-    ])
+    .select(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.location", "t.isHome", "t.createdAt"])
     .select((eb) => eb.ref("tm.name").as("teamName"))
     .orderBy("t.tieDate", "asc")
     .execute()
@@ -362,21 +394,8 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
     .innerJoin("players as pl", "pl.id", "p.playerId")
     .innerJoin("ties as t", "t.id", "p.tieId")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
-    .innerJoin("teamPlayers as tp", (join) =>
-      join
-        .onRef("pl.id", "=", "tp.playerId")
-        .onRef("tm.id", "=", "tp.teamId"),
-    )
-    .select([
-      "p.id",
-      "p.tieId",
-      "p.playerId",
-      "p.status",
-      "p.comment",
-      "p.respondedAt",
-      "p.createdAt",
-      "p.updatedAt",
-    ])
+    .innerJoin("teamPlayers as tp", (join) => join.onRef("pl.id", "=", "tp.playerId").onRef("tm.id", "=", "tp.teamId"))
+    .select(["p.id", "p.tieId", "p.playerId", "p.status", "p.comment", "p.respondedAt", "p.createdAt", "p.updatedAt"])
     .select(["pl.firstName", "pl.lastName", "pl.email", "tp.playerRank"])
     .where("p.tieId", "=", tieId)
     .orderBy("p.status")
@@ -385,10 +404,7 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
     .execute()
 }
 
-type UpsertParticipationInput = Pick<
-  Insertable<ParticipationsTable>,
-  "tieId" | "playerId" | "status" | "comment"
->
+type UpsertParticipationInput = Pick<Insertable<ParticipationsTable>, "tieId" | "playerId" | "status" | "comment">
 
 export async function upsertParticipation(data: UpsertParticipationInput): Promise<Participation> {
   const inserted = await db

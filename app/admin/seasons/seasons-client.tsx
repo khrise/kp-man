@@ -13,12 +13,12 @@ import { createSeasonAction, updateSeasonAction, deleteSeasonAction } from "@/ap
 type Season = {
   id: number
   name: string
-  startDate: string
-  endDate: string
+  startDate: Date
+  endDate: Date
   accessCode: string
   isActive: boolean
-  createdAt: string
-  updatedAt: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 function generateAccessCode(): string {

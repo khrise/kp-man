@@ -41,7 +41,7 @@ export type TieWithDetails = {
   id: number
   teamId: number
   opponent: string
-  tieDate: string
+  tieDate: Date
   location: string | null
   isHome: boolean
   teamName: string
@@ -262,8 +262,7 @@ export function SpieltageClient() {
     setShowDetailsDialog(true)
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString("de-DE", {
       day: "2-digit",
       month: "2-digit",
@@ -271,8 +270,7 @@ export function SpieltageClient() {
     })
   }
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatTime = (date: Date) => {
     return date.toLocaleTimeString("de-DE", {
       hour: "2-digit",
       minute: "2-digit",

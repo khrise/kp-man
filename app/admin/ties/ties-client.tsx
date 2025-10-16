@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -55,8 +55,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('all')
   const [formData, setFormData] = useState({
-    seasonId: seasons[0] ? String(seasons[0].id) : "",
-    teamId: teams[0] ? String(teams[0].id) : "",
+    teamSeason: "",
     opponent: "",
     tieDate: "",
     tieTime: "",
@@ -64,8 +63,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     isHome: true,
     notes: "",
   })
-  const [importSeasonId, setImportSeasonId] = useState(seasons[0] ? String(seasons[0].id) : "")
-  const [importTeamId, setImportTeamId] = useState(teams[0] ? String(teams[0].id) : "")
+  const [importTeamSeason, setImportTeamSeason] = useState("")
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
   const [parsedTies, setParsedTies] = useState<Array<{
@@ -98,6 +96,20 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [initialTies])
 
+  // Set default import team-season when availableTeams changes
+  useEffect(() => {
+    if (availableTeams.length > 0 && !importTeamSeason) {
+      setImportTeamSeason(availableTeams[0].value)
+    }
+  }, [availableTeams, importTeamSeason])
+
+  // Set default form team-season when availableTeams changes
+  useEffect(() => {
+    if (availableTeams.length > 0 && !formData.teamSeason) {
+      setFormData(prev => ({ ...prev, teamSeason: availableTeams[0].value }))
+    }
+  }, [availableTeams, formData.teamSeason])
+
   // Filter and sort ties
   const filteredAndSortedTies = useMemo(() => {
     let filtered = initialTies
@@ -125,9 +137,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     const date = new Date(tie.tieDate)
     const dateStr = date.toISOString().split("T")[0]
     const timeStr = date.toTimeString().slice(0, 5)
+    const teamSeasonValue = `${tie.teamName}|${tie.seasonName}`
     setFormData({
-      seasonId: String(tie.seasonId),
-      teamId: String(tie.teamId),
+      teamSeason: teamSeasonValue,
       opponent: tie.opponent,
       tieDate: dateStr,
       tieTime: timeStr,
@@ -140,9 +152,19 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Extract team and season from selected combination
+    const [selectedTeamName, selectedSeasonName] = formData.teamSeason.split('|')
+    const selectedTeam = teams.find(t => t.name === selectedTeamName)
+    const selectedSeason = seasons.find(s => s.name === selectedSeasonName)
+    
+    if (!selectedTeam || !selectedSeason) {
+      alert(t('selectValidTeamSeason'))
+      return
+    }
+
     const formDataToSend = new FormData()
-    formDataToSend.append("season_id", formData.seasonId)
-    formDataToSend.append("team_id", formData.teamId)
+    formDataToSend.append("season_id", String(selectedSeason.id))
+    formDataToSend.append("team_id", String(selectedTeam.id))
     formDataToSend.append("opponent", formData.opponent)
     formDataToSend.append("date_time", `${formData.tieDate}T${formData.tieTime}`)
     formDataToSend.append("location", formData.location)
@@ -163,8 +185,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     setIsAdding(false)
     setEditingId(null)
     setFormData({
-      seasonId: seasons[0] ? String(seasons[0].id) : "",
-      teamId: teams[0] ? String(teams[0].id) : "",
+      teamSeason: availableTeams.length > 0 ? availableTeams[0].value : "",
       opponent: "",
       tieDate: "",
       tieTime: "",
@@ -175,7 +196,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   }
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this tie?")) {
+    if (confirm(t('confirmDeleteTie'))) {
       await deleteTieAction(String(id))
       router.refresh()
     }
@@ -200,49 +221,31 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
       {(isAdding || editingId !== null) && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>{editingId !== null ? "Edit Tie" : "Add New Tie"}</CardTitle>
+            <CardTitle>{editingId !== null ? t('editTie') : t('addNewTie')}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="season">Season</Label>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="teamSeason">{t('teamAndSeason')}</Label>
                   <Select
-                    value={formData.seasonId}
-                    onValueChange={(value) => setFormData({ ...formData, seasonId: value })}
+                    value={formData.teamSeason}
+                    onValueChange={(value) => setFormData({ ...formData, teamSeason: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {seasons.map((season) => (
-                        <SelectItem key={season.id} value={String(season.id)}>
-                          {season.name}
+                      {availableTeams.map((team) => (
+                        <SelectItem key={team.value} value={team.value}>
+                          {team.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="team">Team</Label>
-                  <Select
-                    value={formData.teamId}
-                    onValueChange={(value) => setFormData({ ...formData, teamId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teams.map((team) => (
-                        <SelectItem key={team.id} value={String(team.id)}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="opponent">Opponent</Label>
+                  <Label htmlFor="opponent">{t('opponent')}</Label>
                   <Input
                     id="opponent"
                     value={formData.opponent}
@@ -252,7 +255,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="tieDate">Date</Label>
+                  <Label htmlFor="tieDate">{t('date')}</Label>
                   <Input
                     id="tieDate"
                     type="date"
@@ -262,7 +265,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="tieTime">Time</Label>
+                  <Label htmlFor="tieTime">{t('time')}</Label>
                   <Input
                     id="tieTime"
                     type="time"
@@ -272,7 +275,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
+                  <Label htmlFor="location">{t('location')}</Label>
                   <Input
                     id="location"
                     value={formData.location}
@@ -300,11 +303,11 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
               <div className="mt-4 flex gap-2">
                 <Button type="submit">
                   <Check className="mr-2 h-4 w-4" />
-                  Save
+                  {t('save')}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleCancel}>
                   <X className="mr-2 h-4 w-4" />
-                  Cancel
+                  {t('cancel')}
                 </Button>
               </div>
             </form>
@@ -466,31 +469,15 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="importSeason">{t('season')}</Label>
-                <Select value={importSeasonId} onValueChange={(v) => setImportSeasonId(v)}>
+                <Label htmlFor="importTeam">{t('teamAndSeason')}</Label>
+                <Select value={importTeamSeason} onValueChange={setImportTeamSeason}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {seasons.map((s) => (
-                      <SelectItem key={s.id} value={String(s.id)}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="importTeam">{t('team')}</Label>
-                <Select value={importTeamId} onValueChange={(v) => setImportTeamId(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teams.map((team) => (
-                      <SelectItem key={team.id} value={String(team.id)}>
-                        {team.name}
+                    {availableTeams.map((team) => (
+                      <SelectItem key={team.value} value={team.value}>
+                        {team.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -581,10 +568,19 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                         let imported = 0
                         
                         try {
+                          // Extract team and season from selected combination
+                          const [selectedTeamName, selectedSeasonName] = importTeamSeason.split('|')
+                          const selectedTeam = teams.find(t => t.name === selectedTeamName)
+                          const selectedSeason = seasons.find(s => s.name === selectedSeasonName)
+                          
+                          if (!selectedTeam || !selectedSeason) {
+                            throw new Error(t('teamSeasonNotFound'))
+                          }
+
                           for (const tie of selectedTies) {
                             const fd = new FormData()
-                            fd.append('season_id', importSeasonId || formData.seasonId)
-                            fd.append('team_id', importTeamId || formData.teamId)
+                            fd.append('season_id', String(selectedSeason.id))
+                            fd.append('team_id', String(selectedTeam.id))
                             fd.append('opponent', tie.opponent)
                             fd.append('date_time', tie.dateIso)
                             fd.append('location', tie.location)
@@ -642,13 +638,13 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
             <div className="flex-1 space-y-2">
-              <Label htmlFor="teamFilter">Filter by Team</Label>
+              <Label htmlFor="teamFilter">{t('filterByTeam')}</Label>
               <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Teams</SelectItem>
+                  <SelectItem value="all">{t('allTeams')}</SelectItem>
                   {availableTeams.map((team) => (
                     <SelectItem key={team.value} value={team.value}>
                       {team.label}
@@ -658,19 +654,19 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
               </Select>
             </div>
             <div className="flex-1 space-y-2">
-              <Label htmlFor="sortOrder">Sort by Date</Label>
+              <Label htmlFor="sortOrder">{t('sortByDate')}</Label>
               <Button
                 variant="outline"
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                 className="w-full justify-start"
               >
                 <ArrowUpDown className="mr-2 h-4 w-4" />
-                {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+                {sortOrder === 'asc' ? t('oldestFirst') : t('newestFirst')}
               </Button>
             </div>
             <div className="sm:self-end">
               <p className="text-sm text-gray-600">
-                {filteredAndSortedTies.length} of {initialTies.length} ties
+                {filteredAndSortedTies.length} {t('of')} {initialTies.length} {t('tiesCount')}
               </p>
             </div>
           </div>
@@ -684,8 +680,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
               <div className="text-center">
                 <p className="text-gray-500">
                   {selectedTeamFilter === 'all' 
-                    ? 'No ties found.' 
-                    : `No ties found for ${availableTeams.find(t => t.value === selectedTeamFilter)?.label || selectedTeamFilter}.`}
+                    ? `${t('noTiesFound')}.` 
+                    : `${t('noTiesFoundFor')} ${availableTeams.find(t => t.value === selectedTeamFilter)?.label || selectedTeamFilter}.`}
                 </p>
                 {selectedTeamFilter !== 'all' && (
                   <Button
@@ -694,7 +690,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                     onClick={() => setSelectedTeamFilter('all')}
                     className="mt-2"
                   >
-                    Show all teams
+                    {t('showAllTeams')}
                   </Button>
                 )}
               </div>

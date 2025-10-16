@@ -36,7 +36,7 @@ export default function HomePage() {
 
       if (result.valid && result.seasonId) {
         localStorage.setItem("season_access_code", accessCode)
-        localStorage.setItem("season_id", result.seasonId)
+        localStorage.setItem("season_id", String(result.seasonId))
         router.push("/spieltage")
       } else {
         setError(t("invalidAccessCode"))

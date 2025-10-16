@@ -13,28 +13,21 @@ INSERT INTO seasons (name, start_date, end_date, access_code, is_active) VALUES
 -- Insert teams
 INSERT INTO teams (season_id, name, league) VALUES
 (1, 'H40', 'Herren 40 Bezirksliga'),
-(1, 'H00', 'Herren Kreisliga'),
-(1, 'D30', 'Damen 30 Bezirksklasse');
+(1, 'H00', 'Herren Kreisliga');
 
 -- Insert players
 INSERT INTO players (first_name, last_name, email, phone) VALUES
 ('Christof', 'Hahn', 'christof.hahn@example.com', '+49 123 456789'),
 ('Michael', 'Schmidt', 'michael.schmidt@example.com', '+49 123 456790'),
 ('Thomas', 'Müller', 'thomas.mueller@example.com', '+49 123 456791'),
-('Andreas', 'Weber', 'andreas.weber@example.com', '+49 123 456792'),
-('Stefan', 'Meyer', 'stefan.meyer@example.com', '+49 123 456793'),
-('Julia', 'Fischer', 'julia.fischer@example.com', '+49 123 456794'),
-('Sarah', 'Wagner', 'sarah.wagner@example.com', '+49 123 456795'),
-('Lisa', 'Becker', 'lisa.becker@example.com', '+49 123 456796');
+('Andreas', 'Weber', 'andreas.weber@example.com', '+49 123 456792');
 
 -- Assign players to teams
-INSERT INTO team_players (team_id, player_id) VALUES
+INSERT INTO team_players (team_id, player_id, player_rank) VALUES
 -- H40 team
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
+(1, 1, 1), (1, 2, 2), (1, 3, 3),
 -- H00 team
-(2, 2), (2, 3), (2, 5),
--- D30 team
-(3, 6), (3, 7), (3, 8);
+(2, 2, 1), (2, 3, 2);
 
 -- Insert ties (matches)
 INSERT INTO ties (team_id, opponent, tie_date, location, is_home, notes) VALUES

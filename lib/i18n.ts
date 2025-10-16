@@ -33,7 +33,7 @@ export const translations = {
 
     // Spieltage
     upcomingMatches: "Kommende Spieltage",
-    impersonatePlayer: "Impersonate Player:",
+    impersonatePlayer: "Spieler auswählen:",
     showFilters: "Filter anzeigen",
     hideFilters: "Filter ausblenden",
     showDetails: "Details anzeigen",
@@ -116,6 +116,7 @@ export const translations = {
     manageTiesDesc: "Verwalten Sie Ihre Spiele",
     addTie: "Spieltag hinzufügen",
     addNewTie: "Neuen Spieltag hinzufügen",
+    editTie: "Spieltag bearbeiten",
     team: "Team",
     opponent: "Gegner",
     date: "Datum",
@@ -141,6 +142,22 @@ export const translations = {
     clearPreview: "Vorschau löschen",
     corsError: "Fehler beim Laden der Seite. Bitte überprüfen Sie die URL.",
     confirmDeleteTie: "Sind Sie sicher, dass Sie diesen Spieltag löschen möchten?",
+    loading: "Lade...",
+
+    // Sorting and Filtering
+    filterByTeam: "Nach Mannschaft filtern",
+    allTeams: "Alle Teams",
+    sortByDate: "Nach Datum sortieren",
+    newestFirst: "Neueste zuerst",
+    oldestFirst: "Älteste zuerst",
+    teamAndSeason: "Mannschaft & Saison",
+    noTiesFound: "Keine Spieltage gefunden",
+    noTiesFoundFor: "Keine Spieltage gefunden für",
+    showAllTeams: "Alle Mannschaften anzeigen",
+    tiesCount: "Spieltage",
+    of: "von",
+    selectValidTeamSeason: "Bitte wählen Sie ein gültiges Team und eine gültige Saison",
+    teamSeasonNotFound: "Ausgewähltes Team oder Saison nicht gefunden",
   },
   en: {
     // Common
@@ -257,6 +274,7 @@ export const translations = {
     manageTiesDesc: "Manage your matches",
     addTie: "Add Tie",
     addNewTie: "Add New Tie",
+    editTie: "Edit Tie",
     team: "Team",
     opponent: "Opponent",
     date: "Date",
@@ -282,6 +300,22 @@ export const translations = {
     clearPreview: "Clear preview",
     corsError: "Error loading page. Please check the URL.",
     confirmDeleteTie: "Are you sure you want to delete this tie?",
+    loading: "Loading...",
+
+    // Sorting and Filtering
+    filterByTeam: "Filter by Team",
+    allTeams: "All Teams",
+    sortByDate: "Sort by Date",
+    newestFirst: "Newest First",
+    oldestFirst: "Oldest First",
+    teamAndSeason: "Team & Season",
+    noTiesFound: "No ties found",
+    noTiesFoundFor: "No ties found for",
+    showAllTeams: "Show all teams",
+    tiesCount: "ties",
+    of: "of",
+    selectValidTeamSeason: "Please select a valid team and season",
+    teamSeasonNotFound: "Selected team or season not found",
   },
 }
 

@@ -31,7 +31,7 @@ export default function PlayersPage() {
 
   const loadPlayers = async () => {
     const data = await getPlayers()
-    setPlayers(data)
+    setPlayers(data as unknown as Player[])
   }
 
   const handleEdit = (player: Player) => {

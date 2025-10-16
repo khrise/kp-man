@@ -14,8 +14,7 @@ interface TieDetailsDialogProps {
 export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogProps) {
   const { t } = useTranslation()
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString("de-DE", {
       weekday: "long",
       day: "2-digit",
@@ -24,8 +23,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
     })
   }
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatTime = (date: Date) => {
     return date.toLocaleTimeString("de-DE", {
       hour: "2-digit",
       minute: "2-digit",
