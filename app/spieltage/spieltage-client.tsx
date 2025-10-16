@@ -16,6 +16,8 @@ import { ParticipationCommentDialog } from "@/components/participation-comment-d
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useTranslation } from "@/lib/i18n"
 
+export const dynamic = "force-dynamic"
+
 // Utility functions for ICS generation
 const formatDateForICS = (date: Date): string => {
   return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')

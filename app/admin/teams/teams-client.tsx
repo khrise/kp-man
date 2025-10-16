@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Edit, Trash2, Check, X, ChevronUp, ChevronDown, UserMinus } from "lucide-react"
 import { createTeamAction, updateTeamAction, deleteTeamAction } from "@/app/actions/teams"
 
+export const dynamic = "force-dynamic"
+
 type TeamPlayer = {
   id: number
   firstName: string

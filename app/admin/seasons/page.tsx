@@ -3,6 +3,8 @@ import { AdminHeader } from "@/components/admin-header"
 import { SeasonsClient } from "./seasons-client"
 import * as db from "@/lib/db"
 
+export const dynamic = "force-dynamic"
+
 export default async function SeasonsPage() {
   const seasons = await db.getSeasons()
 

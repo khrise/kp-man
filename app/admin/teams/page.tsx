@@ -3,6 +3,9 @@ import { AdminHeader } from "@/components/admin-header"
 import { TeamsClient } from "./teams-client"
 import * as db from "@/lib/db"
 
+// Force dynamic rendering for admin pages
+export const dynamic = 'force-dynamic'
+
 export default async function TeamsPage() {
   const [teams, seasons, players] = await Promise.all([db.getTeams(), db.getSeasons(), db.getPlayers()])
 
