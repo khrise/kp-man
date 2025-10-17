@@ -11,8 +11,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, Edit, Trash2, Check, X, Upload } from "lucide-react"
 import type { Player } from "@/lib/types"
 import { getPlayers, createPlayerAction, updatePlayerAction, deletePlayerAction } from "@/app/actions/players"
+import { useTranslation } from "@/lib/i18n"
 
 export default function PlayersPage() {
+  const { t } = useTranslation()
   const [players, setPlayers] = useState<Player[]>([])
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -85,7 +87,7 @@ export default function PlayersPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this player?")) {
+    if (confirm(t('confirmDeletePlayer'))) {
       await deletePlayerAction(id)
       await loadPlayers()
     }
@@ -98,17 +100,17 @@ export default function PlayersPage() {
         <main className="mx-auto max-w-7xl px-6 py-8">
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Players</h2>
-              <p className="mt-2 text-gray-600">Manage your players</p>
+              <h2 className="text-3xl font-bold text-gray-900">{t('players')}</h2>
+              <p className="mt-2 text-gray-600">{t('managePlayersDesc')}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setIsBatchAdding(true)}>
                 <Upload className="mr-2 h-4 w-4" />
-                Batch Add
+                {t('batchAdd')}
               </Button>
               <Button onClick={() => setIsAdding(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Player
+                {t('addPlayer')}
               </Button>
             </div>
           </div>
@@ -116,12 +118,12 @@ export default function PlayersPage() {
           {(isAdding || editingId !== null) && (
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle>{editingId !== null ? "Edit Player" : "Add New Player"}</CardTitle>
+                <CardTitle>{editingId !== null ? t('editPlayer') : t('addNewPlayer')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">{t('firstName')}</Label>
                     <Input
                       id="firstName"
                       value={formData.firstName}
@@ -130,7 +132,7 @@ export default function PlayersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">{t('lastName')}</Label>
                     <Input
                       id="lastName"
                       value={formData.lastName}
@@ -142,11 +144,11 @@ export default function PlayersPage() {
                 <div className="mt-4 flex gap-2">
                   <Button onClick={editingId !== null ? handleUpdate : handleAdd}>
                     <Check className="mr-2 h-4 w-4" />
-                    Save
+                    {t('save')}
                   </Button>
                   <Button variant="outline" onClick={handleCancel}>
                     <X className="mr-2 h-4 w-4" />
-                    Cancel
+                    {t('cancel')}
                   </Button>
                 </div>
               </CardContent>
@@ -156,11 +158,11 @@ export default function PlayersPage() {
           {isBatchAdding && (
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle>Batch Add Players</CardTitle>
+                <CardTitle>{t('batchAddPlayers')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="batchData">Enter player data (one per line: FirstName, LastName)</Label>
+                  <Label htmlFor="batchData">{t('enterPlayerData')}</Label>
                   <Textarea
                     id="batchData"
                     value={batchData}
@@ -172,11 +174,11 @@ export default function PlayersPage() {
                 <div className="mt-4 flex gap-2">
                   <Button onClick={handleBatchAdd}>
                     <Check className="mr-2 h-4 w-4" />
-                    Add Players
+                    {t('addPlayers')}
                   </Button>
                   <Button variant="outline" onClick={() => setIsBatchAdding(false)}>
                     <X className="mr-2 h-4 w-4" />
-                    Cancel
+                    {t('cancel')}
                   </Button>
                 </div>
               </CardContent>
