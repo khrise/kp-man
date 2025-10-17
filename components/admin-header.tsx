@@ -5,10 +5,13 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { LogOut, User } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
+import { AdminLanguageSwitcher } from "@/components/admin-language-switcher"
+import { useTranslation } from "@/lib/i18n"
 
 export function AdminHeader() {
   const router = useRouter()
   const { data: session } = useSession()
+  const { t } = useTranslation()
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
@@ -41,19 +44,19 @@ export function AdminHeader() {
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/admin/seasons" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
-              Seasons
+              {t("seasons")}
             </Link>
             <Link href="/admin/teams" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
-              Teams
+              {t("teams")}
             </Link>
             <Link href="/admin/players" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
-              Players
+              {t("players")}
             </Link>
             <Link href="/admin/ties" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
-              Ties
+              {t("ties")}
             </Link>
             <Link href="/admin/users" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
-              Users
+              {t("users")}
             </Link>
           </nav>
         </div>
@@ -64,9 +67,10 @@ export function AdminHeader() {
               <span>{session.user.username || session.user.email}</span>
             </div>
           )}
+          <AdminLanguageSwitcher />
           <Button variant="outline" size="sm" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
-            Logout
+            {t("logout")}
           </Button>
         </div>
       </div>

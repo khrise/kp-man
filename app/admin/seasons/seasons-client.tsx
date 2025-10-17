@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { createSeasonAction, updateSeasonAction, deleteSeasonAction } from "@/app/actions/seasons"
+import { useTranslation } from "@/lib/i18n"
 
 type Season = {
   id: number
@@ -31,6 +32,7 @@ function generateAccessCode(): string {
 }
 
 export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) {
+  const { t } = useTranslation()
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
@@ -91,7 +93,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
   }
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this season?")) {
+    if (confirm(t("confirmDeleteSeason"))) {
       await deleteSeasonAction(String(id))
     }
   }
@@ -100,25 +102,25 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
     <>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Seasons</h2>
-          <p className="mt-2 text-gray-600">Manage your sports seasons</p>
+          <h2 className="text-3xl font-bold text-gray-900">{t("seasons")}</h2>
+          <p className="mt-2 text-gray-600">{t("manageSeasonsDesc")}</p>
         </div>
         <Button onClick={handleAddNew}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Season
+          {t("addSeason")}
         </Button>
       </div>
 
       {(isAdding || editingId !== null) && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>{editingId !== null ? "Edit Season" : "Add New Season"}</CardTitle>
+            <CardTitle>{editingId !== null ? t("editSeason") : t("addNewSeason")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Season Name</Label>
+                  <Label htmlFor="name">{t("seasonName")}</Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -128,7 +130,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="access_code">Access Code</Label>
+                  <Label htmlFor="access_code">{t("accessCode")}</Label>
                   <Input
                     id="access_code"
                     value={formData.accessCode}
@@ -138,7 +140,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="start_date">Start Date</Label>
+                  <Label htmlFor="start_date">{t("startDate")}</Label>
                   <Input
                     id="start_date"
                     type="date"
@@ -148,7 +150,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="end_date">End Date</Label>
+                  <Label htmlFor="end_date">{t("endDate")}</Label>
                   <Input
                     id="end_date"
                     type="date"
@@ -161,11 +163,11 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
               <div className="mt-4 flex gap-2">
                 <Button type="submit">
                   <Check className="mr-2 h-4 w-4" />
-                  Save
+                  {t("save")}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleCancel}>
                   <X className="mr-2 h-4 w-4" />
-                  Cancel
+                  {t("cancel")}
                 </Button>
               </div>
             </form>
@@ -182,7 +184,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                 <p className="text-sm text-gray-600">
                   {new Date(season.startDate).toLocaleDateString()} - {new Date(season.endDate).toLocaleDateString()}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">Access Code: {season.accessCode}</p>
+                <p className="mt-1 text-sm text-gray-600">{t("accessCode")}: {season.accessCode}</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleEdit(season)}>
