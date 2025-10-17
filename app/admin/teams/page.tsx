@@ -18,7 +18,6 @@ export default async function TeamsPage() {
           id: player.id,
           firstName: player.firstName,
           lastName: player.lastName,
-          email: player.email,
           playerRank: player.playerRank,
         })),
       }

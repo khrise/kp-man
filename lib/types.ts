@@ -31,8 +31,6 @@ export interface Player {
   id: number
   firstName: string
   lastName: string
-  email: string | null
-  phone: string | null
   createdAt: Date
   updatedAt: Date
 }

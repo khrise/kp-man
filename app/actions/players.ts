@@ -8,12 +8,9 @@ export async function getPlayers() {
 }
 
 export async function createPlayerAction(formData: FormData) {
-  const emailValue = (formData.get("email") as string) || null
-
   const data = {
     firstName: formData.get("first_name") as string,
     lastName: formData.get("last_name") as string,
-    email: emailValue,
   }
 
   await db.createPlayer(data)
@@ -27,12 +24,9 @@ export async function updatePlayerAction(id: string, formData: FormData) {
     throw new Error("Invalid player id")
   }
 
-  const emailValue = (formData.get("email") as string) || null
-
   const data = {
     firstName: formData.get("first_name") as string,
     lastName: formData.get("last_name") as string,
-    email: emailValue,
   }
 
   await db.updatePlayer(playerId, data)

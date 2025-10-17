@@ -58,8 +58,6 @@ interface PlayersTable {
   id: Generated<number>
   firstName: string
   lastName: string
-  email: NullableStringColumn
-  phone: NullableStringColumn
   createdAt: TimestampColumn
   updatedAt: TimestampColumn
 }
@@ -269,7 +267,6 @@ export type TeamPlayerWithDetails = {
   id: number
   firstName: string
   lastName: string
-  email: string | null
   createdAt: Date
   teamId: number
   playerId: number
@@ -284,7 +281,6 @@ export async function getTeamPlayers(teamId: number): Promise<TeamPlayerWithDeta
       "p.id",
       "p.firstName",
       "p.lastName",
-      "p.email",
       "p.createdAt",
       "tp.teamId",
       "tp.playerId",
@@ -324,7 +320,7 @@ export async function getPlayerById(id: number): Promise<Player | undefined> {
   return db.selectFrom("players").selectAll().where("id", "=", id).executeTakeFirst()
 }
 
-type CreatePlayerInput = Pick<Insertable<PlayersTable>, "firstName" | "lastName" | "email">
+type CreatePlayerInput = Pick<Insertable<PlayersTable>, "firstName" | "lastName">
 
 export async function createPlayer(data: CreatePlayerInput): Promise<Player> {
   const inserted = await db.insertInto("players").values(data).returningAll().executeTakeFirst()
@@ -334,7 +330,7 @@ export async function createPlayer(data: CreatePlayerInput): Promise<Player> {
   return inserted
 }
 
-type UpdatePlayerInput = Pick<Updateable<PlayersTable>, "firstName" | "lastName" | "email">
+type UpdatePlayerInput = Pick<Updateable<PlayersTable>, "firstName" | "lastName">
 
 export async function updatePlayer(id: number, data: UpdatePlayerInput): Promise<Player | undefined> {
   return db.updateTable("players").set(data).where("id", "=", id).returningAll().executeTakeFirst()
@@ -425,7 +421,7 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .innerJoin("teamPlayers as tp", (join) => join.onRef("pl.id", "=", "tp.playerId").onRef("tm.id", "=", "tp.teamId"))
     .select(["p.id", "p.tieId", "p.playerId", "p.status", "p.comment", "p.respondedAt", "p.createdAt", "p.updatedAt"])
-    .select(["pl.firstName", "pl.lastName", "pl.email", "tp.playerRank"])
+    .select(["pl.firstName", "pl.lastName", "tp.playerRank"])
     .where("p.tieId", "=", tieId)
     .orderBy("p.status")
     .orderBy("pl.lastName")

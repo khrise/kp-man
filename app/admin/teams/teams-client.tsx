@@ -18,7 +18,6 @@ type TeamPlayer = {
   id: number
   firstName: string
   lastName: string
-  email: string | null
   playerRank: number
 }
 
@@ -39,7 +38,6 @@ type Player = {
   id: number
   firstName: string
   lastName: string
-  email: string | null
 }
 
 export function TeamsClient({
@@ -231,7 +229,6 @@ export function TeamsClient({
                               <p className="font-medium">
                                 {player.firstName} {player.lastName}
                               </p>
-                              <p className="text-xs text-gray-500">{player.email}</p>
                             </div>
                           </div>
                           <div className="flex gap-1">

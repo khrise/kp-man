@@ -21,8 +21,6 @@ export default function PlayersPage() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    email: "",
-    phone: "",
   })
 
   useEffect(() => {
@@ -39,8 +37,6 @@ export default function PlayersPage() {
     setFormData({
       firstName: player.firstName,
       lastName: player.lastName,
-      email: player.email || "",
-      phone: player.phone || "",
     })
   }
 
@@ -49,43 +45,37 @@ export default function PlayersPage() {
     const formDataObj = new FormData()
     formDataObj.append("first_name", formData.firstName)
     formDataObj.append("last_name", formData.lastName)
-    formDataObj.append("email", formData.email)
-    formDataObj.append("phone", formData.phone)
 
     await updatePlayerAction(editingId, formDataObj)
     await loadPlayers()
     setEditingId(null)
-    setFormData({ firstName: "", lastName: "", email: "", phone: "" })
+    setFormData({ firstName: "", lastName: "" })
   }
 
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
-    setFormData({ firstName: "", lastName: "", email: "", phone: "" })
+    setFormData({ firstName: "", lastName: "" })
   }
 
   const handleAdd = async () => {
     const formDataObj = new FormData()
     formDataObj.append("first_name", formData.firstName)
     formDataObj.append("last_name", formData.lastName)
-    formDataObj.append("email", formData.email)
-    formDataObj.append("phone", formData.phone)
 
     await createPlayerAction(formDataObj)
     await loadPlayers()
     setIsAdding(false)
-    setFormData({ firstName: "", lastName: "", email: "", phone: "" })
+    setFormData({ firstName: "", lastName: "" })
   }
 
   const handleBatchAdd = async () => {
     const lines = batchData.split("\n").filter((line) => line.trim())
     for (const line of lines) {
-      const [firstName, lastName, email, phone] = line.split(",").map((s) => s.trim())
+      const [firstName, lastName] = line.split(",").map((s) => s.trim())
       const formDataObj = new FormData()
       formDataObj.append("first_name", firstName || "")
       formDataObj.append("last_name", lastName || "")
-      formDataObj.append("email", email || "")
-      formDataObj.append("phone", phone || "")
 
       await createPlayerAction(formDataObj)
     }
@@ -148,25 +138,6 @@ export default function PlayersPage() {
                       placeholder="e.g., Hahn"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="e.g., christof@example.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="e.g., +49 123 456789"
-                    />
-                  </div>
                 </div>
                 <div className="mt-4 flex gap-2">
                   <Button onClick={editingId !== null ? handleUpdate : handleAdd}>
@@ -189,12 +160,12 @@ export default function PlayersPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="batchData">Enter player data (one per line: FirstName, LastName, Email, Phone)</Label>
+                  <Label htmlFor="batchData">Enter player data (one per line: FirstName, LastName)</Label>
                   <Textarea
                     id="batchData"
                     value={batchData}
                     onChange={(e) => setBatchData(e.target.value)}
-                    placeholder="Christof, Hahn, christof@example.com, +49 123 456789&#10;Michael, Schmidt, michael@example.com, +49 123 456790"
+                    placeholder="Christof, Hahn&#10;Michael, Schmidt"
                     rows={6}
                   />
                 </div>
@@ -220,8 +191,6 @@ export default function PlayersPage() {
                     <h3 className="text-lg font-semibold">
                       {player.firstName} {player.lastName}
                     </h3>
-                    {player.email && <p className="text-sm text-gray-600">{player.email}</p>}
-                    {player.phone && <p className="text-sm text-gray-600">{player.phone}</p>}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
