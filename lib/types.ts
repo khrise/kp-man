@@ -2,6 +2,8 @@ export interface User {
   id: number
   username: string
   email: string
+  role: "admin" | "user" | "team_captain" | "player"
+  playerId: number | null
   createdAt: Date
   updatedAt: Date
 }

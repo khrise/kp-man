@@ -39,6 +39,23 @@ export function AdminHeader() {
               </h1>
             </Link>
           </div>
+          <nav className="hidden md:flex items-center gap-6">
+            <Link href="/admin/seasons" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+              Seasons
+            </Link>
+            <Link href="/admin/teams" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+              Teams
+            </Link>
+            <Link href="/admin/players" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+              Players
+            </Link>
+            <Link href="/admin/ties" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+              Ties
+            </Link>
+            <Link href="/admin/users" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
+              Users
+            </Link>
+          </nav>
         </div>
         <div className="flex items-center gap-4">
           {session?.user && (

@@ -30,6 +30,8 @@ interface UsersTable {
   username: string
   passwordHash: string
   email: string
+  role: "admin" | "user" | "team_captain" | "player"
+  playerId: number | null
   createdAt: TimestampColumn
   updatedAt: TimestampColumn
 }
@@ -277,15 +279,7 @@ export async function getTeamPlayers(teamId: number): Promise<TeamPlayerWithDeta
   return db
     .selectFrom("players as p")
     .innerJoin("teamPlayers as tp", "tp.playerId", "p.id")
-    .select([
-      "p.id",
-      "p.firstName",
-      "p.lastName",
-      "p.createdAt",
-      "tp.teamId",
-      "tp.playerId",
-      "tp.playerRank",
-    ])
+    .select(["p.id", "p.firstName", "p.lastName", "p.createdAt", "tp.teamId", "tp.playerId", "tp.playerRank"])
     .where("tp.teamId", "=", teamId)
     .orderBy("tp.playerRank")
     .execute()
@@ -468,6 +462,8 @@ export async function getUserByUsernameWithPassword(
     id: result.id,
     username: result.username,
     email: result.email,
+    role: result.role,
+    playerId: result.playerId,
     createdAt: result.createdAt,
     updatedAt: result.updatedAt,
     passwordHash: result.passwordHash,
@@ -508,4 +504,53 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     totalPlayers: playersResult?.count ?? 0,
     upcomingTies: upcomingTiesResult?.count ?? 0,
   }
+}
+
+// User management functions
+export async function getUsers(): Promise<User[]> {
+  return db.selectFrom("users").selectAll().orderBy("username").execute()
+}
+
+export async function getUserById(id: number): Promise<User | undefined> {
+  return db.selectFrom("users").selectAll().where("id", "=", id).executeTakeFirst()
+}
+
+type CreateUserInput = Pick<Insertable<UsersTable>, "username" | "passwordHash" | "email" | "role" | "playerId">
+
+export async function createUser(data: CreateUserInput): Promise<User> {
+  const inserted = await db.insertInto("users").values(data).returningAll().executeTakeFirst()
+  if (!inserted) {
+    throw new Error("Failed to create user")
+  }
+  return inserted
+}
+
+type UpdateUserInput = Pick<Updateable<UsersTable>, "username" | "email" | "role" | "playerId">
+
+export async function updateUser(id: number, data: UpdateUserInput): Promise<User | undefined> {
+  return db.updateTable("users").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+}
+
+export async function updateUserPassword(id: number, passwordHash: string): Promise<void> {
+  await db.updateTable("users").set({ passwordHash }).where("id", "=", id).execute()
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  await db.deleteFrom("users").where("id", "=", id).execute()
+}
+
+export type UserWithPlayer = Omit<User, "passwordHash"> & {
+  playerFirstName: string | null
+  playerLastName?: string | null
+  playerId?: number | null
+}
+
+export async function getUsersWithPlayerInfo(): Promise<UserWithPlayer[]> {
+  return db
+    .selectFrom("users as u")
+    .leftJoin("players as p", "p.id", "u.playerId")
+    .select(["u.id", "u.username", "u.email", "u.role", "u.playerId", "u.createdAt", "u.updatedAt"])
+    .select(["p.firstName as playerFirstName", "p.lastName as playerLastName", "p.id as playerId"])
+    .orderBy("u.username")
+    .execute()
 }

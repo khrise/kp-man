@@ -136,6 +136,12 @@ export default function AdminDashboard() {
                     Manage Ties
                   </Button>
                 </Link>
+                <Link href="/admin/users" className="block">
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
+                    <Users className="mr-2 h-4 w-4" />
+                    Manage Users
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
 
