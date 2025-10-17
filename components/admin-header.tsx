@@ -4,15 +4,16 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { LogOut, User } from "lucide-react"
-import { getCurrentUser, clearCurrentUser } from "@/lib/auth"
+import { useSession, signOut } from "next-auth/react"
 
 export function AdminHeader() {
   const router = useRouter()
-  const user = getCurrentUser()
+  const { data: session } = useSession()
 
-  const handleLogout = () => {
-    clearCurrentUser()
+  const handleLogout = async () => {
+    await signOut({ redirect: false })
     router.push("/admin/login")
+    router.refresh()
   }
 
   return (
@@ -40,10 +41,10 @@ export function AdminHeader() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {user && (
+          {session?.user && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <User className="h-4 w-4" />
-              <span>{user.username}</span>
+              <span>{session.user.username || session.user.email}</span>
             </div>
           )}
           <Button variant="outline" size="sm" onClick={handleLogout}>

@@ -57,10 +57,6 @@ CREATE TABLE IF NOT EXISTS team_players (
   UNIQUE(team_id, player_rank)
 );
 
-CREATE INDEX idx_team_players_team_id ON team_players(team_id);
-CREATE INDEX idx_team_players_player_id ON team_players(player_id);
-CREATE INDEX idx_team_players_rank ON team_players(team_id, player_rank);
-
 
 -- Ties table (Matches/Contests)
 CREATE TABLE IF NOT EXISTS ties (

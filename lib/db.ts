@@ -1,3 +1,13 @@
+// Load environment variables for standalone scripts
+if (typeof window === "undefined" && !process.env.NEXT_RUNTIME) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("dotenv").config({ path: ".env.local" })
+  } catch {
+    // dotenv might not be available, which is fine for Next.js runtime
+  }
+}
+
 import { Pool } from "@neondatabase/serverless"
 import {
   CamelCasePlugin,
@@ -86,6 +96,12 @@ interface ParticipationsTable {
   updatedAt: TimestampColumn
 }
 
+interface MigrationsTable {
+  id: string
+  filename: string
+  executedAt: TimestampColumn
+}
+
 export interface Database {
   users: UsersTable
   seasons: SeasonsTable
@@ -94,6 +110,7 @@ export interface Database {
   teamPlayers: TeamPlayersTable
   ties: TiesTable
   participations: ParticipationsTable
+  migrations: MigrationsTable
 }
 
 const globalForDb = globalThis as unknown as {
@@ -138,6 +155,15 @@ function createDatabase(): Kysely<Database> {
 function getDb(): Kysely<Database> {
   if (!globalForDb.db) {
     globalForDb.db = createDatabase()
+
+    // Initialize database in the background (don't await to avoid blocking)
+    if (typeof window === "undefined") {
+      import("./db-init").then(({ ensureDatabaseInitialized }) => {
+        ensureDatabaseInitialized().catch((error) => {
+          console.error("[DB] Background initialization failed:", error)
+        })
+      })
+    }
   }
   return globalForDb.db
 }
@@ -173,6 +199,9 @@ export type UpdateTie = Updateable<TiesTable>
 export type Participation = Selectable<ParticipationsTable>
 export type NewParticipation = Insertable<ParticipationsTable>
 export type UpdateParticipation = Updateable<ParticipationsTable>
+
+export type Migration = Selectable<MigrationsTable>
+export type NewMigration = Insertable<MigrationsTable>
 
 export async function getSeasons(): Promise<Season[]> {
   const result = await db.selectFrom("seasons").selectAll().orderBy("startDate", "desc").execute()
@@ -431,4 +460,56 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
 
 export async function getUserByUsername(username: string): Promise<User | undefined> {
   return db.selectFrom("users").selectAll().where("username", "=", username).executeTakeFirst()
+}
+
+export async function getUserByUsernameWithPassword(
+  username: string,
+): Promise<(User & { passwordHash: string }) | undefined> {
+  const result = await db.selectFrom("users").selectAll().where("username", "=", username).executeTakeFirst()
+  if (!result) return undefined
+
+  return {
+    id: result.id,
+    username: result.username,
+    email: result.email,
+    createdAt: result.createdAt,
+    updatedAt: result.updatedAt,
+    passwordHash: result.passwordHash,
+  }
+}
+
+export interface DashboardStats {
+  totalSeasons: number
+  totalTeams: number
+  totalPlayers: number
+  upcomingTies: number
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const [seasonsResult, teamsResult, playersResult, upcomingTiesResult] = await Promise.all([
+    db
+      .selectFrom("seasons")
+      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .executeTakeFirst(),
+    db
+      .selectFrom("teams")
+      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .executeTakeFirst(),
+    db
+      .selectFrom("players")
+      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .executeTakeFirst(),
+    db
+      .selectFrom("ties")
+      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .where("tieDate", ">=", new Date())
+      .executeTakeFirst(),
+  ])
+
+  return {
+    totalSeasons: seasonsResult?.count ?? 0,
+    totalTeams: teamsResult?.count ?? 0,
+    totalPlayers: playersResult?.count ?? 0,
+    upcomingTies: upcomingTiesResult?.count ?? 0,
+  }
 }

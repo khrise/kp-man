@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
+import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { login, setCurrentUser } from "@/lib/auth"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -23,15 +22,20 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const user = await login(username, password)
-      if (user) {
-        setCurrentUser(user)
-        router.push("/admin/dashboard")
-      } else {
+      const result = await signIn("credentials", {
+        username,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
         setError("Invalid username or password")
+      } else if (result?.ok) {
+        router.push("/admin/dashboard")
+        router.refresh()
       }
     } catch (err) {
-      console.error("login error", err)
+      console.error("Login error:", err)
       setError("An error occurred. Please try again.")
     } finally {
       setIsLoading(false)
@@ -73,7 +77,7 @@ export default function LoginPage() {
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm text-gray-600">

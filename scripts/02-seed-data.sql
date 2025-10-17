@@ -1,9 +1,11 @@
 -- Seed data for Sports Club Planning Application
 -- Version 1.0
 
--- Insert admin user (password: admin123 - should be hashed in production)
+-- Insert admin user (password: admin123 - properly hashed with bcrypt)
 INSERT INTO users (username, password_hash, email) VALUES
-('admin', '$2a$10$rKZLvVZhVJhVqVqVqVqVqOqVqVqVqVqVqVqVqVqVqVqVqVqVqVqVq', 'admin@sportsclub.com');
+('admin', '$2b$10$iVj89VfPFGqOAVRJIifLoudLyXHM0v3e8m/cZ2EO23rMLsZSvlk5W', 'admin@sportsclub.com')
+ON CONFLICT (username) DO UPDATE SET 
+password_hash = EXCLUDED.password_hash;
 
 -- Insert seasons
 INSERT INTO seasons (name, start_date, end_date, access_code, is_active) VALUES
