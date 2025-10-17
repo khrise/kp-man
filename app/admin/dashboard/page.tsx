@@ -6,8 +6,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Users, Calendar, Trophy } from "lucide-react"
 import Link from "next/link"
+import { fetchDashboardStats } from "@/app/actions/dashboard"
+import { useEffect, useState } from "react"
+
+interface DashboardStats {
+  totalSeasons: number
+  totalTeams: number
+  totalPlayers: number
+  upcomingTies: number
+}
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalSeasons: 0,
+    totalTeams: 0,
+    totalPlayers: 0,
+    upcomingTies: 0,
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const result = await fetchDashboardStats()
+        if (result.success && result.data) {
+          setStats(result.data)
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard stats:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadStats()
+  }, [])
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50">
@@ -25,7 +58,9 @@ export default function AdminDashboard() {
                 <Calendar className="h-4 w-4 text-gray-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">2</div>
+                <div className="text-2xl font-bold">
+                  {loading ? "..." : stats.totalSeasons}
+                </div>
                 <p className="text-xs text-gray-600">Active and archived seasons</p>
               </CardContent>
             </Card>
@@ -36,8 +71,10 @@ export default function AdminDashboard() {
                 <Trophy className="h-4 w-4 text-gray-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3</div>
-                <p className="text-xs text-gray-600">Teams in current season</p>
+                <div className="text-2xl font-bold">
+                  {loading ? "..." : stats.totalTeams}
+                </div>
+                <p className="text-xs text-gray-600">Teams across all seasons</p>
               </CardContent>
             </Card>
 
@@ -47,7 +84,9 @@ export default function AdminDashboard() {
                 <Users className="h-4 w-4 text-gray-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">8</div>
+                <div className="text-2xl font-bold">
+                  {loading ? "..." : stats.totalPlayers}
+                </div>
                 <p className="text-xs text-gray-600">Registered players</p>
               </CardContent>
             </Card>
@@ -58,7 +97,9 @@ export default function AdminDashboard() {
                 <Calendar className="h-4 w-4 text-gray-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">5</div>
+                <div className="text-2xl font-bold">
+                  {loading ? "..." : stats.upcomingTies}
+                </div>
                 <p className="text-xs text-gray-600">Scheduled matches</p>
               </CardContent>
             </Card>
