@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X, ChevronUp, ChevronDown, UserMinus } from "lucide-react"
 import { createTeamAction, updateTeamAction, deleteTeamAction } from "@/app/actions/teams"
+import { useTranslation } from "@/lib/i18n"
 
 export const dynamic = "force-dynamic"
 
@@ -49,6 +50,7 @@ export function TeamsClient({
   seasons: Season[]
   players: Player[]
 }) {
+  const { t } = useTranslation()
   const router = useRouter()
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -97,7 +99,7 @@ export function TeamsClient({
   }
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this team?")) {
+    if (confirm(t("confirmDeleteTeam"))) {
       await deleteTeamAction(String(id))
       router.refresh()
     }
@@ -138,25 +140,25 @@ export function TeamsClient({
     <>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Teams</h2>
-          <p className="mt-2 text-gray-600">Manage your teams</p>
+          <h2 className="text-3xl font-bold text-gray-900">{t("teams")}</h2>
+          <p className="mt-2 text-gray-600">{t("manageTeamsDesc")}</p>
         </div>
         <Button onClick={() => setIsAdding(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Team
+          {t("addTeam")}
         </Button>
       </div>
 
       {(isAdding || editingId !== null) && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>{editingId !== null ? "Edit Team" : "Add New Team"}</CardTitle>
+            <CardTitle>{editingId !== null ? t("editTeam") : t("addNewTeam")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Team Name</Label>
+                  <Label htmlFor="name">{t("teamName")}</Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -166,7 +168,7 @@ export function TeamsClient({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="league">League</Label>
+                  <Label htmlFor="league">{t("league")}</Label>
                   <Input
                     id="league"
                     value={formData.league}
@@ -175,7 +177,7 @@ export function TeamsClient({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="season">Season</Label>
+                  <Label htmlFor="season">{t("season")}</Label>
                   <Select
                     value={formData.seasonId}
                     onValueChange={(value) => setFormData({ ...formData, seasonId: value })}
@@ -196,10 +198,10 @@ export function TeamsClient({
 
               <div className="mt-6 space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Team Roster (Ranked by Position)</Label>
+                  <Label>{t("teamRoster")}</Label>
                   <Select key={selectKey} onValueChange={(value) => handleAddPlayer(value)}>
                     <SelectTrigger className="w-[250px]">
-                      <SelectValue placeholder="Add player..." />
+                      <SelectValue placeholder={t("addPlayerToTeam")} />
                     </SelectTrigger>
                     <SelectContent>
                       {availablePlayers.map((player) => (
@@ -264,18 +266,18 @@ export function TeamsClient({
                     })}
                   </div>
                 ) : (
-                  <p className="text-center text-sm text-gray-500 py-4">No players added yet</p>
+                  <p className="text-center text-sm text-gray-500 py-4">{t("noPlayersAdded")}</p>
                 )}
               </div>
 
               <div className="mt-4 flex gap-2">
                 <Button type="submit">
                   <Check className="mr-2 h-4 w-4" />
-                  Save
+                  {t("save")}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleCancel}>
                   <X className="mr-2 h-4 w-4" />
-                  Cancel
+                  {t("cancel")}
                 </Button>
               </div>
             </form>
@@ -292,11 +294,11 @@ export function TeamsClient({
                     <h3 className="text-lg font-semibold">{team.name}</h3>
                     <p className="text-sm text-gray-600">{team.league ?? "–"}</p>
                     <p className="mt-1 text-xs text-gray-500">
-                      Season: {seasons.find((s) => s.id === team.seasonId)?.name}
+                      {t("season")}: {seasons.find((s) => s.id === team.seasonId)?.name}
                     </p>
                     {team.players && team.players.length > 0 && (
                       <div className="mt-4">
-                        <p className="text-sm font-medium text-gray-700 mb-2">Roster ({team.players.length} players):</p>
+                        <p className="text-sm font-medium text-gray-700 mb-2">{t("roster")} ({team.players.length} {t("playersCount")}):</p>
                         <div className="flex flex-wrap gap-2">
                           {team.players.map((player, index) => (
                             <div
