@@ -139,7 +139,7 @@ export const translations = {
     addPlayers: "Spieler hinzufügen",
     confirmDeletePlayer: "Sind Sie sicher, dass Sie diesen Spieler löschen möchten?",
 
-    // Ties
+        // Ties
     manageTiesDesc: "Verwalten Sie Ihre Spiele",
     addTie: "Spieltag hinzufügen",
     addNewTie: "Neuen Spieltag hinzufügen",

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X, ArrowUpDown } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
-import { useTranslation, translations } from "@/lib/i18n"
+import { useTranslation } from "@/lib/i18n"
 
 type Tie = {
   id: number
@@ -214,7 +214,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
           {t('addTie')}
         </Button>
         <Button variant="outline" onClick={() => setIsImporting(true)} className="ml-3">
-          {t('importTies' as keyof typeof translations.de)}
+          {t('importTies')}
         </Button>
       </div>
 
@@ -318,18 +318,18 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
       {isImporting && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>{t('importTies' as keyof typeof translations.de)}</CardTitle>
+            <CardTitle>{t('importTies')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="importUrl">{t('importUrl' as keyof typeof translations.de)}</Label>
+                <Label htmlFor="importUrl">{t('importUrl')}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="importUrl"
                     value={importUrl}
                     onChange={(e) => setImportUrl(e.target.value)}
-                    placeholder={t('importUrlPlaceholder' as keyof typeof translations.de)}
+                    placeholder={t('importUrlPlaceholder')}
                   />
                   <Button
                     onClick={async () => {
@@ -358,7 +358,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                         console.log('Debug: Found tables with class "result-set":', tables.length)
                         tables.forEach((t, i) => console.log(`Table ${i}:`, t.outerHTML.substring(0, 200) + '...'))
                         
-                        if (tables.length < 2) throw new Error(t('importTableNotFound' as keyof typeof translations.de))
+                        if (tables.length < 2) throw new Error(t('importTableNotFound'))
                         const table = tables[1] as HTMLTableElement
                         const rows = Array.from(table.querySelectorAll('tbody tr'))
                         console.log('Debug: Found tbody rows:', rows.length)
@@ -452,18 +452,18 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                         }
 
                         setParsedTies(parsed)
-                        setImportResult(`${t('parsedTies' as keyof typeof translations.de)}: ${parsed.length}`)
+                        setImportResult(`${t('parsedTies')}: ${parsed.length}`)
                       } catch (err) {
                         console.error('Import failed', err)
                         const msg = err instanceof Error ? err.message : String(err)
-                        setImportResult(`${t('importFailed' as keyof typeof translations.de)}: ${msg}`)
+                        setImportResult(`${t('importFailed')}: ${msg}`)
                       } finally {
                         setImporting(false)
                       }
                     }}
                     disabled={!importUrl || importing}
                   >
-                    {importing ? t('parsing' as keyof typeof translations.de) : t('fetch' as keyof typeof translations.de)}
+                    {importing ? t('parsing') : t('fetch')}
                   </Button>
                 </div>
               </div>
@@ -492,7 +492,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
               {parsedTies.length > 0 && (
                 <div className="md:col-span-2 mt-4">
-                  <h3 className="text-lg font-semibold mb-3">{t('previewTies' as keyof typeof translations.de)}</h3>
+                  <h3 className="text-lg font-semibold mb-3">{t('previewTies')}</h3>
                   <div className="border rounded-lg overflow-hidden">
                     <table className="w-full">
                       <thead className="bg-gray-50">
@@ -594,13 +594,13 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                             }
                           }
 
-                          setImportResult(`${imported}/${selectedTies.length} ${t('imported' as keyof typeof translations.de)}`)
+                          setImportResult(`${imported}/${selectedTies.length} ${t('imported')}`)
                           setParsedTies([]) // Clear the preview
                           router.refresh()
                         } catch (err) {
-                          console.error('Batch import failed', err)
-                          const msg = err instanceof Error ? err.message : String(err)
-                          setImportResult(`${t('importFailed' as keyof typeof translations.de)}: ${msg}`)
+                        console.error('Batch import failed', err)
+                        const msg = err instanceof Error ? err.message : String(err)
+                        setImportResult(`${t('importFailed')}: ${msg}`)
                         } finally {
                           setImportingSelected(false)
                         }
@@ -609,15 +609,15 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       className="bg-green-600 hover:bg-green-700"
                     >
                       {importingSelected ? 
-                        t('importing' as keyof typeof translations.de) : 
-                        `${t('importSelected' as keyof typeof translations.de)} (${parsedTies.filter(t => t.selected).length})`
+                        t('importing') : 
+                        `${t('importSelected')} (${parsedTies.filter(t => t.selected).length})`
                       }
                     </Button>
                     <Button
                       onClick={() => setParsedTies([])}
                       variant="outline"
                     >
-                      {t('clearPreview' as keyof typeof translations.de)}
+                      {t('clearPreview')}
                     </Button>
                   </div>
                 </div>
