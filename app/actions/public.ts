@@ -7,6 +7,15 @@ export async function validateAccessCode(accessCode: string) {
   return season ? { valid: true, seasonId: season.id } : { valid: false, seasonId: null }
 }
 
+export async function getSeasonInfo(seasonId: string) {
+  const numericSeasonId = Number(seasonId)
+  if (Number.isNaN(numericSeasonId)) {
+    throw new Error("Invalid season id")
+  }
+  
+  return await db.getSeasonById(numericSeasonId)
+}
+
 export async function getTiesForSeason(seasonId: string) {
   const numericSeasonId = Number(seasonId)
   if (Number.isNaN(numericSeasonId)) {

@@ -10,6 +10,7 @@ import {
   getPlayersForSeason,
   getParticipationsForTie,
   updateParticipation,
+  getSeasonInfo,
 } from "@/app/actions/public"
 import { TieDetailsDialog } from "@/components/tie-details-dialog"
 import { ParticipationCommentDialog } from "@/components/participation-comment-dialog"
@@ -60,6 +61,7 @@ export function SpieltageClient() {
   const [showFilters, setShowFilters] = useState(false)
   const [ties, setTies] = useState<TieWithDetails[]>([])
   const [players, setPlayers] = useState<SpieltagePlayer[]>([])
+  const [seasonName, setSeasonName] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [selectedTie, setSelectedTie] = useState<TieWithDetails | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
@@ -126,7 +128,16 @@ export function SpieltageClient() {
       }
 
       try {
-        const [tiesData, playersData] = await Promise.all([getTiesForSeason(seasonId), getPlayersForSeason(seasonId)])
+        const [tiesData, playersData, seasonData] = await Promise.all([
+          getTiesForSeason(seasonId), 
+          getPlayersForSeason(seasonId),
+          getSeasonInfo(seasonId)
+        ])
+
+        // Set season name
+        if (seasonData) {
+          setSeasonName(seasonData.name)
+        }
 
         const mappedPlayers: SpieltagePlayer[] = (playersData as SpieltagePlayer[]).map((player) => ({
           id: Number(player.id),
@@ -314,7 +325,7 @@ export function SpieltageClient() {
             </div>
             <nav className="flex items-center">
               <a href="#" className="border-b-2 border-blue-500 px-4 py-6 text-sm font-medium text-white">
-                Spieltage
+                {seasonName ? `${seasonName} - Spieltage` : 'Spieltage'}
               </a>
             </nav>
           </div>
@@ -335,7 +346,9 @@ export function SpieltageClient() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-6 py-12">
-        <h1 className="mb-12 text-3xl font-semibold text-white">{t("upcomingMatches")}</h1>
+        <h1 className="mb-12 text-3xl font-semibold text-white">
+          {seasonName ? `${seasonName} - ${t("upcomingMatches")}` : t("upcomingMatches")}
+        </h1>
 
         {/* Filter Section */}
         <div className="mb-8 flex items-center gap-4">
