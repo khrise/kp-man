@@ -7,7 +7,7 @@ import { TiesClient } from "./ties-client"
 export const dynamic = 'force-dynamic'
 
 export default async function TiesPage() {
-    const [ties, teams, seasons] = await Promise.all([db.getTies(), db.getTeams(), db.getSeasons()])
+    const [ties, teams, seasons] = await Promise.all([db.getTiesWithLineupInfo(), db.getTeams(), db.getSeasons()])
 
     return (
       <AuthGuard>

@@ -24,6 +24,10 @@ type Tie = {
   seasonId: number
   teamName: string
   seasonName: string
+  teamSize: number
+  lineupCount: number
+  lineupPlayers: { playerRank: number; firstName: string; lastName: string; status: string }[]
+  problematicCount: number
 }
 
 type Team = {
@@ -665,7 +669,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                 className="w-full justify-start"
               >
                 <ArrowUpDown className="mr-2 h-4 w-4" />
-                {sortOrder === 'asc' ? t('oldestFirst') : t('newestFirst')}
+                {sortOrder === 'asc' ? t('ascending') : t('descending')}
               </Button>
             </div>
             <div className="sm:self-end">
@@ -722,6 +726,47 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       >
                         {tie.isHome ? t('home') : t('away')}
                       </span>
+                      
+                      {/* Lineup Teaser */}
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Users className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700">
+                              {t('lineup')}: {tie.lineupCount}/{tie.teamSize}
+                            </span>
+                            {/* Status indicator */}
+                            {tie.lineupCount === 0 ? (
+                              <span className="h-2 w-2 rounded-full bg-gray-400" title={t('noLineup')}></span>
+                            ) : tie.problematicCount > 0 ? (
+                              <span className="h-2 w-2 rounded-full bg-red-500" title={t('lineupIssues')}></span>
+                            ) : tie.lineupCount < tie.teamSize ? (
+                              <span className="h-2 w-2 rounded-full bg-yellow-500" title={t('lineupIncomplete')}></span>
+                            ) : (
+                              <span className="h-2 w-2 rounded-full bg-green-500" title={t('lineupComplete')}></span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Player preview */}
+                        {tie.lineupPlayers.length > 0 && (
+                          <div className="mt-1">
+                            <p className="text-xs text-gray-500 truncate">
+                              {tie.lineupPlayers.slice(0, 3).map(p => `#${p.playerRank} ${p.firstName} ${p.lastName.charAt(0)}.`).join(', ')}
+                              {tie.lineupPlayers.length > 3 && '...'}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Problem alert */}
+                        {tie.problematicCount > 0 && (
+                          <div className="mt-1">
+                            <p className="text-xs text-red-600 font-medium">
+                              ⚠️ {tie.problematicCount} {tie.problematicCount === 1 ? t('playerNeedsAttention') : t('playersNeedAttention')}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2 sm:flex-shrink-0">
                       <Button 

@@ -343,6 +343,13 @@ export type TieWithSeasonAndTeam = Tie & {
   seasonId: number
 }
 
+export type TieWithLineupInfo = TieWithSeasonAndTeam & {
+  teamSize: number
+  lineupCount: number
+  lineupPlayers: { playerRank: number; firstName: string; lastName: string; status: string }[]
+  problematicCount: number
+}
+
 export async function getTies(): Promise<TieWithSeasonAndTeam[]> {
   return db
     .selectFrom("ties as t")
@@ -356,6 +363,51 @@ export async function getTies(): Promise<TieWithSeasonAndTeam[]> {
     ])
     .orderBy("t.tieDate", "desc")
     .execute()
+}
+
+export async function getTiesWithLineupInfo(): Promise<TieWithLineupInfo[]> {
+  const ties = await getTies()
+  
+  const tiesWithLineup = await Promise.all(
+    ties.map(async (tie) => {
+      // Get team size
+      const team = await db.selectFrom("teams").select("teamSize").where("id", "=", tie.teamId).executeTakeFirst()
+      const teamSize = team?.teamSize || 0
+
+      // Get lineup information
+      const lineupParticipations = await db
+        .selectFrom("participations as p")
+        .innerJoin("players as pl", "pl.id", "p.playerId")
+        .innerJoin("teamPlayers as tp", (join) => 
+          join
+            .onRef("tp.playerId", "=", "p.playerId")
+            .on("tp.teamId", "=", tie.teamId)
+        )
+        .select([
+          "p.status",
+          "pl.firstName", 
+          "pl.lastName",
+          "tp.playerRank"
+        ])
+        .where("p.tieId", "=", tie.id)
+        .where("p.isInLineup", "=", true)
+        .orderBy("tp.playerRank")
+        .execute()
+
+      const lineupCount = lineupParticipations.length
+      const problematicCount = lineupParticipations.filter(p => p.status !== "confirmed").length
+
+      return {
+        ...tie,
+        teamSize,
+        lineupCount,
+        lineupPlayers: lineupParticipations,
+        problematicCount
+      }
+    })
+  )
+
+  return tiesWithLineup
 }
 
 export type TieWithTeamName = {
