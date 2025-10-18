@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, UserCheck, UserX, Clock } from "lucide-react"
+import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+import { Users, UserCheck, UserX, Clock, HelpCircle } from "lucide-react"
 import { toggleLineupAction } from "@/app/actions/lineup"
 import { useTranslation } from "@/lib/i18n"
 import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
+import type { TeamPlayerWithDetails } from "@/lib/db"
 
 type TieWithDetails = Tie & {
   opponent: string
@@ -25,6 +27,7 @@ type LineupClientProps = {
   lineupPlayers: ParticipationWithPlayer[]
   availablePlayers: ParticipationWithPlayer[]
   otherParticipations: ParticipationWithPlayer[]
+  playersWithoutParticipation: TeamPlayerWithDetails[]
   lineupCount: number
   maxPlayers: number
 }
@@ -35,12 +38,14 @@ export function LineupClient({
   lineupPlayers,
   availablePlayers,
   otherParticipations,
+  playersWithoutParticipation,
   lineupCount,
   maxPlayers
 }: LineupClientProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
 
   // Check for problematic lineup situations
   const problematicPlayers = lineupPlayers.filter(p => p.status !== "confirmed")
@@ -118,6 +123,30 @@ export function LineupClient({
                 {isInLineup ? t("remove") : t("add")}
               </Button>
             )}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const NoResponsePlayerCard = ({ player }: { player: TeamPlayerWithDetails }) => {
+    return (
+      <Card className="bg-gray-50 border-gray-200">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="flex-1">
+                <h3 className="font-semibold text-sm">
+                  #{player.playerRank} {player.firstName} {player.lastName}
+                </h3>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge variant="outline" className="bg-gray-100 text-gray-600">
+                    <HelpCircle className="w-3 h-3 mr-1" />
+                    {t("noResponsePlayers")}
+                  </Badge>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -269,6 +298,37 @@ export function LineupClient({
           )}
         </div>
       </div>
+
+      {/* Players Without Response - Full Width Section */}
+      {playersWithoutParticipation.length > 0 && (
+        <div className="mt-8">
+          <Card>
+            <CardContent className="p-0">
+              <AccordionItem 
+                value="no-response" 
+                open={isNoResponseOpen} 
+                onOpenChange={setIsNoResponseOpen}
+              >
+                <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                  <div className="flex items-center space-x-2">
+                    <HelpCircle className="w-5 h-5 text-gray-600" />
+                    <span className="font-semibold">{t("playersWithoutResponse")} ({playersWithoutParticipation.length})</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-6 pb-6">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {playersWithoutParticipation
+                      .sort((a, b) => a.playerRank - b.playerRank)
+                      .map((player) => (
+                        <NoResponsePlayerCard key={player.id} player={player} />
+                      ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </main>
   )
 }

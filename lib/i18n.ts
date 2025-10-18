@@ -78,11 +78,14 @@ export const translations = {
     onePlayerInLineupChanged: "Ein Spieler in der Aufstellung hat seine Teilnahme geändert",
     playersInLineupChanged: "Spieler in der Aufstellung haben ihre Teilnahme geändert",
     noLineup: "Keine Aufstellung",
-    lineupIssues: "Aufstellungsprobleme", 
+    lineupIssues: "Aufstellungsprobleme",
     lineupIncomplete: "Aufstellung unvollständig",
     lineupComplete: "Aufstellung vollständig",
     playerNeedsAttention: "Spieler benötigt Aufmerksamkeit",
     playersNeedAttention: "Spieler benötigen Aufmerksamkeit",
+    playersWithoutResponse: "Spieler ohne Antwort",
+    noResponsePlayers: "Keine Rückmeldung",
+    noPlayersWithoutResponse: "Alle Spieler haben geantwortet",
 
     // Admin Dashboard
     dashboard: "Dashboard",
@@ -293,10 +296,13 @@ export const translations = {
     playersInLineupChanged: "players in the lineup have changed their participation",
     noLineup: "No lineup",
     lineupIssues: "Lineup issues",
-    lineupIncomplete: "Lineup incomplete", 
+    lineupIncomplete: "Lineup incomplete",
     lineupComplete: "Lineup complete",
     playerNeedsAttention: "player needs attention",
     playersNeedAttention: "players need attention",
+    playersWithoutResponse: "Players Without Response",
+    noResponsePlayers: "No Response",
+    noPlayersWithoutResponse: "All players have responded",
 
     // Admin Dashboard
     dashboard: "Dashboard",

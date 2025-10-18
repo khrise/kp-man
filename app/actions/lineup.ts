@@ -64,6 +64,9 @@ export async function getLineupData(tieId: string) {
     throw new Error("Team not found")
   }
 
+  // Get players without any participation response
+  const playersWithoutParticipation = await db.getPlayersWithoutParticipation(tieIdNum)
+
   // Separate players by lineup status first, then by participation status
   const lineupPlayers = tie.participations.filter((p) => p.isInLineup)
   const nonLineupParticipations = tie.participations.filter((p) => !p.isInLineup)
@@ -78,6 +81,7 @@ export async function getLineupData(tieId: string) {
     lineupPlayers,
     availablePlayers,
     otherParticipations,
+    playersWithoutParticipation,
     lineupCount: lineupPlayers.length,
     maxPlayers: team.teamSize,
   }

@@ -367,7 +367,7 @@ export async function getTies(): Promise<TieWithSeasonAndTeam[]> {
 
 export async function getTiesWithLineupInfo(): Promise<TieWithLineupInfo[]> {
   const ties = await getTies()
-  
+
   const tiesWithLineup = await Promise.all(
     ties.map(async (tie) => {
       // Get team size
@@ -378,33 +378,26 @@ export async function getTiesWithLineupInfo(): Promise<TieWithLineupInfo[]> {
       const lineupParticipations = await db
         .selectFrom("participations as p")
         .innerJoin("players as pl", "pl.id", "p.playerId")
-        .innerJoin("teamPlayers as tp", (join) => 
-          join
-            .onRef("tp.playerId", "=", "p.playerId")
-            .on("tp.teamId", "=", tie.teamId)
+        .innerJoin("teamPlayers as tp", (join) =>
+          join.onRef("tp.playerId", "=", "p.playerId").on("tp.teamId", "=", tie.teamId),
         )
-        .select([
-          "p.status",
-          "pl.firstName", 
-          "pl.lastName",
-          "tp.playerRank"
-        ])
+        .select(["p.status", "pl.firstName", "pl.lastName", "tp.playerRank"])
         .where("p.tieId", "=", tie.id)
         .where("p.isInLineup", "=", true)
         .orderBy("tp.playerRank")
         .execute()
 
       const lineupCount = lineupParticipations.length
-      const problematicCount = lineupParticipations.filter(p => p.status !== "confirmed").length
+      const problematicCount = lineupParticipations.filter((p) => p.status !== "confirmed").length
 
       return {
         ...tie,
         teamSize,
         lineupCount,
         lineupPlayers: lineupParticipations,
-        problematicCount
+        problematicCount,
       }
-    })
+    }),
   )
 
   return tiesWithLineup
@@ -621,6 +614,21 @@ export async function getTieWithParticipations(id: number): Promise<TieWithDetai
     maybeCount,
     declinedCount,
   }
+}
+
+export async function getPlayersWithoutParticipation(tieId: number): Promise<TeamPlayerWithDetails[]> {
+  const tie = await db.selectFrom("ties").selectAll().where("id", "=", tieId).executeTakeFirst()
+  if (!tie) return []
+
+  return db
+    .selectFrom("players as p")
+    .innerJoin("teamPlayers as tp", "tp.playerId", "p.id")
+    .leftJoin("participations as part", (join) => join.onRef("part.playerId", "=", "p.id").on("part.tieId", "=", tieId))
+    .select(["p.id", "p.firstName", "p.lastName", "p.createdAt", "tp.teamId", "tp.playerId", "tp.playerRank"])
+    .where("tp.teamId", "=", tie.teamId)
+    .where("part.id", "is", null) // Only players without participation record
+    .orderBy("tp.playerRank")
+    .execute()
 }
 
 export async function getUserByUsername(username: string): Promise<User | undefined> {
