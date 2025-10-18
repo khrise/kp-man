@@ -372,14 +372,6 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
           </Select>
         </div>
 
-        <Button
-          variant="secondary"
-          className="mb-8 bg-[#4a5f7a] text-white hover:bg-[#5a6f8a]"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          {showFilters ? t("hideFilters") : t("showFilters")}
-        </Button>
-
         {/* Game Cards Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {ties.map((tie) => {
