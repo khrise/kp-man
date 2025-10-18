@@ -27,6 +27,7 @@ type Team = {
   seasonId: number
   name: string
   league: string | null
+  teamSize: number
   players?: TeamPlayer[]
 }
 
@@ -58,6 +59,7 @@ export function TeamsClient({
   const [formData, setFormData] = useState({
     name: "",
     league: "",
+    teamSize: "6",
     seasonId: seasons[0] ? String(seasons[0].id) : "",
     playerIds: [] as string[],
   })
@@ -67,6 +69,7 @@ export function TeamsClient({
     setFormData({
       name: team.name,
       league: team.league || "",
+      teamSize: String(team.teamSize),
       seasonId: String(team.seasonId),
       playerIds: team.players?.map((p) => String(p.id)) || [],
     })
@@ -77,6 +80,7 @@ export function TeamsClient({
     const formDataObj = new FormData()
     formDataObj.append("name", formData.name)
     formDataObj.append("league", formData.league)
+    formDataObj.append("team_size", formData.teamSize)
     formDataObj.append("season_id", formData.seasonId)
     formDataObj.append("player_ids", JSON.stringify(formData.playerIds))
 
@@ -88,14 +92,14 @@ export function TeamsClient({
       setIsAdding(false)
     }
 
-    setFormData({ name: "", league: "", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
+    setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
     router.refresh()
   }
 
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
-    setFormData({ name: "", league: "", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
+    setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
   }
 
   const handleDelete = async (id: number) => {
@@ -178,6 +182,20 @@ export function TeamsClient({
                     onChange={(e) => setFormData({ ...formData, league: e.target.value })}
                     placeholder="e.g., Herren 40 Bezirksliga"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="teamSize">{t("teamSize")}</Label>
+                  <Input
+                    id="teamSize"
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={formData.teamSize}
+                    onChange={(e) => setFormData({ ...formData, teamSize: e.target.value })}
+                    placeholder="6"
+                    required
+                  />
+                  <p className="text-xs text-gray-500">{t("teamSizeDesc")}</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="season">{t("season")}</Label>
@@ -298,6 +316,9 @@ export function TeamsClient({
                   <p className="text-sm text-gray-600">{team.league ?? "–"}</p>
                   <p className="mt-1 text-xs text-gray-500">
                     {t("season")}: {seasons.find((s) => s.id === team.seasonId)?.name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {t("teamSize")}: {team.teamSize} {t("playersCount")}
                   </p>
                   {team.players && team.players.length > 0 && (
                     <div className="mt-4">

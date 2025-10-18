@@ -9,12 +9,18 @@ export async function createTeamAction(formData: FormData) {
     throw new Error("Invalid season id")
   }
 
+  const teamSize = Number(formData.get("team_size"))
+  if (Number.isNaN(teamSize) || teamSize < 1) {
+    throw new Error("Invalid team size")
+  }
+
   const leagueValue = (formData.get("league") as string) || null
 
   const data = {
     seasonId,
     name: formData.get("name") as string,
     league: leagueValue,
+    teamSize,
   }
 
   const team = await db.createTeam(data)
@@ -46,12 +52,18 @@ export async function updateTeamAction(id: string, formData: FormData) {
     throw new Error("Invalid season id")
   }
 
+  const teamSize = Number(formData.get("team_size"))
+  if (Number.isNaN(teamSize) || teamSize < 1) {
+    throw new Error("Invalid team size")
+  }
+
   const leagueValue = (formData.get("league") as string) || null
 
   const data = {
     seasonId,
     name: formData.get("name") as string,
     league: leagueValue,
+    teamSize,
   }
 
   await db.updateTeam(teamId, data)

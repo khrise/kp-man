@@ -52,6 +52,7 @@ interface TeamsTable {
   seasonId: number
   name: string
   league: NullableStringColumn
+  teamSize: number
   createdAt: TimestampColumn
   updatedAt: TimestampColumn
 }
@@ -245,7 +246,7 @@ export async function getTeamById(id: number): Promise<Team | undefined> {
   return db.selectFrom("teams").selectAll().where("id", "=", id).executeTakeFirst()
 }
 
-type CreateTeamInput = Pick<Insertable<TeamsTable>, "seasonId" | "name" | "league">
+type CreateTeamInput = Pick<Insertable<TeamsTable>, "seasonId" | "name" | "league" | "teamSize">
 
 export async function createTeam(data: CreateTeamInput): Promise<Team> {
   const inserted = await db.insertInto("teams").values(data).returningAll().executeTakeFirst()
@@ -255,7 +256,7 @@ export async function createTeam(data: CreateTeamInput): Promise<Team> {
   return inserted
 }
 
-type UpdateTeamInput = Pick<Updateable<TeamsTable>, "seasonId" | "name" | "league">
+type UpdateTeamInput = Pick<Updateable<TeamsTable>, "seasonId" | "name" | "league" | "teamSize">
 
 export async function updateTeam(id: number, data: UpdateTeamInput): Promise<Team | undefined> {
   return db.updateTable("teams").set(data).where("id", "=", id).returningAll().executeTakeFirst()

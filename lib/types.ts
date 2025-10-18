@@ -24,6 +24,7 @@ export interface Team {
   seasonId: number
   name: string
   league: string | null
+  teamSize: number
   playerIds: number[]
   createdAt: Date
   updatedAt: Date

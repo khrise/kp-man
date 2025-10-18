@@ -30,8 +30,8 @@ export default function HomePage() {
             <path d="M26 8L30 10L30 30L26 32" stroke="currentColor" strokeWidth="2" fill="none" />
           </svg>
         </div>
-        
-        <Suspense fallback={<div className="text-center text-white">Loading...</div>}>
+
+        <Suspense fallback={<div className="text-center text-white">{t("loading")}</div>}>
           <HomePageForm />
         </Suspense>
         
