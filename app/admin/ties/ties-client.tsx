@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, Check, X, ArrowUpDown } from "lucide-react"
+import { Plus, Edit, Trash2, Check, X, ArrowUpDown, Users } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
 import { useTranslation } from "@/lib/i18n"
 
@@ -724,6 +724,14 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       </span>
                     </div>
                     <div className="flex gap-2 sm:flex-shrink-0">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => router.push(`/admin/ties/${tie.id}/lineup`)}
+                      >
+                        <Users className="h-4 w-4" />
+                        <span className="ml-1 hidden sm:inline">{t('manageLineup')}</span>
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEdit(tie)}>
                         <Edit className="h-4 w-4" />
                         <span className="ml-1 hidden sm:inline">{t('edit')}</span>

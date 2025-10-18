@@ -38,6 +38,10 @@ export interface Player {
   updatedAt: Date
 }
 
+export interface PlayerWithRank extends Player {
+  playerRank: number
+}
+
 export interface Tie {
   id: number
   teamId: number
@@ -56,6 +60,7 @@ export interface Participation {
   playerId: number
   status: "confirmed" | "maybe" | "declined"
   comment: string | null // Added comment field for participation notes
+  isInLineup: boolean // Whether this confirmed player is selected for the actual lineup
   respondedAt: Date
   createdAt: Date
   updatedAt: Date
@@ -64,7 +69,7 @@ export interface Participation {
 // Extended types with relations
 export interface TieWithDetails extends Tie {
   team: Team
-  participations: (Participation & { player: Player })[]
+  participations: (Participation & { player: PlayerWithRank })[]
   confirmedCount: number
   maybeCount: number
   declinedCount: number

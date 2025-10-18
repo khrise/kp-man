@@ -17,9 +17,10 @@ import {
   Kysely,
   PostgresDialect,
   Selectable,
-  Updateable,
   sql,
+  Updateable,
 } from "kysely"
+import type { TieWithDetails } from "./types"
 
 type TimestampColumn = ColumnType<Date, string | Date | undefined, string | Date | undefined>
 type DateColumn = ColumnType<Date, string | Date, string | Date>
@@ -92,6 +93,7 @@ interface ParticipationsTable {
   playerId: number
   status: "confirmed" | "maybe" | "declined"
   comment: NullableStringColumn
+  isInLineup: Generated<boolean>
   respondedAt: TimestampColumn
   createdAt: TimestampColumn
   updatedAt: TimestampColumn
@@ -415,7 +417,17 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
     .innerJoin("ties as t", "t.id", "p.tieId")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .innerJoin("teamPlayers as tp", (join) => join.onRef("pl.id", "=", "tp.playerId").onRef("tm.id", "=", "tp.teamId"))
-    .select(["p.id", "p.tieId", "p.playerId", "p.status", "p.comment", "p.respondedAt", "p.createdAt", "p.updatedAt"])
+    .select([
+      "p.id",
+      "p.tieId",
+      "p.playerId",
+      "p.status",
+      "p.comment",
+      "p.isInLineup",
+      "p.respondedAt",
+      "p.createdAt",
+      "p.updatedAt",
+    ])
     .select(["pl.firstName", "pl.lastName", "tp.playerRank"])
     .where("p.tieId", "=", tieId)
     .orderBy("p.status")
@@ -447,6 +459,116 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
   }
 
   return inserted
+}
+
+export async function getParticipationById(id: number): Promise<Participation | undefined> {
+  return db.selectFrom("participations").selectAll().where("id", "=", id).executeTakeFirst()
+}
+
+export async function updateParticipationLineup(id: number, isInLineup: boolean): Promise<Participation | undefined> {
+  return db
+    .updateTable("participations")
+    .set({ isInLineup, updatedAt: sql`now()` })
+    .where("id", "=", id)
+    .returningAll()
+    .executeTakeFirst()
+}
+
+export async function getLineupCount(tieId: number): Promise<number> {
+  const result = await db
+    .selectFrom("participations")
+    .select((eb) => eb.fn.count<number>("id").as("count"))
+    .where("tieId", "=", tieId)
+    .where("isInLineup", "=", true)
+    .executeTakeFirst()
+
+  return Number(result?.count) || 0
+}
+
+export async function getTieWithParticipations(id: number): Promise<TieWithDetails | undefined> {
+  const tie = await db.selectFrom("ties").selectAll().where("id", "=", id).executeTakeFirst()
+  if (!tie) return undefined
+
+  const participations = await db
+    .selectFrom("participations")
+    .innerJoin("players", "players.id", "participations.playerId")
+    .innerJoin("ties", "ties.id", "participations.tieId")
+    .innerJoin("teamPlayers", (join) =>
+      join
+        .onRef("teamPlayers.playerId", "=", "participations.playerId")
+        .onRef("teamPlayers.teamId", "=", "ties.teamId"),
+    )
+    .select([
+      "participations.id",
+      "participations.tieId",
+      "participations.playerId",
+      "participations.status",
+      "participations.comment",
+      "participations.isInLineup",
+      "participations.respondedAt",
+      "participations.createdAt",
+      "participations.updatedAt",
+      "players.firstName",
+      "players.lastName",
+      "players.createdAt as playerCreatedAt",
+      "players.updatedAt as playerUpdatedAt",
+      "teamPlayers.playerRank",
+    ])
+    .where("participations.tieId", "=", id)
+    .orderBy("teamPlayers.playerRank")
+    .execute()
+
+  const participationsWithPlayer = participations.map((p) => ({
+    id: p.id,
+    tieId: p.tieId,
+    playerId: p.playerId,
+    status: p.status,
+    comment: p.comment,
+    isInLineup: p.isInLineup,
+    respondedAt: p.respondedAt,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    player: {
+      id: p.playerId,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      createdAt: p.playerCreatedAt,
+      updatedAt: p.playerUpdatedAt,
+      playerRank: p.playerRank,
+    },
+  }))
+
+  // Count participations by status
+  const confirmedCount = participationsWithPlayer.filter((p) => p.status === "confirmed").length
+  const maybeCount = participationsWithPlayer.filter((p) => p.status === "maybe").length
+  const declinedCount = participationsWithPlayer.filter((p) => p.status === "declined").length
+
+  // Get team information with player IDs
+  const team = await db.selectFrom("teams").selectAll().where("id", "=", tie.teamId).executeTakeFirst()
+  if (!team) {
+    throw new Error("Team not found")
+  }
+
+  const teamPlayers = await db
+    .selectFrom("teamPlayers")
+    .select("playerId")
+    .where("teamId", "=", tie.teamId)
+    .orderBy("playerRank")
+    .execute()
+
+  const teamWithPlayerIds = {
+    ...team,
+    playerIds: teamPlayers.map((tp) => tp.playerId),
+  }
+
+  return {
+    ...tie,
+    team: teamWithPlayerIds,
+    participations: participationsWithPlayer,
+    confirmedCount,
+    maybeCount,
+    declinedCount,
+  }
 }
 
 export async function getUserByUsername(username: string): Promise<User | undefined> {

@@ -60,6 +60,20 @@ export const translations = {
     declined: "Abgelehnt",
     noResponses: "Noch keine Rückmeldungen",
 
+    // Lineup Management
+    lineup: "Aufstellung",
+    manageLineup: "Aufstellung verwalten",
+    selectLineup: "Aufstellung auswählen",
+    inLineup: "In Aufstellung",
+    notInLineup: "Nicht in Aufstellung",
+    lineupPlayers: "Ausgewählte Spieler",
+    availablePlayers: "Verfügbare Spieler",
+    lineupCount: "Aufstellung",
+    maxPlayersReached: "Maximale Spieleranzahl erreicht",
+    onlyConfirmedPlayers: "Nur bestätigte Spieler können ausgewählt werden",
+    remove: "Entfernen",
+    otherParticipations: "Andere Teilnahmen",
+
     // Admin Dashboard
     dashboard: "Dashboard",
     manageSportsClub: "Verwalten Sie Ihre Sportverein-Planungsanwendung",
@@ -249,6 +263,20 @@ export const translations = {
     confirmed: "Confirmed",
     declined: "Declined",
     noResponses: "No responses yet",
+
+    // Lineup Management
+    lineup: "Lineup",
+    manageLineup: "Manage Lineup",
+    selectLineup: "Select Lineup",
+    inLineup: "In Lineup",
+    notInLineup: "Not in Lineup",
+    lineupPlayers: "Selected Players",
+    availablePlayers: "Available Players",
+    lineupCount: "Lineup",
+    maxPlayersReached: "Maximum number of players reached",
+    onlyConfirmedPlayers: "Only confirmed players can be selected",
+    remove: "Remove",
+    otherParticipations: "Other Participations",
 
     // Admin Dashboard
     dashboard: "Dashboard",
