@@ -12,7 +12,7 @@ export async function getSeasonInfo(seasonId: string) {
   if (Number.isNaN(numericSeasonId)) {
     throw new Error("Invalid season id")
   }
-  
+
   return await db.getSeasonById(numericSeasonId)
 }
 

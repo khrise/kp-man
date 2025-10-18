@@ -3,12 +3,12 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-export default function SpieltageRedirect() {
+export default function TiesRedirect() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect old spieltage route to ties
-    router.replace("/ties")
+    // No access code in URL, redirect to home for user to enter access code
+    router.replace("/")
   }, [router])
 
   return (

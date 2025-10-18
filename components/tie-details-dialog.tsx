@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar, MapPin, Users, CheckCircle, HelpCircle, XCircle } from "lucide-react"
 import { useTranslation } from "@/lib/i18n"
-import type { TieWithDetails } from "@/app/spieltage/spieltage-client"
+import type { TieWithDetails } from "@/app/ties/spieltage-client"
 
 interface TieDetailsDialogProps {
   tie: TieWithDetails

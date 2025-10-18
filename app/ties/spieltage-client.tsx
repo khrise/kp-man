@@ -124,27 +124,17 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
   useEffect(() => {
     const loadData = async () => {
-      // Use props if available, fallback to localStorage for backward compatibility
-      let seasonId = propSeasonId
-      let accessCodeToUse = accessCode
-      
-      if (!seasonId || !accessCodeToUse) {
-        seasonId = localStorage.getItem("season_id")
-        accessCodeToUse = localStorage.getItem("season_access_code")
-
-        if (!seasonId || !accessCodeToUse) {
-          router.push("/")
-          return
-        }
-        
-        seasonId = parseInt(seasonId)
+      // Require props - no localStorage fallback needed with URL-based routing
+      if (!propSeasonId || !accessCode) {
+        router.push("/")
+        return
       }
 
       try {
         const [tiesData, playersData, seasonData] = await Promise.all([
-          getTiesForSeason(String(seasonId)), 
-          getPlayersForSeason(String(seasonId)),
-          getSeasonInfo(String(seasonId))
+          getTiesForSeason(String(propSeasonId)), 
+          getPlayersForSeason(String(propSeasonId)),
+          getSeasonInfo(String(propSeasonId))
         ])
 
         // Set season name
@@ -213,8 +203,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   }, [router, selectedPlayerId, accessCode, propSeasonId])
 
   const handleLogout = () => {
-    localStorage.removeItem("season_access_code")
-    localStorage.removeItem("season_id")
+    // Simply redirect to home - no localStorage cleanup needed with URL-based routing
     router.push("/")
   }
 
