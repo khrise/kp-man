@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { createSeasonAction, updateSeasonAction, deleteSeasonAction } from "@/app/actions/seasons"
 import { useTranslation } from "@/lib/i18n"
+import Link from "next/link"
 
 type Season = {
   id: number
@@ -188,7 +189,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                   <p className="text-sm text-gray-600">
                     {new Date(season.startDate).toLocaleDateString()} - {new Date(season.endDate).toLocaleDateString()}
                   </p>
-                  <p className="mt-1 text-sm text-gray-600 truncate">{t("accessCode")}: {season.accessCode}</p>
+                  <p className="mt-1 text-sm text-gray-600 truncate">{t("accessCode")}: <Link href={'/ties/' + season.accessCode}>{season.accessCode}</Link></p>
                 </div>
                 <div className="flex gap-2 sm:flex-shrink-0">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(season)}>
