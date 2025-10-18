@@ -98,19 +98,21 @@ export default function PlayersPage() {
       <div className="min-h-screen bg-gray-50">
         <AdminHeader />
         <main className="mx-auto max-w-7xl px-6 py-8">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex-1 min-w-0">
               <h2 className="text-3xl font-bold text-gray-900">{t('players')}</h2>
               <p className="mt-2 text-gray-600">{t('managePlayersDesc')}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 sm:flex-shrink-0">
               <Button variant="outline" onClick={() => setIsBatchAdding(true)}>
                 <Upload className="mr-2 h-4 w-4" />
-                {t('batchAdd')}
+                <span className="hidden sm:inline">{t('batchAdd')}</span>
+                <span className="sm:hidden">{t('batchAdd')}</span>
               </Button>
               <Button onClick={() => setIsAdding(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                {t('addPlayer')}
+                <span className="hidden sm:inline">{t('addPlayer')}</span>
+                <span className="sm:hidden">{t('add')}</span>
               </Button>
             </div>
           </div>
@@ -188,19 +190,23 @@ export default function PlayersPage() {
           <div className="grid gap-4">
             {players.map((player) => (
               <Card key={player.id}>
-                <CardContent className="flex items-center justify-between p-6">
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      {player.firstName} {player.lastName}
-                    </h3>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(String(player.id))}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold truncate">
+                        {player.firstName} {player.lastName}
+                      </h3>
+                    </div>
+                    <div className="flex gap-2 sm:flex-shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
+                        <Edit className="h-4 w-4" />
+                        <span className="ml-1 hidden sm:inline">{t('edit')}</span>
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDelete(String(player.id))}>
+                        <Trash2 className="h-4 w-4" />
+                        <span className="ml-1 hidden sm:inline">{t('delete')}</span>
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

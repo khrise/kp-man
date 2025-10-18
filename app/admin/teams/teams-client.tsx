@@ -138,15 +138,18 @@ export function TeamsClient({
 
   return (
     <>
-      <div className="mb-8 flex items-center justify-between">
-        <div>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <h2 className="text-3xl font-bold text-gray-900">{t("teams")}</h2>
           <p className="mt-2 text-gray-600">{t("manageTeamsDesc")}</p>
         </div>
-        <Button onClick={() => setIsAdding(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("addTeam")}
-        </Button>
+        <div className="flex gap-2 sm:flex-shrink-0">
+          <Button onClick={() => setIsAdding(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">{t("addTeam")}</span>
+            <span className="sm:hidden">{t("add")}</span>
+          </Button>
+        </div>
       </div>
 
       {(isAdding || editingId !== null) && (
@@ -289,38 +292,40 @@ export function TeamsClient({
         {initialTeams.map((team) => (
           <Card key={team.id}>
             <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold">{team.name}</h3>
-                    <p className="text-sm text-gray-600">{team.league ?? "–"}</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {t("season")}: {seasons.find((s) => s.id === team.seasonId)?.name}
-                    </p>
-                    {team.players && team.players.length > 0 && (
-                      <div className="mt-4">
-                        <p className="text-sm font-medium text-gray-700 mb-2">{t("roster")} ({team.players.length} {t("playersCount")}):</p>
-                        <div className="flex flex-wrap gap-2">
-                          {team.players.map((player, index) => (
-                            <div
-                              key={player.id}
-                              className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
-                            >
-                              <span className="font-semibold text-blue-700">{index + 1}.</span>
-                              <span>
-                                {player.firstName} {player.lastName}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold truncate">{team.name}</h3>
+                  <p className="text-sm text-gray-600">{team.league ?? "–"}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {t("season")}: {seasons.find((s) => s.id === team.seasonId)?.name}
+                  </p>
+                  {team.players && team.players.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium text-gray-700 mb-2">{t("roster")} ({team.players.length} {t("playersCount")}):</p>
+                      <div className="flex flex-wrap gap-2">
+                        {team.players.map((player, index) => (
+                          <div
+                            key={player.id}
+                            className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
+                          >
+                            <span className="font-semibold text-blue-700">{index + 1}.</span>
+                            <span>
+                              {player.firstName} {player.lastName}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                  )}
+                    </div>
+                )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 sm:flex-shrink-0">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(team)}>
                     <Edit className="h-4 w-4" />
+                    <span className="ml-1 hidden sm:inline">{t("edit")}</span>
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleDelete(team.id)}>
                     <Trash2 className="h-4 w-4" />
+                    <span className="ml-1 hidden sm:inline">{t("delete")}</span>
                   </Button>
                 </div>
               </div>

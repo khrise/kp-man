@@ -100,15 +100,18 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
 
   return (
     <>
-      <div className="mb-8 flex items-center justify-between">
-        <div>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <h2 className="text-3xl font-bold text-gray-900">{t("seasons")}</h2>
           <p className="mt-2 text-gray-600">{t("manageSeasonsDesc")}</p>
         </div>
-        <Button onClick={handleAddNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("addSeason")}
-        </Button>
+        <div className="flex gap-2 sm:flex-shrink-0">
+          <Button onClick={handleAddNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">{t("addSeason")}</span>
+            <span className="sm:hidden">{t("add")}</span>
+          </Button>
+        </div>
       </div>
 
       {(isAdding || editingId !== null) && (
@@ -178,21 +181,25 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
       <div className="grid gap-4">
         {initialSeasons.map((season) => (
           <Card key={season.id}>
-            <CardContent className="flex items-center justify-between p-6">
-              <div>
-                <h3 className="text-lg font-semibold">{season.name}</h3>
-                <p className="text-sm text-gray-600">
-                  {new Date(season.startDate).toLocaleDateString()} - {new Date(season.endDate).toLocaleDateString()}
-                </p>
-                <p className="mt-1 text-sm text-gray-600">{t("accessCode")}: {season.accessCode}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(season)}>
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => handleDelete(season.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold truncate">{season.name}</h3>
+                  <p className="text-sm text-gray-600">
+                    {new Date(season.startDate).toLocaleDateString()} - {new Date(season.endDate).toLocaleDateString()}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-600 truncate">{t("accessCode")}: {season.accessCode}</p>
+                </div>
+                <div className="flex gap-2 sm:flex-shrink-0">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(season)}>
+                    <Edit className="h-4 w-4" />
+                    <span className="ml-1 hidden sm:inline">{t("edit")}</span>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDelete(season.id)}>
+                    <Trash2 className="h-4 w-4" />
+                    <span className="ml-1 hidden sm:inline">{t("delete")}</span>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

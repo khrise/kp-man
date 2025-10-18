@@ -204,18 +204,22 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <h2 className="text-3xl font-bold text-gray-900">{t('ties')}</h2>
           <p className="mt-2 text-gray-600">{t('manageMatches')}</p>
         </div>
-        <Button onClick={() => setIsAdding(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('addTie')}
-        </Button>
-        <Button variant="outline" onClick={() => setIsImporting(true)} className="ml-3">
-          {t('importTies')}
-        </Button>
+        <div className="flex gap-2 sm:flex-shrink-0">
+          <Button onClick={() => setIsAdding(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">{t('addTie')}</span>
+            <span className="sm:hidden">{t('add')}</span>
+          </Button>
+          <Button variant="outline" onClick={() => setIsImporting(true)}>
+            <span className="hidden sm:inline">{t('importTies')}</span>
+            <span className="sm:hidden">{t('import')}</span>
+          </Button>
+        </div>
       </div>
 
       {(isAdding || editingId !== null) && (
@@ -701,30 +705,34 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
             console.log("Rendering tie with date:", tie.tieDate)
             return (
               <Card key={tie.id}>
-                <CardContent className="flex items-center justify-between p-6">
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      {tie.teamName} {t('vs')} {tie.opponent}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {tie.tieDate.toLocaleDateString()} {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                    <p className="text-sm text-gray-600">{tie.location}</p>
-                    <span
-                      className={`mt-2 inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                        tie.isHome ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {tie.isHome ? t('home') : t('away')}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(tie)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(tie.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold truncate">
+                        {tie.teamName} {t('vs')} {tie.opponent}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {tie.tieDate.toLocaleDateString()} {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                      <p className="text-sm text-gray-600 truncate">{tie.location}</p>
+                      <span
+                        className={`mt-2 inline-block rounded-full px-2 py-1 text-xs font-medium ${
+                          tie.isHome ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {tie.isHome ? t('home') : t('away')}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 sm:flex-shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(tie)}>
+                        <Edit className="h-4 w-4" />
+                        <span className="ml-1 hidden sm:inline">{t('edit')}</span>
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDelete(tie.id)}>
+                        <Trash2 className="h-4 w-4" />
+                        <span className="ml-1 hidden sm:inline">{t('delete')}</span>
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
