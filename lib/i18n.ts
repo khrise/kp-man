@@ -73,6 +73,10 @@ export const translations = {
     onlyConfirmedPlayers: "Nur bestätigte Spieler können ausgewählt werden",
     remove: "Entfernen",
     otherParticipations: "Andere Teilnahmen",
+    needsAttention: "Aufmerksamkeit erforderlich",
+    lineupIssuesDetected: "Aufstellungsprobleme erkannt",
+    onePlayerInLineupChanged: "Ein Spieler in der Aufstellung hat seine Teilnahme geändert",
+    playersInLineupChanged: "Spieler in der Aufstellung haben ihre Teilnahme geändert",
 
     // Admin Dashboard
     dashboard: "Dashboard",
@@ -277,6 +281,10 @@ export const translations = {
     onlyConfirmedPlayers: "Only confirmed players can be selected",
     remove: "Remove",
     otherParticipations: "Other Participations",
+    needsAttention: "Needs Attention",
+    lineupIssuesDetected: "Lineup Issues Detected",
+    onePlayerInLineupChanged: "One player in the lineup has changed their participation",
+    playersInLineupChanged: "players in the lineup have changed their participation",
 
     // Admin Dashboard
     dashboard: "Dashboard",

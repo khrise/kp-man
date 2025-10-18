@@ -42,6 +42,10 @@ export function LineupClient({
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
+  // Check for problematic lineup situations
+  const problematicPlayers = lineupPlayers.filter(p => p.status !== "confirmed")
+  const hasProblematicPlayers = problematicPlayers.length > 0
+
   const handleToggleLineup = async (participationId: number, isCurrentlyInLineup: boolean) => {
     if (isLoading) return
     
@@ -67,48 +71,58 @@ export function LineupClient({
     participation: ParticipationWithPlayer, 
     isInLineup: boolean,
     canToggle: boolean
-  }) => (
-    <Card className={`${isInLineup ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="flex-1">
-              <h3 className="font-semibold text-sm">
-                #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
-              </h3>
-              <div className="flex items-center space-x-2 mt-1">
-                <Badge variant={
-                  participation.status === "confirmed" ? "default" : 
-                  participation.status === "maybe" ? "secondary" : "destructive"
-                }>
-                  {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
-                  {participation.status === "maybe" && <Clock className="w-3 h-3 mr-1" />}
-                  {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
-                  {t(participation.status)}
-                </Badge>
-                {isInLineup && (
-                  <Badge variant="outline" className="bg-blue-100">
-                    {t("inLineup")}
+  }) => {
+    // Check if this is a problematic lineup situation
+    const isProblematic = isInLineup && participation.status !== "confirmed"
+    
+    return (
+      <Card className={`${isInLineup ? 'ring-2 ring-blue-500 bg-blue-50' : ''} ${isProblematic ? 'ring-red-500 bg-red-50' : ''}`}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="flex-1">
+                <h3 className="font-semibold text-sm">
+                  #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
+                </h3>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge variant={
+                    participation.status === "confirmed" ? "default" : 
+                    participation.status === "maybe" ? "secondary" : "destructive"
+                  }>
+                    {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
+                    {participation.status === "maybe" && <Clock className="w-3 h-3 mr-1" />}
+                    {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
+                    {t(participation.status)}
                   </Badge>
-                )}
+                  {isInLineup && (
+                    <Badge variant="outline" className="bg-blue-100">
+                      {t("inLineup")}
+                    </Badge>
+                  )}
+                  {isProblematic && (
+                    <Badge variant="destructive" className="bg-red-500 text-white">
+                      ⚠️ {t("needsAttention")}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
+            
+            {canToggle && (
+              <Button
+                size="sm"
+                variant={isInLineup ? "outline" : "default"}
+                onClick={() => handleToggleLineup(participation.id, isInLineup)}
+                disabled={isLoading || (!isInLineup && lineupCount >= maxPlayers)}
+              >
+                {isInLineup ? t("remove") : t("add")}
+              </Button>
+            )}
           </div>
-          
-          {canToggle && (
-            <Button
-              size="sm"
-              variant={isInLineup ? "outline" : "default"}
-              onClick={() => handleToggleLineup(participation.id, isInLineup)}
-              disabled={isLoading || (!isInLineup && lineupCount >= maxPlayers)}
-            >
-              {isInLineup ? t("remove") : t("add")}
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
@@ -137,6 +151,34 @@ export function LineupClient({
           </div>
         </div>
       </div>
+
+      {/* Warning banner for problematic players */}
+      {hasProblematicPlayers && (
+        <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <UserX className="h-5 w-5 text-red-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-800">
+                ⚠️ {t("lineupIssuesDetected")}
+              </h3>
+              <p className="mt-1 text-sm text-red-700">
+                {problematicPlayers.length === 1 
+                  ? t("onePlayerInLineupChanged") 
+                  : `${problematicPlayers.length} ${t("playersInLineupChanged")}`}
+              </p>
+              <ul className="mt-2 text-sm text-red-700">
+                {problematicPlayers.map(p => (
+                  <li key={p.id}>
+                    • #{p.player.playerRank} {p.player.firstName} {p.player.lastName} ({t(p.status)})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Selected Players */}

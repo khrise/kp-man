@@ -64,11 +64,13 @@ export async function getLineupData(tieId: string) {
     throw new Error("Team not found")
   }
 
-  // Separate confirmed players by lineup status
-  const confirmedParticipations = tie.participations.filter((p) => p.status === "confirmed")
-  const lineupPlayers = confirmedParticipations.filter((p) => p.isInLineup)
-  const availablePlayers = confirmedParticipations.filter((p) => !p.isInLineup)
-  const otherParticipations = tie.participations.filter((p) => p.status !== "confirmed")
+  // Separate players by lineup status first, then by participation status
+  const lineupPlayers = tie.participations.filter((p) => p.isInLineup)
+  const nonLineupParticipations = tie.participations.filter((p) => !p.isInLineup)
+
+  // From non-lineup players, separate confirmed (available) from others
+  const availablePlayers = nonLineupParticipations.filter((p) => p.status === "confirmed")
+  const otherParticipations = nonLineupParticipations.filter((p) => p.status !== "confirmed")
 
   return {
     tie,
