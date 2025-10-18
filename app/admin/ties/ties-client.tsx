@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, Check, X, ArrowUpDown, Users } from "lucide-react"
+import { Plus, Edit, Trash2, Check, X, ArrowUpDown, Users, Calendar, MapPin } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
 import { useTranslation } from "@/lib/i18n"
 
@@ -56,7 +56,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const [editingId, setEditingId] = useState<number | null>(null)
   
   // Sorting and filtering state
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('all')
   const [formData, setFormData] = useState({
     teamSeason: "",
@@ -710,22 +710,30 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
             return (
               <Card key={tie.id}>
                 <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex flex-col gap-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold truncate">
-                        {tie.teamName} {t('vs')} {tie.opponent}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {tie.tieDate.toLocaleDateString()} {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                      <p className="text-sm text-gray-600 truncate">{tie.location}</p>
-                      <span
-                        className={`mt-2 inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                          tie.isHome ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {tie.isHome ? t('home') : t('away')}
-                      </span>
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <h3 className="text-lg font-semibold truncate">
+                          {tie.teamName} {t('vs')} {tie.opponent}
+                        </h3>
+                        <span
+                          className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
+                            tie.isHome ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {tie.isHome ? t('home') : t('away')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Calendar className="h-4 w-4" />
+                        <span>
+                          {tie.tieDate.toLocaleDateString()} {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <MapPin className="h-4 w-4" />
+                        <span className="truncate">{tie.location}</span>
+                      </div>
                       
                       {/* Lineup Teaser */}
                       <div className="mt-3 pt-3 border-t border-gray-200">
@@ -768,7 +776,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 sm:flex-shrink-0">
+                    
+                    {/* Button bar at the bottom */}
+                    <div className="flex gap-2 pt-3 border-t border-gray-200 justify-end">
                       <Button 
                         variant="outline" 
                         size="sm" 
