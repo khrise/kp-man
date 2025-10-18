@@ -81,20 +81,40 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   }>>([])
   const [importingSelected, setImportingSelected] = useState(false)
 
-  // Extract unique team-season combinations for filtering
+  // Extract all possible team-season combinations from teams and seasons
   const availableTeams = useMemo(() => {
-    const teamSeasonSet = new Set<string>()
-    initialTies.forEach(tie => {
-      const teamSeasonCombo = `${tie.teamName}|${tie.seasonName}`
-      teamSeasonSet.add(teamSeasonCombo)
+    const teamSeasonCombos: { value: string; label: string; teamName: string }[] = []
+    
+    teams.forEach(team => {
+      const season = seasons.find(s => s.id === team.seasonId)
+      if (season) {
+        const teamSeasonCombo = `${team.name}|${season.name}`
+        teamSeasonCombos.push({
+          value: teamSeasonCombo,
+          label: `${team.name} (${season.name})`,
+          teamName: team.name
+        })
+      }
     })
+    
+    return teamSeasonCombos.sort((a, b) => a.label.localeCompare(b.label))
+  }, [teams, seasons])
+
+  // Calculate teams that have ties (for filtering dropdown)
+  const teamsWithTies = useMemo(() => {
+    const teamSeasonSet = new Set<string>()
+    
+    initialTies.forEach(tie => {
+      const value = `${tie.teamName}|${tie.seasonName}`
+      teamSeasonSet.add(value)
+    })
+    
     return Array.from(teamSeasonSet)
-      .map(combo => {
-        const [teamName, seasonName] = combo.split('|')
+      .map(value => {
+        const [teamName, seasonName] = value.split('|')
         return {
-          value: combo,
-          label: `${teamName} (${seasonName})`,
-          teamName
+          value,
+          label: `${teamName} (${seasonName})`
         }
       })
       .sort((a, b) => a.label.localeCompare(b.label))
@@ -653,7 +673,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t('allTeams')}</SelectItem>
-                  {availableTeams.map((team) => (
+                  {teamsWithTies.map((team) => (
                     <SelectItem key={team.value} value={team.value}>
                       {team.label}
                     </SelectItem>
