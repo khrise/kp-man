@@ -737,8 +737,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       
                       {/* Lineup Teaser */}
                       <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+                          <div className="flex items-center space-x-2 flex-wrap">
                             <Users className="h-4 w-4 text-gray-500" />
                             <span className="text-sm font-medium text-gray-700">
                               {t('lineup')}: {tie.lineupCount}/{tie.teamSize}
@@ -759,7 +759,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                         {/* Player preview */}
                         {tie.lineupPlayers.length > 0 && (
                           <div className="mt-1">
-                            <p className="text-xs text-gray-500 truncate">
+                            <p className="text-xs text-gray-500 break-words">
                               {tie.lineupPlayers.slice(0, 3).map(p => `#${p.playerRank} ${p.firstName} ${p.lastName.charAt(0)}.`).join(', ')}
                               {tie.lineupPlayers.length > 3 && '...'}
                             </p>
@@ -768,10 +768,13 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                         
                         {/* Problem alert */}
                         {tie.problematicCount > 0 && (
-                          <div className="mt-1">
-                            <p className="text-xs text-red-600 font-medium">
-                              ⚠️ {tie.problematicCount} {tie.problematicCount === 1 ? t('playerNeedsAttention') : t('playersNeedAttention')}
-                            </p>
+                          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+                            <div className="flex items-start space-x-1">
+                              <span className="text-red-500 text-xs mt-0.5">⚠️</span>
+                              <p className="text-xs text-red-600 font-medium leading-relaxed">
+                                {tie.problematicCount} {tie.problematicCount === 1 ? t('playerNeedsAttention') : t('playersNeedAttention')}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>

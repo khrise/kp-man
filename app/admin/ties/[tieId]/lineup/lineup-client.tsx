@@ -83,33 +83,31 @@ export function LineupClient({
     return (
       <Card className={`${isInLineup ? 'ring-2 ring-blue-500 bg-blue-50' : ''} ${isProblematic ? 'ring-red-500 bg-red-50' : ''}`}>
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm">
-                  #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
-                </h3>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Badge variant={
-                    participation.status === "confirmed" ? "default" : 
-                    participation.status === "maybe" ? "secondary" : "destructive"
-                  }>
-                    {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
-                    {participation.status === "maybe" && <Clock className="w-3 h-3 mr-1" />}
-                    {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
-                    {t(participation.status)}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm mb-2">
+                #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
+              </h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={
+                  participation.status === "confirmed" ? "default" : 
+                  participation.status === "maybe" ? "secondary" : "destructive"
+                }>
+                  {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
+                  {participation.status === "maybe" && <Clock className="w-3 h-3 mr-1" />}
+                  {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
+                  {t(participation.status)}
+                </Badge>
+                {isInLineup && (
+                  <Badge variant="outline" className="bg-blue-100">
+                    {t("inLineup")}
                   </Badge>
-                  {isInLineup && (
-                    <Badge variant="outline" className="bg-blue-100">
-                      {t("inLineup")}
-                    </Badge>
-                  )}
-                  {isProblematic && (
-                    <Badge variant="destructive" className="bg-red-500 text-white">
-                      ⚠️ {t("needsAttention")}
-                    </Badge>
-                  )}
-                </div>
+                )}
+                {isProblematic && (
+                  <Badge variant="destructive" className="bg-red-500 text-white">
+                    ⚠️ {t("needsAttention")}
+                  </Badge>
+                )}
               </div>
             </div>
             
@@ -119,6 +117,7 @@ export function LineupClient({
                 variant={isInLineup ? "outline" : "default"}
                 onClick={() => handleToggleLineup(participation.id, isInLineup)}
                 disabled={isLoading || (!isInLineup && lineupCount >= maxPlayers)}
+                className="w-full sm:w-auto mt-2 sm:mt-0"
               >
                 {isInLineup ? t("remove") : t("add")}
               </Button>
