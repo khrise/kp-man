@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Edit, Trash2, Check, X, ChevronUp, ChevronDown, UserMinus } from "lucide-react"
 import { createTeamAction, updateTeamAction, deleteTeamAction } from "@/app/actions/teams"
 import { useTranslation } from "@/lib/i18n"
+import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 
 export const dynamic = "force-dynamic"
 
@@ -139,6 +140,7 @@ export function TeamsClient({
   }
 
   const availablePlayers = players.filter((p) => !formData.playerIds.includes(String(p.id)))
+  const [openMap, setOpenMap] = useState<Record<number, boolean>>({})
 
   return (
     <>
@@ -307,7 +309,9 @@ export function TeamsClient({
       )}
 
       <div className="grid gap-4">
-        {initialTeams.map((team) => (
+        {initialTeams.map((team) => {
+          const open = !!openMap[team.id]
+          return (
           <Card key={team.id}>
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -322,20 +326,31 @@ export function TeamsClient({
                   </p>
                   {team.players && team.players.length > 0 && (
                     <div className="mt-4">
-                      <p className="text-sm font-medium text-gray-700 mb-2">{t("roster")} ({team.players.length} {t("playersCount")}):</p>
-                      <div className="flex flex-wrap gap-2">
-                        {team.players.map((player, index) => (
-                          <div
-                            key={player.id}
-                            className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
-                          >
-                            <span className="font-semibold text-blue-700">{index + 1}.</span>
-                            <span>
-                              {player.firstName} {player.lastName}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                        <AccordionItem 
+                          value={`roster-${team.id}`} 
+                          open={open} 
+                          onOpenChange={(newOpen) => setOpenMap(prev => ({ ...prev, [team.id]: newOpen }))}
+                          className="border-none"
+                        >
+                          <AccordionTrigger className="py-0 text-sm font-medium text-gray-700 hover:no-underline">
+                            {t("roster")} ({team.players.length} {t("playersCount")})
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-3 pb-0">
+                            <div className="flex flex-wrap gap-2">
+                              {team.players.map((player, index) => (
+                                <div
+                                  key={player.id}
+                                  className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
+                                >
+                                  <span className="font-semibold text-blue-700">{index + 1}.</span>
+                                  <span>
+                                    {player.firstName} {player.lastName}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
                     </div>
                 )}
                 </div>
@@ -352,7 +367,8 @@ export function TeamsClient({
               </div>
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
       </div>
     </>
   )

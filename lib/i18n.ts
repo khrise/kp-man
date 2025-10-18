@@ -125,7 +125,7 @@ export const translations = {
     teamRoster: "Mannschaftsaufstellung (Rangiert nach Position)",
     addPlayerToTeam: "Spieler hinzufügen...",
     noPlayersAdded: "Noch keine Spieler hinzugefügt",
-    roster: "Aufstellung",
+    roster: "Meldeliste",
     playersCount: "Spieler",
     confirmDeleteTeam: "Sind Sie sicher, dass Sie diese Mannschaft löschen möchten?",
 
@@ -312,10 +312,10 @@ export const translations = {
     teamSizeDesc: "Number of players that participate in a tie",
     league: "League",
     season: "Season",
-    teamRoster: "Team Roster (Ranked by Position)",
+    teamRoster: "Team Entry List (Ranked by Position)",
     addPlayerToTeam: "Add player...",
     noPlayersAdded: "No players added yet",
-    roster: "Roster",
+    roster: "Entry List",
     playersCount: "players",
     confirmDeleteTeam: "Are you sure you want to delete this team?",
 
