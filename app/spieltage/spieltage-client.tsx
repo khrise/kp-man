@@ -55,7 +55,12 @@ export type TieWithDetails = {
   declinedCount: number
 }
 
-export function SpieltageClient() {
+interface SpieltageClientProps {
+  accessCode?: string
+  seasonId?: number
+}
+
+export function SpieltageClient({ accessCode, seasonId: propSeasonId }: SpieltageClientProps = {}) {
   const router = useRouter()
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null)
   const [showFilters, setShowFilters] = useState(false)
@@ -119,19 +124,27 @@ export function SpieltageClient() {
 
   useEffect(() => {
     const loadData = async () => {
-      const seasonId = localStorage.getItem("season_id")
-      const accessCode = localStorage.getItem("season_access_code")
+      // Use props if available, fallback to localStorage for backward compatibility
+      let seasonId = propSeasonId
+      let accessCodeToUse = accessCode
+      
+      if (!seasonId || !accessCodeToUse) {
+        seasonId = localStorage.getItem("season_id")
+        accessCodeToUse = localStorage.getItem("season_access_code")
 
-      if (!seasonId || !accessCode) {
-        router.push("/")
-        return
+        if (!seasonId || !accessCodeToUse) {
+          router.push("/")
+          return
+        }
+        
+        seasonId = parseInt(seasonId)
       }
 
       try {
         const [tiesData, playersData, seasonData] = await Promise.all([
-          getTiesForSeason(seasonId), 
-          getPlayersForSeason(seasonId),
-          getSeasonInfo(seasonId)
+          getTiesForSeason(String(seasonId)), 
+          getPlayersForSeason(String(seasonId)),
+          getSeasonInfo(String(seasonId))
         ])
 
         // Set season name
@@ -197,7 +210,7 @@ export function SpieltageClient() {
     }
 
     loadData()
-  }, [router, selectedPlayerId])
+  }, [router, selectedPlayerId, accessCode, propSeasonId])
 
   const handleLogout = () => {
     localStorage.removeItem("season_access_code")
@@ -338,7 +351,7 @@ export function SpieltageClient() {
               className="border-gray-600 bg-transparent text-white hover:bg-gray-700"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              {t("exit")}
+              {t("changeSeason")}
             </Button>
           </div>
         </div>

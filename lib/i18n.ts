@@ -11,6 +11,7 @@ export const translations = {
     close: "Schließen",
     logout: "Abmelden",
     exit: "Beenden",
+    changeSeason: "Saison wechseln",
 
     // Auth
     login: "Anmelden",
@@ -197,6 +198,7 @@ export const translations = {
     close: "Close",
     logout: "Logout",
     exit: "Exit",
+    changeSeason: "Change Season",
 
     // Auth
     login: "Login",
