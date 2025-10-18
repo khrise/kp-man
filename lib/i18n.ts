@@ -181,9 +181,14 @@ export const translations = {
     lastName: "Nachname",
     email: "E-Mail",
     phone: "Telefon",
-    enterPlayerData: "Spielerdaten eingeben (eine pro Zeile: Vorname, Nachname, E-Mail, Telefon)",
+    enterPlayerData: "Spielerdaten eingeben (eine pro Zeile: Vorname Nachname oder Nachname, Vorname)",
     addPlayers: "Spieler hinzufügen",
     confirmDeletePlayer: "Sind Sie sicher, dass Sie diesen Spieler löschen möchten?",
+    noPlayersToImport: "Keine Spieler zum Importieren gefunden",
+    importSuccess: "Erfolgreich importiert",
+    allPlayersSkipped: "Alle Spieler übersprungen (bereits vorhanden)",
+    importResult: "Import abgeschlossen",
+    skipped: "übersprungen",
 
     // Ties
     manageTiesDesc: "Verwalten Sie Ihre Spiele",
@@ -412,9 +417,14 @@ export const translations = {
     lastName: "Last Name",
     email: "Email",
     phone: "Phone",
-    enterPlayerData: "Enter player data (one per line: FirstName, LastName, Email, Phone)",
+    enterPlayerData: "Enter player data (one per line: FirstName LastName or LastName, FirstName)",
     addPlayers: "Add Players",
     confirmDeletePlayer: "Are you sure you want to delete this player?",
+    noPlayersToImport: "No players found to import",
+    importSuccess: "Successfully imported",
+    allPlayersSkipped: "All players skipped (already exist)",
+    importResult: "Import completed",
+    skipped: "skipped",
 
     // Ties
     manageTiesDesc: "Manage your matches",

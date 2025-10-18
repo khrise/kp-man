@@ -73,17 +73,84 @@ export default function PlayersPage() {
 
   const handleBatchAdd = async () => {
     const lines = batchData.split("\n").filter((line) => line.trim())
+    const playersToAdd: { firstName: string; lastName: string }[] = []
+    
+    // Parse all lines first
     for (const line of lines) {
-      const [firstName, lastName] = line.split(",").map((s) => s.trim())
-      const formDataObj = new FormData()
-      formDataObj.append("first_name", firstName || "")
-      formDataObj.append("last_name", lastName || "")
-
-      await createPlayerAction(formDataObj)
+      let firstName = ""
+      let lastName = ""
+      
+      if (line.includes(",")) {
+        // Format: "lastname, firstname"
+        const [last, first] = line.split(",").map((s) => s.trim())
+        firstName = first || ""
+        lastName = last || ""
+      } else {
+        // Format: "firstname lastname"
+        const parts = line.trim().split(/\s+/)
+        if (parts.length >= 2) {
+          firstName = parts[0]
+          lastName = parts.slice(1).join(" ") // Handle multiple last names
+        } else if (parts.length === 1) {
+          firstName = parts[0]
+          lastName = ""
+        }
+      }
+      
+      if (firstName || lastName) {
+        playersToAdd.push({ firstName, lastName })
+      }
     }
+    
+    // Filter out duplicates (both within the batch and against existing players)
+    const uniquePlayersToAdd = playersToAdd.filter((newPlayer, index, arr) => {
+      // Check for duplicates within the batch itself
+      const firstOccurrence = arr.findIndex(p => 
+        p.firstName.toLowerCase() === newPlayer.firstName.toLowerCase() && 
+        p.lastName.toLowerCase() === newPlayer.lastName.toLowerCase()
+      )
+      if (firstOccurrence !== index) return false
+      
+      // Check against existing players
+      const existingPlayer = players.find(existing => 
+        existing.firstName.toLowerCase() === newPlayer.firstName.toLowerCase() && 
+        existing.lastName.toLowerCase() === newPlayer.lastName.toLowerCase()
+      )
+      return !existingPlayer
+    })
+    
+    // Add only unique players
+    let importedCount = 0
+    for (const player of uniquePlayersToAdd) {
+      const formDataObj = new FormData()
+      formDataObj.append("first_name", player.firstName)
+      formDataObj.append("last_name", player.lastName)
+
+      try {
+        await createPlayerAction(formDataObj)
+        importedCount++
+      } catch (error) {
+        console.error("Failed to add player:", player, error)
+      }
+    }
+    
     await loadPlayers()
     setIsBatchAdding(false)
     setBatchData("")
+    
+    // Show import results
+    const totalParsed = playersToAdd.length
+    const skippedCount = totalParsed - importedCount
+    
+    if (totalParsed === 0) {
+      alert(t('noPlayersToImport'))
+    } else if (skippedCount === 0) {
+      alert(`${t('importSuccess')}: ${importedCount} ${importedCount === 1 ? t('player') : t('players')}`)
+    } else if (importedCount === 0) {
+      alert(`${t('allPlayersSkipped')}: ${skippedCount} ${skippedCount === 1 ? t('player') : t('players')}`)
+    } else {
+      alert(`${t('importResult')}: ${importedCount} ${t('imported')}, ${skippedCount} ${t('skipped')}`)
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -101,7 +168,9 @@ export default function PlayersPage() {
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h2 className="text-3xl font-bold text-gray-900">{t('players')}</h2>
-              <p className="mt-2 text-gray-600">{t('managePlayersDesc')}</p>
+              <p className="mt-2 text-gray-600">
+                {t('managePlayersDesc')} • {players.length} {players.length === 1 ? t('player') : t('players')}
+              </p>
             </div>
             <div className="flex gap-2 sm:flex-shrink-0">
               <Button variant="outline" onClick={() => setIsBatchAdding(true)}>
@@ -130,7 +199,7 @@ export default function PlayersPage() {
                       id="firstName"
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      placeholder="e.g., Christof"
+                      placeholder="e.g., John"
                     />
                   </div>
                   <div className="space-y-2">
@@ -139,7 +208,7 @@ export default function PlayersPage() {
                       id="lastName"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      placeholder="e.g., Hahn"
+                      placeholder="e.g., Doe"
                     />
                   </div>
                 </div>
@@ -169,7 +238,7 @@ export default function PlayersPage() {
                     id="batchData"
                     value={batchData}
                     onChange={(e) => setBatchData(e.target.value)}
-                    placeholder="Christof, Hahn&#10;Michael, Schmidt"
+                    placeholder="Doe, John"
                     rows={6}
                   />
                 </div>

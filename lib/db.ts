@@ -310,7 +310,7 @@ export async function setTeamPlayers(teamId: number, playerIds: number[]) {
 }
 
 export async function getPlayers(): Promise<Player[]> {
-  return db.selectFrom("players").selectAll().orderBy("lastName").orderBy("firstName").execute()
+  return db.selectFrom("players").selectAll().orderBy("firstName").orderBy("lastName").execute()
 }
 
 export async function getPlayerById(id: number): Promise<Player | undefined> {
