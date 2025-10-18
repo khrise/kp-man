@@ -56,7 +56,8 @@ export function TeamsClient({
   const router = useRouter()
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [selectKey, setSelectKey] = useState(0)
+  const [enableRankInput, setEnableRankInput] = useState(false)
+  const [showAvailablePlayers, setShowAvailablePlayers] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     league: "",
@@ -64,6 +65,19 @@ export function TeamsClient({
     seasonId: seasons[0] ? String(seasons[0].id) : "",
     playerIds: [] as string[],
   })
+
+  const handleMovePlayerToRank = (currentIndex: number, newRank: number) => {
+    const newIndex = newRank - 1 // Convert rank to index
+    if (newIndex < 0 || newIndex >= formData.playerIds.length || newIndex === currentIndex) {
+      return // Invalid rank or no change
+    }
+    
+    const playerIds = [...formData.playerIds]
+    const [movedPlayer] = playerIds.splice(currentIndex, 1) // Remove from current position
+    playerIds.splice(newIndex, 0, movedPlayer) // Insert at new position
+    
+    setFormData({ ...formData, playerIds })
+  }
 
   const handleEdit = (team: Team) => {
     setEditingId(team.id)
@@ -94,6 +108,8 @@ export function TeamsClient({
     }
 
     setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
+    setEnableRankInput(false) // Reset toggle state
+    setShowAvailablePlayers(false) // Reset available players visibility
     router.refresh()
   }
 
@@ -101,6 +117,8 @@ export function TeamsClient({
     setIsAdding(false)
     setEditingId(null)
     setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
+    setEnableRankInput(false) // Reset toggle state
+    setShowAvailablePlayers(false) // Reset available players visibility
   }
 
   const handleDelete = async (id: number) => {
@@ -114,7 +132,6 @@ export function TeamsClient({
     const normalizedId = String(playerId)
     if (!formData.playerIds.includes(normalizedId)) {
       setFormData({ ...formData, playerIds: [...formData.playerIds, normalizedId] })
-      setSelectKey((prev) => prev + 1)
     }
   }
 
@@ -220,24 +237,105 @@ export function TeamsClient({
               </div>
 
               <div className="mt-6 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="space-y-3">
                   <Label>{t("teamRoster")}</Label>
-                  <Select key={selectKey} onValueChange={(value) => handleAddPlayer(value)}>
-                    <SelectTrigger className="w-[250px]">
-                      <SelectValue placeholder={t("addPlayerToTeam")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availablePlayers.map((player) => (
-                        <SelectItem key={player.id} value={String(player.id)}>
-                          {player.firstName} {player.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  
+                  {/* Add Players Button */}
+                  {availablePlayers.length > 0 && !showAvailablePlayers && (
+                    <div className="flex justify-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowAvailablePlayers(true)}
+                        className="w-full sm:w-auto"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        {t("addPlayers")} ({availablePlayers.length} {t("availablePlayers").toLowerCase()})
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Available Players Section */}
+                  {availablePlayers.length > 0 && showAvailablePlayers && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-gray-700">{t("availablePlayers")} ({availablePlayers.length})</h4>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const allPlayerIds = availablePlayers.map(p => String(p.id))
+                              setFormData({ ...formData, playerIds: [...formData.playerIds, ...allPlayerIds] })
+                            }}
+                          >
+                            {t("selectAll")}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowAvailablePlayers(false)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto border rounded-lg bg-gray-50 p-3">
+                        <div className="space-y-2">
+                          {availablePlayers.map((player) => (
+                            <label
+                              key={player.id}
+                              className="flex items-center space-x-3 cursor-pointer hover:bg-white p-2 rounded"
+                            >
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300"
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    handleAddPlayer(String(player.id))
+                                  }
+                                }}
+                              />
+                              <span className="text-sm">
+                                {player.firstName} {player.lastName}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {availablePlayers.length === 0 && (
+                    <p className="text-sm text-gray-500">{t("allPlayersAdded")}</p>
+                  )}
                 </div>
 
                 {formData.playerIds.length > 0 ? (
                   <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-700">{t("teamPlayers")} ({formData.playerIds.length})</h4>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">{t("enableRankEdit")}</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enableRankInput}
+                            onChange={(e) => setEnableRankInput(e.target.checked)}
+                            className="sr-only"
+                          />
+                          <div className={`w-11 h-6 rounded-full transition-colors ${
+                            enableRankInput ? 'bg-blue-600' : 'bg-gray-200'
+                          }`}>
+                            <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
+                              enableRankInput ? 'translate-x-5' : 'translate-x-0'
+                            } mt-0.5 ml-0.5`}></div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
                     {formData.playerIds.map((playerId, index) => {
                       const player = players.find((p) => String(p.id) === playerId)
                       if (!player) return null
@@ -247,9 +345,28 @@ export function TeamsClient({
                           className="flex items-center justify-between rounded-lg border bg-white p-3"
                         >
                           <div className="flex items-center gap-3">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
-                              {index + 1}
-                            </span>
+                            <div className="flex flex-col items-center gap-1">
+                              <label className="text-xs text-gray-500">{t("rank")}</label>
+                              {enableRankInput ? (
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max={formData.playerIds.length}
+                                  value={index + 1}
+                                  onChange={(e) => {
+                                    const newRank = parseInt(e.target.value)
+                                    if (!isNaN(newRank)) {
+                                      handleMovePlayerToRank(index, newRank)
+                                    }
+                                  }}
+                                  className="w-16 h-8 text-center text-sm"
+                                />
+                              ) : (
+                                <span className="flex h-8 w-16 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+                                  {index + 1}
+                                </span>
+                              )}
+                            </div>
                             <div>
                               <p className="font-medium">
                                 {player.firstName} {player.lastName}
@@ -263,6 +380,7 @@ export function TeamsClient({
                               size="sm"
                               onClick={() => handleMovePlayerUp(index)}
                               disabled={index === 0}
+                              title={t("moveUp")}
                             >
                               <ChevronUp className="h-4 w-4" />
                             </Button>
@@ -272,6 +390,7 @@ export function TeamsClient({
                               size="sm"
                               onClick={() => handleMovePlayerDown(index)}
                               disabled={index === formData.playerIds.length - 1}
+                              title={t("moveDown")}
                             >
                               <ChevronDown className="h-4 w-4" />
                             </Button>
@@ -280,6 +399,7 @@ export function TeamsClient({
                               variant="ghost"
                               size="sm"
                               onClick={() => handleRemovePlayer(playerId)}
+                              title={t("removePlayer")}
                             >
                               <UserMinus className="h-4 w-4" />
                             </Button>

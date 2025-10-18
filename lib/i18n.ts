@@ -169,6 +169,14 @@ export const translations = {
     roster: "Meldeliste",
     playersCount: "Spieler",
     confirmDeleteTeam: "Sind Sie sicher, dass Sie diese Mannschaft löschen möchten?",
+    allPlayersAdded: "Alle verfügbaren Spieler wurden bereits hinzugefügt",
+    teamPlayers: "Mannschaftsspieler",
+    selectAll: "Alle auswählen",
+    rank: "Rang",
+    moveUp: "Nach oben",
+    moveDown: "Nach unten",
+    removePlayer: "Spieler entfernen",
+    enableRankEdit: "Ränge bearbeiten",
 
     // Players
     managePlayersDesc: "Verwalten Sie Ihre Spieler",
@@ -405,6 +413,14 @@ export const translations = {
     roster: "Entry List",
     playersCount: "players",
     confirmDeleteTeam: "Are you sure you want to delete this team?",
+    allPlayersAdded: "All available players have been added",
+    teamPlayers: "Team Players",
+    selectAll: "Select All",
+    rank: "Rank",
+    moveUp: "Move Up",
+    moveDown: "Move Down",
+    removePlayer: "Remove Player",
+    enableRankEdit: "Edit Ranks",
 
     // Players
     managePlayersDesc: "Manage your players",
