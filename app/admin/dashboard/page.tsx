@@ -2,12 +2,12 @@
 
 import { AuthGuard } from "@/components/auth-guard"
 import { AdminHeader } from "@/components/admin-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Users, Calendar, Trophy } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Users, Calendar, Trophy, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { fetchDashboardStats } from "@/app/actions/dashboard"
 import { useEffect, useState } from "react"
+import { useTranslation } from "@/lib/i18n"
 
 interface DashboardStats {
   totalSeasons: number
@@ -17,6 +17,7 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
+  const { t } = useTranslation()
   const [stats, setStats] = useState<DashboardStats>({
     totalSeasons: 0,
     totalTeams: 0,
@@ -41,134 +42,121 @@ export default function AdminDashboard() {
     loadStats()
   }, [])
 
+  const dashboardTiles = [
+    {
+      title: t("seasons"),
+      description: t("activeAndArchived"),
+      count: stats.totalSeasons,
+      icon: Calendar,
+      href: "/admin/seasons",
+      color: "bg-blue-500 hover:bg-blue-600",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+    },
+    {
+      title: t("teams"),
+      description: t("teamsInSeason"),
+      count: stats.totalTeams,
+      icon: Trophy,
+      href: "/admin/teams",
+      color: "bg-green-500 hover:bg-green-600",
+      iconBg: "bg-green-100",
+      iconColor: "text-green-600",
+    },
+    {
+      title: t("players"),
+      description: t("registeredPlayers"),
+      count: stats.totalPlayers,
+      icon: Users,
+      href: "/admin/players",
+      color: "bg-purple-500 hover:bg-purple-600",
+      iconBg: "bg-purple-100",
+      iconColor: "text-purple-600",
+    },
+    {
+      title: t("ties"),
+      description: t("upcomingTies"),
+      count: stats.upcomingTies,
+      icon: Calendar,
+      href: "/admin/ties",
+      color: "bg-orange-500 hover:bg-orange-600",
+      iconBg: "bg-orange-100",
+      iconColor: "text-orange-600",
+    },
+    {
+      title: t("users"),
+      description: t("manageUsersDesc"),
+      count: "→",
+      icon: Users,
+      href: "/admin/users",
+      color: "bg-gray-500 hover:bg-gray-600",
+      iconBg: "bg-gray-100",
+      iconColor: "text-gray-600",
+    },
+  ]
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50">
         <AdminHeader />
-        <main className="mx-auto max-w-7xl px-6 py-8">
+        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
-            <p className="mt-2 text-gray-600">Manage your sports club planning application</p>
+            <h2 className="text-3xl font-bold text-gray-900">{t("dashboard")}</h2>
+            <p className="mt-2 text-gray-600">{t("manageSportsClub")}</p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Seasons</CardTitle>
-                <Calendar className="h-4 w-4 text-gray-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? "..." : stats.totalSeasons}
-                </div>
-                <p className="text-xs text-gray-600">Active and archived seasons</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Teams</CardTitle>
-                <Trophy className="h-4 w-4 text-gray-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? "..." : stats.totalTeams}
-                </div>
-                <p className="text-xs text-gray-600">Teams across all seasons</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Players</CardTitle>
-                <Users className="h-4 w-4 text-gray-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? "..." : stats.totalPlayers}
-                </div>
-                <p className="text-xs text-gray-600">Registered players</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Upcoming Ties</CardTitle>
-                <Calendar className="h-4 w-4 text-gray-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? "..." : stats.upcomingTies}
-                </div>
-                <p className="text-xs text-gray-600">Scheduled matches</p>
-              </CardContent>
-            </Card>
+          {/* Unified Dashboard Tiles */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {dashboardTiles.map((tile) => {
+              const Icon = tile.icon
+              return (
+                <Link key={tile.href} href={tile.href}>
+                  <Card className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`rounded-full p-3 ${tile.iconBg}`}>
+                              <Icon className={`h-6 w-6 ${tile.iconColor}`} />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                                {tile.title}
+                              </h3>
+                              <p className="text-sm text-gray-600">{tile.description}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="text-3xl font-bold text-gray-900">
+                              {loading ? "..." : tile.count}
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })}
           </div>
 
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
+          {/* Recent Activity Section */}
+          <div className="mt-12">
             <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Common administrative tasks</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Link href="/admin/seasons" className="block">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Manage Seasons
-                  </Button>
-                </Link>
-                <Link href="/admin/teams" className="block">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Trophy className="mr-2 h-4 w-4" />
-                    Manage Teams
-                  </Button>
-                </Link>
-                <Link href="/admin/players" className="block">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Users className="mr-2 h-4 w-4" />
-                    Manage Players
-                  </Button>
-                </Link>
-                <Link href="/admin/ties" className="block">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Manage Ties
-                  </Button>
-                </Link>
-                <Link href="/admin/users" className="block">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Users className="mr-2 h-4 w-4" />
-                    Manage Users
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest updates and changes</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  {t("recentActivity")}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-full bg-blue-100 p-2">
-                      <Calendar className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">New tie created</p>
-                      <p className="text-xs text-gray-600">H40 gegen Planeta Radebeul</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-full bg-green-100 p-2">
-                      <Users className="h-4 w-4 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Player confirmed participation</p>
-                      <p className="text-xs text-gray-600">Christof Hahn for upcoming match</p>
-                    </div>
+                  <div className="text-center text-gray-500 py-8">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>{t("latestUpdates")}</p>
+                    <p className="text-sm text-gray-400 mt-1">Coming soon...</p>
                   </div>
                 </div>
               </CardContent>
