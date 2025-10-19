@@ -36,6 +36,8 @@ export const translations = {
     // Spieltage
     upcomingMatches: "Kommende Spieltage",
     impersonatePlayer: "Spieler auswählen:",
+    selectPlayer: "Spieler auswählen...",
+    selectPlayerFirst: "Bitte wählen Sie zuerst einen Spieler aus",
     showFilters: "Filter anzeigen",
     hideFilters: "Filter ausblenden",
     showDetails: "Details anzeigen",
@@ -253,6 +255,8 @@ export const translations = {
     // Spieltage
     upcomingMatches: "Upcoming Matches",
     impersonatePlayer: "Impersonate Player:",
+    selectPlayer: "Select a player...",
+    selectPlayerFirst: "Please select a player first",
     showFilters: "Show Filters",
     hideFilters: "Hide Filters",
     showDetails: "Show Details",

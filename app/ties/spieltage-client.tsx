@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Calendar, MapPin, Users, Download, LogOut, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -62,8 +62,8 @@ interface SpieltageClientProps {
 
 export function SpieltageClient({ accessCode, seasonId: propSeasonId }: SpieltageClientProps = {}) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
   const [ties, setTies] = useState<TieWithDetails[]>([])
   const [players, setPlayers] = useState<SpieltagePlayer[]>([])
   const [seasonName, setSeasonName] = useState<string>("")
@@ -77,6 +77,26 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   } | null>(null)
   const { t, locale } = useTranslation()
   console.log("Current locale:", locale)
+
+  // Function to update URL with player selection
+  const updatePlayerInURL = (playerId: number | null) => {
+    const currentParams = new URLSearchParams(searchParams.toString())
+    
+    if (playerId !== null) {
+      currentParams.set('player', playerId.toString())
+    } else {
+      currentParams.delete('player')
+    }
+    
+    const newURL = `${window.location.pathname}?${currentParams.toString()}`
+    window.history.replaceState({}, '', newURL)
+  }
+
+  // Function to handle player selection change
+  const handlePlayerChange = (playerId: number | null) => {
+    setSelectedPlayerId(playerId)
+    updatePlayerInURL(playerId)
+  }
 
   // Utility functions for ICS generation (inside component to access t)
   const generateICSContent = (tie: TieWithDetails): string => {
@@ -188,10 +208,12 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
         setTies(tiesWithDetails)
 
-        // Set first player as default if not set
-        if (mappedPlayers.length > 0 && selectedPlayerId === null) {
-          setSelectedPlayerId(mappedPlayers[0].id)
+        // Initialize selected player from URL parameter
+        const playerParam = searchParams.get('player')
+        if (playerParam && mappedPlayers.some(p => p.id === Number(playerParam))) {
+          setSelectedPlayerId(Number(playerParam))
         }
+        // No auto-selection - player starts as null
       } catch (error) {
         console.error("Failed to load data:", error)
       } finally {
@@ -200,7 +222,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     }
 
     loadData()
-  }, [router, selectedPlayerId, accessCode, propSeasonId])
+  }, [router, accessCode, propSeasonId, searchParams])
 
   const handleLogout = () => {
     // Simply redirect to home - no localStorage cleanup needed with URL-based routing
@@ -357,10 +379,10 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
           <label className="text-base text-white">{t("impersonatePlayer")}</label>
           <Select
             value={selectedPlayerId !== null ? String(selectedPlayerId) : ""}
-            onValueChange={(value) => setSelectedPlayerId(value ? Number(value) : null)}
+            onValueChange={(value) => handlePlayerChange(value ? Number(value) : null)}
           >
             <SelectTrigger className="w-[250px] border-gray-300 bg-white text-gray-900">
-              <SelectValue />
+              <SelectValue placeholder={t("selectPlayer") || "Select a player..."} />
             </SelectTrigger>
             <SelectContent>
               {players.map((player) => (
@@ -422,7 +444,11 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                   {t("showDetails")}
                 </Button>
 
-                {canParticipate ? (
+                {selectedPlayerId === null ? (
+                  <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
+                    {t("selectPlayerFirst") || "Please select a player first"}
+                  </div>
+                ) : canParticipate ? (
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => handleParticipationClick(tie.id, "confirmed")}
