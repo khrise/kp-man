@@ -1,5 +1,14 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+❗️ Disclaimer: This project was created using AI-assisted development (vibe coding). While the code has been reviewed and tested, please note:
+
+- No warranties: This code is provided "as-is" without any guarantees of functionality, security, or fitness for a particular purpose.
+- Review recommended: We strongly recommend reviewing and testing the code thoroughly before using it in production environments.
+- Your responsibility: Users are responsible for understanding and validating the code for their specific use cases.
+- Security considerations: Conduct your own security audit before deploying in sensitive contexts.
+
+Contributions, bug reports, and improvements are welcome!
+
 ## Getting Started
 
 First, run the development server:
