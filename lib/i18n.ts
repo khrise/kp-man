@@ -31,7 +31,7 @@ export const translations = {
     goToPublicPage: "Zur öffentlichen Seite",
 
     // Public Access
-    sportsClubPlanning: "Sportverein Planung",
+    sportsClubPlanning: "TV Klotzsche - 🎾 Spieltage Planner",
     enterAccessCode: "Geben Sie Ihren Saison-Zugangscode ein, um bevorstehende Spiele anzuzeigen",
     seasonAccessCode: "Saison-Zugangscode",
     accessSeason: "Saison zugreifen",
@@ -103,7 +103,7 @@ export const translations = {
 
     // Admin Dashboard
     dashboard: "Dashboard",
-    manageSportsClub: "Verwalten Sie Ihre Sportverein-Planungsanwendung",
+    manageSportsClub: "Verwalten Sie Ihren 🎾 Spieltage Planner",
     seasons: "Saisons",
     teams: "Mannschaften",
     players: "Spieler",
@@ -122,7 +122,7 @@ export const translations = {
     latestUpdates: "Neueste Updates und Änderungen",
 
     // Seasons
-    manageSeasonsDesc: "Verwalten Sie Ihre Sportsaisons",
+    manageSeasonsDesc: "Verwalten Sie die Saisons",
     addSeason: "Saison hinzufügen",
     addNewSeason: "Neue Saison hinzufügen",
     editSeason: "Saison bearbeiten",
@@ -262,7 +262,7 @@ export const translations = {
     goToPublicPage: "Go to public page",
 
     // Public Access
-    sportsClubPlanning: "Sports Club Planning",
+    sportsClubPlanning: "TV Klotzsche - 🎾 Match day Planner",
     enterAccessCode: "Enter your season access code to view upcoming matches",
     seasonAccessCode: "Season Access Code",
     accessSeason: "Access Season",
@@ -334,7 +334,7 @@ export const translations = {
 
     // Admin Dashboard
     dashboard: "Dashboard",
-    manageSportsClub: "Manage your sports club planning application",
+    manageSportsClub: "Manage your 🎾 sports club planning",
     seasons: "Seasons",
     teams: "Teams",
     players: "Players",
@@ -353,7 +353,7 @@ export const translations = {
     latestUpdates: "Latest updates and changes",
 
     // Seasons
-    manageSeasonsDesc: "Manage your sports seasons",
+    manageSeasonsDesc: "Manage the seasons",
     addSeason: "Add Season",
     addNewSeason: "Add New Season",
     editSeason: "Edit Season",
