@@ -27,6 +27,7 @@ export function AdminHeader() {
     { href: "/admin/players", label: t("players") },
     { href: "/admin/ties", label: t("ties") },
     { href: "/admin/users", label: t("users") },
+    { href: "/admin/settings", label: t("settings") },
   ]
 
   return (

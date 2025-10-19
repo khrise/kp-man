@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useTranslation } from "@/lib/i18n"
 import { validateAccessCode } from "@/app/actions/public"
+import { useConfig } from "@/components/config-provider"
 
 export function HomePageForm() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export function HomePageForm() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const { t } = useTranslation()
+  const { config } = useConfig()
 
   useEffect(() => {
     // Check for error parameter
@@ -52,7 +54,7 @@ export function HomePageForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-center text-2xl font-bold">{t("sportsClubPlanning")}</CardTitle>
+        <CardTitle className="text-center text-2xl font-bold">{config?.clubName} {t("planning")}</CardTitle>
         <CardDescription className="text-center">{t("enterAccessCode")}</CardDescription>
       </CardHeader>
       <CardContent>
