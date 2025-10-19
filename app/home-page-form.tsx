@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -76,9 +77,9 @@ export function HomePageForm() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             {t("administrator")}{" "}
-            <a href="/admin/login" className="font-medium text-blue-600 hover:underline">
+            <Link href="/admin/login" className="font-medium text-blue-600 hover:underline">
               {t("loginHere")}
-            </a>
+            </Link>
           </p>
         </div>
       </CardContent>
