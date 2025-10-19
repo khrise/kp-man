@@ -428,12 +428,12 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <LanguageSwitcher className="border-gray-600 bg-transparent text-white hover:bg-gray-700" />
+            <LanguageSwitcher className="border-gray-400 bg-transparent text-white hover:bg-white hover:text-gray-900 transition-colors" />
             <Button
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="border-gray-600 bg-transparent text-white hover:bg-gray-700"
+              className="border-gray-400 bg-transparent text-white hover:bg-white hover:text-gray-900 transition-colors"
             >
               <LogOut className="mr-2 h-4 w-4" />
               {t("changeSeason")}
