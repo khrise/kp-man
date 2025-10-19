@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Calendar, MapPin, Users, Download, LogOut, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -64,6 +64,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null)
+  const [showPlayerSelection, setShowPlayerSelection] = useState(false)
+  const [showRememberPrompt, setShowRememberPrompt] = useState(false)
   const [ties, setTies] = useState<TieWithDetails[]>([])
   const [players, setPlayers] = useState<SpieltagePlayer[]>([])
   const [seasonName, setSeasonName] = useState<string>("")
@@ -78,8 +80,41 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   const { t, locale } = useTranslation()
   console.log("Current locale:", locale)
 
+  // localStorage utility functions
+  const getStoredPlayerId = (): number | null => {
+    try {
+      const stored = localStorage.getItem('selectedPlayerId')
+      return stored ? Number(stored) : null
+    } catch {
+      return null
+    }
+  }
+
+  const storePlayerId = (playerId: number) => {
+    try {
+      localStorage.setItem('selectedPlayerId', playerId.toString())
+    } catch {
+      // Handle storage errors gracefully
+    }
+  }
+
+  // Check if we should show the remember prompt
+  const checkShowRememberPrompt = useCallback((selectedId: number) => {
+    const storedId = getStoredPlayerId()
+    const shouldShow = !storedId || storedId !== selectedId
+    setShowRememberPrompt(shouldShow)
+  }, [])
+
+  // Function to remember the current player
+  const rememberPlayer = () => {
+    if (selectedPlayerId) {
+      storePlayerId(selectedPlayerId)
+      setShowRememberPrompt(false)
+    }
+  }
+
   // Function to update URL with player selection
-  const updatePlayerInURL = (playerId: number | null) => {
+  const updatePlayerInURL = useCallback((playerId: number | null) => {
     const currentParams = new URLSearchParams(searchParams.toString())
     
     if (playerId !== null) {
@@ -90,13 +125,31 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     
     const newURL = `${window.location.pathname}?${currentParams.toString()}`
     window.history.replaceState({}, '', newURL)
-  }
+  }, [searchParams])
 
-  // Function to handle player selection change
+    // Function to handle player selection change
   const handlePlayerChange = (playerId: number | null) => {
     setSelectedPlayerId(playerId)
     updatePlayerInURL(playerId)
+    setShowPlayerSelection(false)
+    
+    if (playerId) {
+      checkShowRememberPrompt(playerId)
+    } else {
+      setShowRememberPrompt(false)
+    }
   }
+
+  // Function to handle switching players
+  // Function to handle switching players
+  const handleSwitchPlayer = () => {
+    setShowPlayerSelection(true)
+  }
+
+  // Get selected player details
+  const selectedPlayer = selectedPlayerId !== null 
+    ? players.find(p => p.id === selectedPlayerId) 
+    : null
 
   // Utility functions for ICS generation (inside component to access t)
   const generateICSContent = (tie: TieWithDetails): string => {
@@ -166,7 +219,14 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
           id: Number(player.id),
           firstName: player.firstName,
           lastName: player.lastName,
-        }))
+        })).sort((a, b) => {
+          // Sort by firstName first, then by lastName
+          const firstNameCompare = a.firstName.localeCompare(b.firstName)
+          if (firstNameCompare !== 0) {
+            return firstNameCompare
+          }
+          return a.lastName.localeCompare(b.lastName)
+        })
 
         setPlayers(mappedPlayers)
 
@@ -208,12 +268,26 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
         setTies(tiesWithDetails)
 
-        // Initialize selected player from URL parameter
+        // Initialize selected player from URL parameter or localStorage
         const playerParam = searchParams.get('player')
         if (playerParam && mappedPlayers.some(p => p.id === Number(playerParam))) {
           setSelectedPlayerId(Number(playerParam))
+          setShowPlayerSelection(false)
+          // Check if we should show remember prompt for URL-selected player
+          checkShowRememberPrompt(Number(playerParam))
+        } else {
+          // Check localStorage only if no URL parameter
+          const storedPlayerId = getStoredPlayerId()
+          if (storedPlayerId && mappedPlayers.some(p => p.id === storedPlayerId)) {
+            setSelectedPlayerId(storedPlayerId)
+            updatePlayerInURL(storedPlayerId)
+            setShowPlayerSelection(false)
+            // Don't show remember prompt for stored player
+          } else {
+            // No valid player found - show selection UI
+            setShowPlayerSelection(true)
+          }
         }
-        // No auto-selection - player starts as null
       } catch (error) {
         console.error("Failed to load data:", error)
       } finally {
@@ -222,7 +296,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     }
 
     loadData()
-  }, [router, accessCode, propSeasonId, searchParams])
+  }, [router, accessCode, propSeasonId, searchParams, checkShowRememberPrompt, updatePlayerInURL])
 
   const handleLogout = () => {
     // Simply redirect to home - no localStorage cleanup needed with URL-based routing
@@ -374,24 +448,53 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
           {seasonName ? `${seasonName} - ${t("upcomingMatches")}` : t("upcomingMatches")}
         </h1>
 
-        {/* Filter Section */}
+        {/* Player Selection Section */}
         <div className="mb-8 flex items-center gap-4">
-          <label className="text-base text-white">{t("impersonatePlayer")}</label>
-          <Select
-            value={selectedPlayerId !== null ? String(selectedPlayerId) : ""}
-            onValueChange={(value) => handlePlayerChange(value ? Number(value) : null)}
-          >
-            <SelectTrigger className="w-[250px] border-gray-300 bg-white text-gray-900">
-              <SelectValue placeholder={t("selectPlayer") || "Select a player..."} />
-            </SelectTrigger>
-            <SelectContent>
-              {players.map((player) => (
-                <SelectItem key={player.id} value={String(player.id)}>
-                  {player.firstName} {player.lastName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {showPlayerSelection ? (
+            <>
+              <label className="text-base text-white">{t("impersonatePlayer")}</label>
+              <Select
+                value={selectedPlayerId !== null ? String(selectedPlayerId) : ""}
+                onValueChange={(value) => handlePlayerChange(value ? Number(value) : null)}
+              >
+                <SelectTrigger className="w-[250px] border-gray-300 bg-white text-gray-900">
+                  <SelectValue placeholder={t("selectPlayer") || "Select a player..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {players.map((player) => (
+                    <SelectItem key={player.id} value={String(player.id)}>
+                      {player.firstName} {player.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          ) : selectedPlayer ? (
+            <div className="text-lg text-white">
+              <span>{t("hello")}, {selectedPlayer.firstName}!</span>
+              <span className="ml-2 text-sm opacity-75">
+                (
+                <button
+                  onClick={handleSwitchPlayer}
+                  className="text-white hover:text-blue-300 underline underline-offset-2"
+                >
+                  {t("switchPlayer")}
+                </button>
+                {showRememberPrompt && (
+                  <>
+                    <span className="mx-1">|</span>
+                    <button
+                      onClick={rememberPlayer}
+                      className="text-white hover:text-green-300 underline underline-offset-2"
+                    >
+                      {t("rememberMe")}
+                    </button>
+                  </>
+                )}
+                )
+              </span>
+            </div>
+          ) : null}
         </div>
 
         {/* Game Cards Grid */}
