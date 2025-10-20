@@ -99,6 +99,11 @@ AccordionTrigger.displayName = "AccordionTrigger"
 interface AccordionContentProps {
   children: React.ReactNode
   className?: string
+  /**
+   * Maximum height when accordion is open. Use Tailwind CSS max-height classes.
+   * @default "max-h-96"
+   * @example "max-h-96" | "max-h-none" | "max-h-screen"
+   */
   maxHeight?: string
 }
 
