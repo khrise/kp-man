@@ -632,13 +632,21 @@ export async function getPlayersWithoutParticipation(tieId: number): Promise<Tea
 }
 
 export async function getUserByUsername(username: string): Promise<User | undefined> {
-  return db.selectFrom("users").selectAll().where("username", "=", username).executeTakeFirst()
+  return db
+    .selectFrom("users")
+    .selectAll()
+    .where(sql`LOWER(username)`, "=", username.toLowerCase())
+    .executeTakeFirst()
 }
 
 export async function getUserByUsernameWithPassword(
   username: string,
 ): Promise<(User & { passwordHash: string }) | undefined> {
-  const result = await db.selectFrom("users").selectAll().where("username", "=", username).executeTakeFirst()
+  const result = await db
+    .selectFrom("users")
+    .selectAll()
+    .where(sql`LOWER(username)`, "=", username.toLowerCase())
+    .executeTakeFirst()
   if (!result) return undefined
 
   return {
