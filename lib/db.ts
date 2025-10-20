@@ -635,7 +635,7 @@ export async function getUserByUsername(username: string): Promise<User | undefi
   return db
     .selectFrom("users")
     .selectAll()
-    .where(sql`LOWER(username)`, "=", username.toLowerCase())
+    .where((eb) => eb.fn("LOWER", ["username"]), "=", username.toLowerCase())
     .executeTakeFirst()
 }
 
@@ -645,7 +645,7 @@ export async function getUserByUsernameWithPassword(
   const result = await db
     .selectFrom("users")
     .selectAll()
-    .where(sql`LOWER(username)`, "=", username.toLowerCase())
+    .where((eb) => eb.fn("LOWER", ["username"]), "=", username.toLowerCase())
     .executeTakeFirst()
   if (!result) return undefined
 
