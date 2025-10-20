@@ -314,7 +314,7 @@ export function LineupClient({
                     <span className="font-semibold">{t("playersWithoutResponse")} ({playersWithoutParticipation.length})</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-6 pb-6">
+                <AccordionContent className="px-6 pb-6" maxHeight="max-h-none">
                   <div className="grid gap-3 md:grid-cols-2">
                     {playersWithoutParticipation
                       .sort((a, b) => a.playerRank - b.playerRank)

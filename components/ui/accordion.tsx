@@ -99,12 +99,13 @@ AccordionTrigger.displayName = "AccordionTrigger"
 interface AccordionContentProps {
   children: React.ReactNode
   className?: string
+  maxHeight?: string
 }
 
 const AccordionContent = React.forwardRef<
   HTMLDivElement,
   AccordionContentProps
->(({ className, children, ...props }, ref) => {
+>(({ className, children, maxHeight = "max-h-96", ...props }, ref) => {
   const itemContext = React.useContext(AccordionItemContext)
   
   if (!itemContext) {
@@ -118,7 +119,7 @@ const AccordionContent = React.forwardRef<
       ref={ref}
       className={cn(
         "overflow-hidden text-sm transition-all duration-200 ease-in-out",
-        open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        open ? `${maxHeight} opacity-100` : "max-h-0 opacity-0"
       )}
       data-state={open ? "open" : "closed"}
       {...props}
