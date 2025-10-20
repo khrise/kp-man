@@ -519,8 +519,8 @@ export function tWithParams(
   locale?: Locale
 ): string {
   const text = t(key, locale)
-  return Object.entries(params).reduce((result, [key, value]) => {
-    return result.replace(`{${key}}`, String(value))
+  return Object.entries(params).reduce((result, [paramKey, value]) => {
+    return result.replace(`{${paramKey}}`, String(value))
   }, text)
 }
 
