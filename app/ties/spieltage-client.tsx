@@ -77,7 +77,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     tieId: number
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
-  const { t, locale } = useTranslation()
+  const [showOnlyMyMatches, setShowOnlyMyMatches] = useState(false)
+  const { t, tWithParams, locale } = useTranslation()
   console.log("Current locale:", locale)
 
   // localStorage utility functions
@@ -393,6 +394,11 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     return tie.teamPlayerIds.includes(selectedPlayerId)
   }
 
+  // Filter ties based on toggle state
+  const filteredTies = showOnlyMyMatches && selectedPlayerId !== null
+    ? ties.filter(tie => isPlayerOnTeam(tie))
+    : ties
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#2c3e50]">
@@ -496,9 +502,31 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
           ) : null}
         </div>
 
+        {/* Toggle for showing all matches vs only player's matches */}
+        {selectedPlayerId !== null && (
+          <div className="mb-8 flex items-center gap-3">
+            <Button
+              onClick={() => setShowOnlyMyMatches(!showOnlyMyMatches)}
+              variant="outline"
+              size="sm"
+              className="border-gray-400 bg-white text-gray-900 hover:bg-gray-100"
+            >
+              {showOnlyMyMatches ? t("showAllMatches") : t("showMyMatches")}
+            </Button>
+            {showOnlyMyMatches && (
+              <span className="text-sm text-gray-300">
+                {tWithParams("matchesShown", { 
+                  count: filteredTies.length, 
+                  total: ties.length 
+                })}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Game Cards Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {ties.map((tie) => {
+          {filteredTies.map((tie) => {
             const participation = getPlayerParticipation(tie.id)
             const status = participation?.status || null
             const canParticipate = isPlayerOnTeam(tie) // Check team membership
