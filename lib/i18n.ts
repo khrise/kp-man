@@ -12,7 +12,6 @@ export const translations = {
     close: "Schließen",
     logout: "Abmelden",
     exit: "Beenden",
-    changeSeason: "Saison wechseln",
 
     // Auth
     login: "Anmelden",
@@ -39,6 +38,7 @@ export const translations = {
     administrator: "Administrator?",
     loginHere: "Hier anmelden",
     demoAccessCode: "Demo-Zugangscode:",
+    matchDays: "Spieltage",
 
     // Spieltage
     upcomingMatches: "Kommende Spieltage",
@@ -256,7 +256,6 @@ export const translations = {
     close: "Close",
     logout: "Logout",
     exit: "Exit",
-    changeSeason: "Change Season",
 
     // Auth
     login: "Login",
@@ -283,6 +282,7 @@ export const translations = {
     administrator: "Administrator?",
     loginHere: "Login here",
     demoAccessCode: "Demo access code:",
+    matchDays: "Match days",
 
     // Spieltage
     upcomingMatches: "Upcoming Matches",
