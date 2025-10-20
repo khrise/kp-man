@@ -78,7 +78,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
   const [showOnlyMyMatches, setShowOnlyMyMatches] = useState(false)
-  const { t, locale } = useTranslation()
+  const { t, tWithParams, locale } = useTranslation()
   console.log("Current locale:", locale)
 
   // localStorage utility functions
@@ -516,7 +516,10 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             </Button>
             {showOnlyMyMatches && (
               <span className="text-sm text-gray-300">
-                {filteredTies.length} {t("of")} {ties.length} {t("tiesCount")}
+                {tWithParams("matchesShown", { 
+                  count: filteredTies.length, 
+                  total: ties.length 
+                })}
               </span>
             )}
           </div>

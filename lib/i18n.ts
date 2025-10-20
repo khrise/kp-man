@@ -61,6 +61,7 @@ export const translations = {
     notOnTeam: "Sie sind kein Mitglied dieses Teams",
     showAllMatches: "Alle Spiele anzeigen",
     showMyMatches: "Nur meine Spiele",
+    matchesShown: "{count} von {total} Spielen",
 
     // Participation Comments
     addComment: "Kommentar hinzufügen",
@@ -307,6 +308,7 @@ export const translations = {
     notOnTeam: "You are not a member of this team",
     showAllMatches: "Show all matches",
     showMyMatches: "Show only my matches",
+    matchesShown: "{count} of {total} matches",
 
     // Participation Comments
     addComment: "Add Comment",
@@ -511,11 +513,24 @@ export function t(key: keyof typeof translations.de, locale?: Locale): string {
   return translations[currentLocale][key] || key
 }
 
+export function tWithParams(
+  key: keyof typeof translations.de,
+  params: Record<string, string | number>,
+  locale?: Locale
+): string {
+  const text = t(key, locale)
+  return Object.entries(params).reduce((result, [key, value]) => {
+    return result.replace(`{${key}}`, String(value))
+  }, text)
+}
+
 export function useTranslation() {
   const locale = getLocale()
 
   return {
     t: (key: keyof typeof translations.de) => t(key, locale),
+    tWithParams: (key: keyof typeof translations.de, params: Record<string, string | number>) => 
+      tWithParams(key, params, locale),
     locale,
     setLocale,
   }
