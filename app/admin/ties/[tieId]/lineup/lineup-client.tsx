@@ -266,7 +266,7 @@ export function LineupClient({
                   ))
               ) : (
                 <p className="text-gray-500 text-center py-8">
-                  {t("noPlayersAdded")}
+                  {t("noPlayersAvailable")}
                 </p>
               )}
             </CardContent>
