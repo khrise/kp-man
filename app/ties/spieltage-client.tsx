@@ -423,7 +423,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             </div>
             <nav className="flex items-center">
               <a href="#" className="border-b-2 border-blue-500 px-4 py-6 text-sm font-medium text-white">
-                {seasonName ? `${seasonName} - Spieltage` : 'Spieltage'}
+                {seasonName ? seasonName : t("matchDays")}
               </a>
             </nav>
           </div>
@@ -436,7 +436,6 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
               className="border-gray-400 bg-transparent text-white hover:bg-white hover:text-gray-900 transition-colors"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              {t("changeSeason")}
             </Button>
           </div>
         </div>
