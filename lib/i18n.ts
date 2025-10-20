@@ -59,6 +59,8 @@ export const translations = {
     participants: "Teilnehmer",
     undecided: "unentschlossen",
     notOnTeam: "Sie sind kein Mitglied dieses Teams",
+    showAllMatches: "Alle Spiele anzeigen",
+    showMyMatches: "Nur meine Spiele",
 
     // Participation Comments
     addComment: "Kommentar hinzufügen",
@@ -303,6 +305,8 @@ export const translations = {
     participants: "participants",
     undecided: "undecided",
     notOnTeam: "You are not a member of this team",
+    showAllMatches: "Show all matches",
+    showMyMatches: "Show only my matches",
 
     // Participation Comments
     addComment: "Add Comment",
