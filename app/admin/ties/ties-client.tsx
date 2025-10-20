@@ -445,7 +445,25 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                             const hour = dateTimeMatch[4].padStart(2, '0')
                             const minute = dateTimeMatch[5]
                             const fullYear = year.length === 2 ? '20' + year : year
-                            dateIso = `${fullYear}-${month}-${day}T${hour}:${minute}:00`
+                            // The scraped time is in German local time (CET/CEST)
+                            // Create a Date object in the browser's timezone (which should match the user's timezone)
+                            // This ensures the time is interpreted correctly when sent to the server
+                            const localDate = new Date(
+                              Number(fullYear),
+                              Number(month) - 1, // JS months are 0-indexed  
+                              Number(day),
+                              Number(hour),
+                              Number(minute),
+                              0
+                            )
+                            // Get timezone offset in minutes and convert to +/-HH:MM format
+                            const tzOffset = -localDate.getTimezoneOffset() // Note: getTimezoneOffset() returns opposite sign
+                            const offsetHours = Math.floor(Math.abs(tzOffset) / 60).toString().padStart(2, '0')
+                            const offsetMinutes = (Math.abs(tzOffset) % 60).toString().padStart(2, '0')
+                            const offsetSign = tzOffset >= 0 ? '+' : '-'
+                            const tzString = `${offsetSign}${offsetHours}:${offsetMinutes}`
+                            // Create ISO string with timezone offset to explicitly indicate the local time
+                            dateIso = `${fullYear}-${month}-${day}T${hour}:${minute}:00${tzString}`
                           } else {
                             // Fallback: try just date part if time is missing
                             const dotMatch = d.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/) // Just "22.11.2025"
