@@ -47,6 +47,40 @@ type TiesClientProps = {
   seasons: Season[]
 }
 
+const normaliseTieDate = (value: Date | string): Date => {
+  if (value instanceof Date) {
+    return value
+  }
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? new Date(NaN) : parsed
+}
+
+const toUtcIsoString = (date: string, time: string): string => {
+  const [year, month, day] = date.split("-").map(Number)
+  const [hours, minutes] = time.split(":").map(Number)
+
+  if ([year, month, day, hours, minutes].some((value) => Number.isNaN(value))) {
+    throw new Error("Invalid date or time input")
+  }
+
+  const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0)
+  return localDate.toISOString()
+}
+
+const formatDateForInput = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+const formatTimeForInput = (date: Date): string => {
+  const hours = String(date.getHours()).padStart(2, "0")
+  const minutes = String(date.getMinutes()).padStart(2, "0")
+  return `${hours}:${minutes}`
+}
+
 export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const router = useRouter()
   const { t } = useTranslation()
@@ -81,6 +115,13 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   }>>([])
   const [importingSelected, setImportingSelected] = useState(false)
 
+  const normalisedTies = useMemo(() => {
+    return initialTies.map((tie) => ({
+      ...tie,
+      tieDate: normaliseTieDate(tie.tieDate),
+    }))
+  }, [initialTies])
+
   // Extract all possible team-season combinations from teams and seasons
   const availableTeams = useMemo(() => {
     const teamSeasonCombos: { value: string; label: string; teamName: string }[] = []
@@ -104,7 +145,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const teamsWithTies = useMemo(() => {
     const teamSeasonSet = new Set<string>()
     
-    initialTies.forEach(tie => {
+    normalisedTies.forEach(tie => {
       const value = `${tie.teamName}|${tie.seasonName}`
       teamSeasonSet.add(value)
     })
@@ -118,7 +159,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
         }
       })
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [initialTies])
+  }, [normalisedTies])
 
   // Set default import team-season when availableTeams changes
   useEffect(() => {
@@ -136,7 +177,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
   // Filter and sort ties
   const filteredAndSortedTies = useMemo(() => {
-    let filtered = initialTies
+    let filtered = normalisedTies
 
     // Filter by team if a specific team is selected
     if (selectedTeamFilter !== 'all') {
@@ -148,19 +189,25 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
     // Sort by tie date
     const sorted = [...filtered].sort((a, b) => {
-      const dateA = new Date(a.tieDate).getTime()
-      const dateB = new Date(b.tieDate).getTime()
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+      const dateA = a.tieDate.getTime()
+      const dateB = b.tieDate.getTime()
+      const safeDateA = Number.isNaN(dateA) ? 0 : dateA
+      const safeDateB = Number.isNaN(dateB) ? 0 : dateB
+      return sortOrder === 'asc' ? safeDateA - safeDateB : safeDateB - safeDateA
     })
 
     return sorted
-  }, [initialTies, selectedTeamFilter, sortOrder])
+  }, [normalisedTies, selectedTeamFilter, sortOrder])
 
   const handleEdit = (tie: Tie) => {
     setEditingId(tie.id)
-    const date = new Date(tie.tieDate)
-    const dateStr = date.toISOString().split("T")[0]
-    const timeStr = date.toTimeString().slice(0, 5)
+    const date = normaliseTieDate(tie.tieDate)
+    if (Number.isNaN(date.getTime())) {
+      console.error("Encountered invalid tie date while editing", tie.id)
+      return
+    }
+    const dateStr = formatDateForInput(date)
+    const timeStr = formatTimeForInput(date)
     const teamSeasonValue = `${tie.teamName}|${tie.seasonName}`
     setFormData({
       teamSeason: teamSeasonValue,
@@ -190,7 +237,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     formDataToSend.append("season_id", String(selectedSeason.id))
     formDataToSend.append("team_id", String(selectedTeam.id))
     formDataToSend.append("opponent", formData.opponent)
-    formDataToSend.append("date_time", `${formData.tieDate}T${formData.tieTime}`)
+    formDataToSend.append("date_time", toUtcIsoString(formData.tieDate, formData.tieTime))
     formDataToSend.append("location", formData.location)
     formDataToSend.append("is_home", formData.isHome.toString())
 
@@ -628,7 +675,12 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                             fd.append('season_id', String(selectedSeason.id))
                             fd.append('team_id', String(selectedTeam.id))
                             fd.append('opponent', tie.opponent)
-                            fd.append('date_time', tie.dateIso)
+                            const iso = new Date(tie.dateIso)
+                            if (Number.isNaN(iso.getTime())) {
+                              console.warn("Skipping tie import due to invalid date", tie)
+                              continue
+                            }
+                            fd.append('date_time', iso.toISOString())
                             fd.append('location', tie.location)
                             fd.append('is_home', String(tie.isHome))
 
@@ -712,7 +764,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
             </div>
             <div className="sm:self-end">
               <p className="text-sm text-gray-600">
-                {filteredAndSortedTies.length} {t('of')} {initialTies.length} {t('tiesCount')}
+                {filteredAndSortedTies.length} {t('of')} {normalisedTies.length} {t('tiesCount')}
               </p>
             </div>
           </div>

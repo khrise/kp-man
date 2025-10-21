@@ -3,13 +3,26 @@
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
 
+function parseTieDate(value: FormDataEntryValue | null): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error("Invalid tie date")
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Invalid tie date")
+  }
+
+  return parsed.toISOString()
+}
+
 export async function createTieAction(formData: FormData) {
   const teamId = Number(formData.get("team_id"))
   if (Number.isNaN(teamId)) {
     throw new Error("Invalid team id")
   }
 
-  const tieDate = formData.get("date_time") as string
+  const tieDate = parseTieDate(formData.get("date_time"))
   const location = (formData.get("location") as string) || null
   const isHome = formData.get("is_home") === "true"
 
@@ -38,7 +51,7 @@ export async function updateTieAction(id: string, formData: FormData) {
     throw new Error("Invalid team id")
   }
 
-  const tieDate = formData.get("date_time") as string
+  const tieDate = parseTieDate(formData.get("date_time"))
   const location = (formData.get("location") as string) || null
   const isHome = formData.get("is_home") === "true"
 
