@@ -105,6 +105,16 @@ interface MigrationsTable {
   executedAt: TimestampColumn
 }
 
+interface AppSettingsTable {
+  id: Generated<number>
+  key: string
+  value: string
+  type: "string" | "boolean" | "number" | "json"
+  description: NullableStringColumn
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
+}
+
 export interface Database {
   users: UsersTable
   seasons: SeasonsTable
@@ -114,6 +124,7 @@ export interface Database {
   ties: TiesTable
   participations: ParticipationsTable
   migrations: MigrationsTable
+  app_settings: AppSettingsTable
 }
 
 const globalForDb = globalThis as unknown as {
@@ -160,13 +171,13 @@ function getDb(): Kysely<Database> {
     globalForDb.db = createDatabase()
 
     // Initialize database in the background (don't await to avoid blocking)
-    if (typeof window === "undefined") {
-      import("./db-init").then(({ ensureDatabaseInitialized }) => {
-        ensureDatabaseInitialized().catch((error) => {
-          console.error("[DB] Background initialization failed:", error)
-        })
-      })
-    }
+    // if (typeof window === "undefined") {
+    //   import("./db-init").then(({ ensureDatabaseInitialized }) => {
+    //     ensureDatabaseInitialized().catch((error) => {
+    //       console.error("[DB] Background initialization failed:", error)
+    //     })
+    //   })
+    // }
   }
   return globalForDb.db
 }
@@ -744,4 +755,46 @@ export async function getUsersWithPlayerInfo(): Promise<UserWithPlayer[]> {
     .select(["p.firstName as playerFirstName", "p.lastName as playerLastName", "p.id as playerId"])
     .orderBy("u.username")
     .execute()
+}
+
+// App Settings Management
+export type AppSetting = Selectable<AppSettingsTable>
+export type NewAppSetting = Insertable<AppSettingsTable>
+export type AppSettingUpdate = Updateable<AppSettingsTable>
+
+export async function getAllAppSettings(): Promise<AppSetting[]> {
+  try {
+    return db.selectFrom("app_settings").selectAll().orderBy("key").execute()
+  } catch (error: unknown) {
+    // If table doesn't exist, return empty array (will use defaults)
+    const dbError = error as { code?: string }
+    if (dbError?.code === "42P01") {
+      // relation does not exist
+      console.warn("[DB] app_settings table does not exist, using default configuration")
+      return []
+    }
+    throw error
+  }
+}
+
+export async function getAppSetting(key: string): Promise<AppSetting | undefined> {
+  return db.selectFrom("app_settings").selectAll().where("key", "=", key).executeTakeFirst()
+}
+
+export async function setAppSetting(
+  key: string,
+  value: string,
+  type: AppSetting["type"] = "string",
+  description?: string,
+): Promise<AppSetting> {
+  return db
+    .insertInto("app_settings")
+    .values({ key, value, type, description })
+    .onConflict((oc) => oc.column("key").doUpdateSet({ value, type, description }))
+    .returningAll()
+    .executeTakeFirstOrThrow()
+}
+
+export async function deleteAppSetting(key: string): Promise<void> {
+  await db.deleteFrom("app_settings").where("key", "=", key).execute()
 }

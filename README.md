@@ -93,6 +93,18 @@ The docker-compose setup includes:
 
 For custom configuration, copy `.env.example` to `.env.local` and modify as needed.
 
+## Environment Variables
+
+The application supports the following environment variables:
+
+- **`DATABASE_URL`** (required): PostgreSQL connection string
+- **`SPORTS_CLUB_NAME`** (optional): Name of your sports club (defaults to "Sports Club")
+  - Used in page titles and descriptions
+  - Example: `SPORTS_CLUB_NAME="Tennis Club Riverside"`
+- **`SUPPORT_EMAIL`** (optional): Support contact email (defaults to "support@example.com")
+- **`NEXT_PUBLIC_APP_URL`**: Application URL for public access
+- **`NODE_ENV`**: Environment mode (development/production)
+
 ### Useful Commands
 
 ```bash

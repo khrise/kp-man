@@ -13,10 +13,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Sports Club Management",
-  description: "Manage your sports club seasons, teams, and players",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { getConfigValue } = await import("@/lib/config-service");
+  const clubName = await getConfigValue('clubName');
+  
+  return {
+    title: `${clubName} Management`,
+    description: `Manage your ${clubName.toLowerCase()} seasons, teams, and players`,
+  };
+}
 
 export default function RootLayout({
   children,

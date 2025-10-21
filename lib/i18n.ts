@@ -30,7 +30,7 @@ export const translations = {
     goToPublicPage: "Zur öffentlichen Seite",
 
     // Public Access
-    sportsClubPlanning: "TV Klotzsche - 🎾 Spieltage Planner",
+    planning: " - 🎾 Spieltage Planner",
     enterAccessCode: "Geben Sie Ihren Saison-Zugangscode ein, um bevorstehende Spiele anzuzeigen",
     seasonAccessCode: "Saison-Zugangscode",
     accessSeason: "Saison zugreifen",
@@ -49,6 +49,7 @@ export const translations = {
     switchPlayer: "Spieler wechseln",
     rememberMe: "Spielerauswahl merken",
     yes: "Ja",
+    no: "Nein",
     notNow: "Nicht jetzt",
     showFilters: "Filter anzeigen",
     hideFilters: "Filter ausblenden",
@@ -124,6 +125,16 @@ export const translations = {
     recentActivity: "Letzte Aktivität",
     latestUpdates: "Neueste Updates und Änderungen",
 
+    // Settings
+    appSettings: "App-Einstellungen",
+    appSettingsDescription: "Konfigurieren Sie Ihre Anwendungseinstellungen. Änderungen werden sofort wirksam.",
+    settingKey: "Einstellungsschlüssel",
+    settingValue: "Wert",
+    settingType: "Typ",
+    settingDescription: "Beschreibung",
+    saveSettings: "Speichern",
+    saving: "Speichern...",
+
     // Seasons
     manageSeasonsDesc: "Verwalten Sie die Saisons",
     addSeason: "Saison hinzufügen",
@@ -139,6 +150,7 @@ export const translations = {
     // Users
     users: "Benutzer",
     manageUsers: "Benutzer verwalten",
+    settings: "Einstellungen",
     manageUsersDesc: "Systembenutzer und ihre Rollen verwalten",
     addUser: "Benutzer hinzufügen",
     addNewUser: "Neuen Benutzer hinzufügen",
@@ -278,7 +290,7 @@ export const translations = {
     goToPublicPage: "Go to public page",
 
     // Public Access
-    sportsClubPlanning: "TV Klotzsche - 🎾 Match day Planner",
+    planning: " - 🎾 Match day Planner",
     enterAccessCode: "Enter your season access code to view upcoming matches",
     seasonAccessCode: "Season Access Code",
     accessSeason: "Access Season",
@@ -297,6 +309,7 @@ export const translations = {
     switchPlayer: "Switch Player",
     rememberMe: "Remember selection",
     yes: "Yes",
+    no: "No",
     notNow: "Not now",
     showFilters: "Show Filters",
     hideFilters: "Hide Filters",
@@ -372,6 +385,16 @@ export const translations = {
     recentActivity: "Recent Activity",
     latestUpdates: "Latest updates and changes",
 
+    // Settings
+    appSettings: "App Settings",
+    appSettingsDescription: "Configure your application settings. Changes take effect immediately.",
+    settingKey: "Setting Key",
+    settingValue: "Value",
+    settingType: "Type",
+    settingDescription: "Description",
+    saveSettings: "Save",
+    saving: "Saving...",
+
     // Seasons
     manageSeasonsDesc: "Manage the seasons",
     addSeason: "Add Season",
@@ -387,6 +410,7 @@ export const translations = {
     // Users
     users: "Users",
     manageUsers: "Manage Users",
+    settings: "Settings",
     manageUsersDesc: "Manage system users and their roles",
     addUser: "Add User",
     addNewUser: "Add New User",
