@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -46,6 +46,11 @@ export function LineupClient({
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
+
+  const tieDate = useMemo(() => {
+    const parsed = tie.tieDate instanceof Date ? tie.tieDate : new Date(tie.tieDate)
+    return Number.isNaN(parsed.getTime()) ? new Date(NaN) : parsed
+  }, [tie.tieDate])
 
   // Check for problematic lineup situations
   const problematicPlayers = lineupPlayers.filter(p => p.status !== "confirmed")
@@ -164,7 +169,9 @@ export function LineupClient({
               {team.name} {t("vs")} {tie.opponent}
             </p>
             <p className="text-sm text-gray-500">
-              {tie.tieDate.toLocaleDateString()} {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {Number.isNaN(tieDate.getTime())
+                ? "—"
+                : `${tieDate.toLocaleDateString()} ${tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
             </p>
           </div>
           

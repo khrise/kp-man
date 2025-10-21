@@ -250,11 +250,16 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
               },
             }))
 
+            const tieDate = new Date(tie.tieDate)
+            if (Number.isNaN(tieDate.getTime())) {
+              console.warn("Received invalid tie date", tie.id, tie.tieDate)
+            }
+
             return {
               id: tie.id,
               teamId: tie.teamId,
               opponent: tie.opponent,
-              tieDate: tie.tieDate,
+              tieDate,
               location: tie.location ?? null,
               isHome: tie.isHome,
               teamName: tie.teamName,
