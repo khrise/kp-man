@@ -2,7 +2,6 @@
 
 import * as db from "@/lib/db"
 import { PlayerParticipationDto } from "@/lib/db"
-import { PlayerBase } from "@/lib/types"
 
 export async function validateAccessCode(accessCode: string) {
   const season = await db.getSeasonByAccessCode(accessCode)
