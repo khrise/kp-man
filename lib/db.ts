@@ -430,46 +430,59 @@ export type TeamDto = Team & {
 }
 
 export async function getTeamsBySeasonId(seasonId: number): Promise<TeamDto[]> {
-  const teams = await db.selectFrom("teams").selectAll().where("seasonId", "=", seasonId).orderBy("name").execute()
-  return await Promise.all(
-    teams.map(async (team) => {
-      const playerIds = await db.selectFrom("teamPlayers").select("playerId").where("teamId", "=", team.id).execute()
-      return {
-        ...team,
-        playerIds: playerIds.map((p) => p.playerId),
-      }
-    }),
-  )
+  console.time(`[DB] Fetching teams for season ID ${seasonId}`)
+
+  const rows = await db
+    .selectFrom("teams")
+    .leftJoin("teamPlayers", "teamPlayers.teamId", "teams.id")
+    .select([
+      "teams.id",
+      "teams.name",
+      "teams.seasonId",
+      sql`
+        coalesce(
+          json_agg(${sql.ref("teamPlayers.playerId")}) 
+          filter (where ${sql.ref("teamPlayers.playerId")} is not null), 
+          '[]'
+        )
+      `.as("playerIds"),
+    ])
+    .where("teams.seasonId", "=", seasonId)
+    .groupBy(["teams.id", "teams.name", "teams.seasonId"])
+    .orderBy("teams.name")
+    .execute()
+
+  console.timeEnd(`[DB] Fetching teams for season ID ${seasonId}`)
+
+  return rows as unknown as TeamDto[]
 }
 
 export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
   console.time("[DB] Fetching ties by season ID")
+
   const ties = await db
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
-    .select(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.location", "t.isHome", "t.createdAt"])
+    .leftJoin("participations as p", "p.tieId", "t.id")
+    .select((eb) => [
+      "t.id",
+      "t.teamId",
+      "t.opponent",
+      "t.tieDate",
+      "t.location",
+      "t.isHome",
+      "t.createdAt",
+      eb.fn
+        .coalesce(eb.fn.jsonAgg(sql`to_jsonb(p)`).filterWhere("p.id", "is not", null), sql`'[]'::json`)
+        .as("participations"),
+    ])
     .where("tm.seasonId", "=", seasonId)
+    .groupBy(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.location", "t.isHome", "t.createdAt"])
     .orderBy("t.tieDate", "asc")
     .execute()
 
-  const tiesWithParticipations = await Promise.all(
-    ties.map(async (tie) => {
-      const participations = await db
-        .selectFrom("participations")
-        .selectAll()
-        .where("tieId", "=", tie.id)
-        .orderBy("createdAt")
-        .execute()
-
-      return {
-        ...tie,
-        participations,
-      }
-    }),
-  )
-
   console.timeEnd("[DB] Fetching ties by season ID")
-  return tiesWithParticipations
+  return ties as TieDto[]
 }
 
 export async function getTieById(id: number): Promise<Tie | undefined> {
@@ -513,6 +526,7 @@ export async function getParticipationsForPlayer(
   seasonId: number,
   playerId: number,
 ): Promise<PlayerParticipationDto[]> {
+  console.time(`[DB] Fetching participations for player ID ${playerId} in season ID ${seasonId}`)
   const query = db
     .selectFrom("participations as p")
     .where("p.playerId", "=", playerId)
@@ -521,7 +535,9 @@ export async function getParticipationsForPlayer(
     .where("tm.seasonId", "=", seasonId)
     .select(["p.playerId", "p.tieId", "p.status", "p.isInLineup"])
     .orderBy("t.tieDate", "asc")
-  return query.execute()
+  const result = await query.execute()
+  console.timeEnd(`[DB] Fetching participations for player ID ${playerId} in season ID ${seasonId}`)
+  return result
 }
 // .innerJoin("players as pl", "pl.id", "p.playerId")
 
@@ -702,6 +718,7 @@ export async function getPlayersWithoutParticipation(tieId: number): Promise<Tea
 }
 
 export async function getPlayersForSeason(seasonId: number): Promise<Player[]> {
+  console.time(`[DB] Fetching players for season ID ${seasonId}`)
   const players = await db
     .selectFrom("players")
     .innerJoin("teamPlayers", "teamPlayers.playerId", "players.id")
@@ -711,6 +728,7 @@ export async function getPlayersForSeason(seasonId: number): Promise<Player[]> {
     .distinctOn("players.id")
     .execute()
 
+  console.timeEnd(`[DB] Fetching players for season ID ${seasonId}`)
   return players
 }
 
