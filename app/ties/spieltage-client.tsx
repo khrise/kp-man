@@ -11,17 +11,24 @@ import {
   getParticipationsForTie,
   updateParticipation,
   getSeasonInfo,
+  getTeamsForSeason,
+  getParticipationsForPlayer,
 } from "@/app/actions/public"
 import { TieDetailsDialog } from "@/components/tie-details-dialog"
 import { ParticipationCommentDialog } from "@/components/participation-comment-dialog"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useTranslation } from "@/lib/i18n"
+import { Season, Team } from "@/lib/types"
+import { PlayerParticipationDto } from "@/lib/db"
 
 export const dynamic = "force-dynamic"
 
 // Utility functions for ICS generation
 const formatDateForICS = (date: Date): string => {
-  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  return date
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "")
 }
 
 export type SpieltagePlayer = {
@@ -48,8 +55,19 @@ export type TieWithDetails = {
   location: string | null
   isHome: boolean
   teamName: string
-  teamPlayerIds: number[]
-  participations: SpieltageParticipation[]
+  confirmedCount: number
+  maybeCount: number
+  declinedCount: number
+}
+
+export type Tie = {
+  id: number
+  teamId: number
+  opponent: string
+  tieDate: Date
+  location: string | null
+  isHome: boolean
+  teamName: string
   confirmedCount: number
   maybeCount: number
   declinedCount: number
@@ -62,14 +80,18 @@ interface SpieltageClientProps {
 
 export function SpieltageClient({ accessCode, seasonId: propSeasonId }: SpieltageClientProps = {}) {
   const router = useRouter()
+
   const searchParams = useSearchParams()
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null)
   const [showPlayerSelection, setShowPlayerSelection] = useState(false)
   const [showRememberPrompt, setShowRememberPrompt] = useState(false)
-  const [ties, setTies] = useState<TieWithDetails[]>([])
+  const [ties, setTies] = useState<Tie[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
   const [players, setPlayers] = useState<SpieltagePlayer[]>([])
-  const [seasonName, setSeasonName] = useState<string>("")
+  const [playerParticipations, setPlayerParticipations] = useState<PlayerParticipationDto[]>([])
+  const [season, setSeason] = useState<Pick<Season, "id" | "name">>({ id: 0, name: "" })
   const [loading, setLoading] = useState(true)
+  const [participationsLoading, setParticipationsLoading] = useState(true)
   const [selectedTie, setSelectedTie] = useState<TieWithDetails | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [showCommentDialog, setShowCommentDialog] = useState(false)
@@ -78,13 +100,12 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
   const [showOnlyMyMatches, setShowOnlyMyMatches] = useState(false)
-  const { t, tWithParams, locale } = useTranslation()
-  console.log("Current locale:", locale)
+  const { t, tWithParams } = useTranslation()
 
   // localStorage utility functions
   const getStoredPlayerId = (): number | null => {
     try {
-      const stored = localStorage.getItem('selectedPlayerId')
+      const stored = localStorage.getItem("selectedPlayerId")
       return stored ? Number(stored) : null
     } catch {
       return null
@@ -93,11 +114,29 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
   const storePlayerId = (playerId: number) => {
     try {
-      localStorage.setItem('selectedPlayerId', playerId.toString())
+      localStorage.setItem("selectedPlayerId", playerId.toString())
     } catch {
       // Handle storage errors gracefully
     }
   }
+
+  const updateParticipationCallback = useCallback(
+    async (playerId: number) => {
+      if (playerId === null || !propSeasonId) {
+        return
+      }
+      setParticipationsLoading(true)
+      try {
+        const participations = await getParticipationsForPlayer(propSeasonId, playerId)
+        setPlayerParticipations(participations)
+      } catch (error) {
+        console.error("Failed to fetch participations:", error)
+      } finally {
+        setParticipationsLoading(false)
+      }
+    },
+    [propSeasonId],
+  )
 
   // Check if we should show the remember prompt
   const checkShowRememberPrompt = useCallback((selectedId: number) => {
@@ -115,31 +154,43 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   }
 
   // Function to update URL with player selection
-  const updatePlayerInURL = useCallback((playerId: number | null) => {
-    const currentParams = new URLSearchParams(searchParams.toString())
-    
-    if (playerId !== null) {
-      currentParams.set('player', playerId.toString())
-    } else {
-      currentParams.delete('player')
-    }
-    
-    const newURL = `${window.location.pathname}?${currentParams.toString()}`
-    window.history.replaceState({}, '', newURL)
-  }, [searchParams])
+  const updatePlayerInURL = useCallback(
+    (playerId: number | null) => {
+      const currentParams = new URLSearchParams(searchParams.toString())
 
-    // Function to handle player selection change
+      if (playerId !== null) {
+        currentParams.set("player", playerId.toString())
+      } else {
+        currentParams.delete("player")
+      }
+
+      const newURL = `${window.location.pathname}?${currentParams.toString()}`
+      window.history.replaceState({}, "", newURL)
+    },
+    [searchParams],
+  )
+
+  // Function to handle player selection change
   const handlePlayerChange = (playerId: number | null) => {
     setSelectedPlayerId(playerId)
     updatePlayerInURL(playerId)
     setShowPlayerSelection(false)
-    
+
     if (playerId) {
       checkShowRememberPrompt(playerId)
     } else {
       setShowRememberPrompt(false)
     }
+    // updatePlayerParticipations()
   }
+
+  // const updatePlayerParticipations = useCallback(async (playerId: number, seasonId: number) => {
+  //   if (playerId === null) return
+  //   const participations = await getParticipationsForPlayer(seasonId, playerId);
+  //   console.log("Fetched participations for player:", participations);
+  //   setPlayerParticipations(participations)
+
+  // }, [])
 
   // Function to handle switching players
   // Function to handle switching players
@@ -148,53 +199,63 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   }
 
   // Get selected player details
-  const selectedPlayer = selectedPlayerId !== null 
-    ? players.find(p => p.id === selectedPlayerId) 
-    : null
+  const selectedPlayer = selectedPlayerId !== null ? players.find((p) => p.id === selectedPlayerId) : null
 
   // Utility functions for ICS generation (inside component to access t)
-  const generateICSContent = (tie: TieWithDetails): string => {
+  const generateICSContent = (tie: Tie): string => {
     const startDate = new Date(tie.tieDate)
     // Assume 4-hour duration for tennis matches
     const endDate = new Date(startDate.getTime() + 4 * 60 * 60 * 1000)
-    
-    const summary = `${tie.teamName} ${t('vs')} ${tie.opponent}`
-    const location = tie.location || ''
-    const description = `Tennis: ${summary}${tie.isHome ? ` (${t('home')})` : ` (${t('away')})`}`
-    
+
+    const summary = `${tie.teamName} ${t("vs")} ${tie.opponent}`
+    const location = tie.location || ""
+    const description = `Tennis: ${summary}${tie.isHome ? ` (${t("home")})` : ` (${t("away")})`}`
+
     const icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Tennis Club//Match Calendar//EN',
-      'CALSCALE:GREGORIAN',
-      'BEGIN:VEVENT',
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Tennis Club//Match Calendar//EN",
+      "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT",
       `UID:tie-${tie.id}@tennisclub.local`,
       `DTSTART:${formatDateForICS(startDate)}`,
       `DTEND:${formatDateForICS(endDate)}`,
       `SUMMARY:${summary}`,
       `DESCRIPTION:${description}`,
       `LOCATION:${location}`,
-      'STATUS:CONFIRMED',
-      'END:VEVENT',
-      'END:VCALENDAR'
-    ].join('\r\n')
-    
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n")
+
     return icsContent
   }
 
-  const downloadICS = (tie: TieWithDetails) => {
+  const downloadICS = (tie: Tie) => {
     const icsContent = generateICSContent(tie)
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' })
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" })
     const url = URL.createObjectURL(blob)
-    
-    const link = document.createElement('a')
+
+    const link = document.createElement("a")
     link.href = url
-    link.download = `tennis-match-${tie.teamName.replace(/\s+/g, '-')}-vs-${tie.opponent.replace(/\s+/g, '-')}.ics`
+    link.download = `tennis-match-${tie.teamName.replace(/\s+/g, "-")}-vs-${tie.opponent.replace(/\s+/g, "-")}.ics`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
   }
+
+  // useEffect(() => {
+  //   const doUpdate = async () => {
+  //     if (selectedPlayerId === null) return
+  //     if (!season || !season.id) return
+  //   const participations = await getParticipationsForPlayer(season.id, selectedPlayerId);
+  //   console.log("Fetched participations for player:", participations);
+  //   setPlayerParticipations(participations)
+  //   }
+  //   doUpdate()
+
+  // }, [selectedPlayerId, season])
 
   useEffect(() => {
     const loadData = async () => {
@@ -205,89 +266,90 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
       }
 
       try {
-        const [tiesData, playersData, seasonData] = await Promise.all([
-          getTiesForSeason(String(propSeasonId)), 
-          getPlayersForSeason(String(propSeasonId)),
-          getSeasonInfo(String(propSeasonId))
-        ])
+        if (!season || season.id !== propSeasonId) {
+          const [seasonData, playersData, teamsData, tiesData] = await Promise.all([
+            getSeasonInfo(String(propSeasonId)),
+            getPlayersForSeason(String(propSeasonId)),
+            getTeamsForSeason(String(propSeasonId)),
+            getTiesForSeason(String(propSeasonId)),
+          ])
 
-        // Set season name
-        if (seasonData) {
-          setSeasonName(seasonData.name)
+          setPlayers(playersData)
+
+          // Set season name
+          if (seasonData) {
+            setSeason(seasonData)
+          }
+          setTeams(teamsData)
+
+          // Load participations for each tie
+          // const tiesWithDetails = await Promise.all(
+          //   (tiesData).map(async (tie) => {
+          //     const participations = await getParticipationsForTie(String(tie.id))
+
+          //     const participationsWithPlayers: SpieltageParticipation[] = participations.map((p) => ({
+          //       id: p.id,
+          //       tieId: p.tieId,
+          //       playerId: p.playerId,
+          //       status: p.status,
+          //       comment: p.comment ?? null,
+          //       playerRank: p.playerRank,
+          //       player: {
+          //         id: p.playerId,
+          //         firstName: p.firstName,
+          //         lastName: p.lastName,
+          //       },
+          //     }))
+
+          //     const tieDate = new Date(tie.tieDate)
+          //     if (Number.isNaN(tieDate.getTime())) {
+          //       console.warn("Received invalid tie date", tie.id, tie.tieDate)
+          //     }
+
+          //     return {
+          //       id: tie.id,
+          //       teamId: tie.teamId,
+          //       opponent: tie.opponent,
+          //       tieDate,
+          //       location: tie.location ?? null,
+          //       isHome: tie.isHome,
+          //       teamName: tie.teamName,
+          //       teamPlayerIds: tie.teamPlayerIds ?? [],
+          //       participations: participationsWithPlayers,
+          //       confirmedCount: participationsWithPlayers.filter((p) => p.status === "confirmed").length,
+          //       maybeCount: participationsWithPlayers.filter((p) => p.status === "maybe").length,
+          //       declinedCount: participationsWithPlayers.filter((p) => p.status === "declined").length,
+          //     }
+          //   }),
+          // )
+          const fancyTies = tiesData.map((tie) => {
+            return {
+              ...tie,
+              confirmedCount: tie.participations.filter((p) => p.status === "confirmed").length,
+              maybeCount: tie.participations.filter((p) => p.status === "maybe").length,
+              declinedCount: tie.participations.filter((p) => p.status === "declined").length,
+              teamName: teamsData.find((team) => team.id === tie.teamId)?.name || "n/a",
+            }
+          })
+
+          setTies(fancyTies)
         }
 
-        const mappedPlayers: SpieltagePlayer[] = (playersData as SpieltagePlayer[]).map((player) => ({
-          id: Number(player.id),
-          firstName: player.firstName,
-          lastName: player.lastName,
-        })).sort((a, b) => {
-          // Sort by firstName first, then by lastName
-          const firstNameCompare = a.firstName.localeCompare(b.firstName)
-          if (firstNameCompare !== 0) {
-            return firstNameCompare
-          }
-          return a.lastName.localeCompare(b.lastName)
-        })
-
-        setPlayers(mappedPlayers)
-
-        // Load participations for each tie
-        const tiesWithDetails = await Promise.all(
-          (tiesData).map(async (tie) => {
-            const participations = await getParticipationsForTie(String(tie.id))
-
-            const participationsWithPlayers: SpieltageParticipation[] = participations.map((p) => ({
-              id: p.id,
-              tieId: p.tieId,
-              playerId: p.playerId,
-              status: p.status,
-              comment: p.comment ?? null,
-              playerRank: p.playerRank,
-              player: {
-                id: p.playerId,
-                firstName: p.firstName,
-                lastName: p.lastName,
-              },
-            }))
-
-            const tieDate = new Date(tie.tieDate)
-            if (Number.isNaN(tieDate.getTime())) {
-              console.warn("Received invalid tie date", tie.id, tie.tieDate)
-            }
-
-            return {
-              id: tie.id,
-              teamId: tie.teamId,
-              opponent: tie.opponent,
-              tieDate,
-              location: tie.location ?? null,
-              isHome: tie.isHome,
-              teamName: tie.teamName,
-              teamPlayerIds: tie.teamPlayerIds ?? [],
-              participations: participationsWithPlayers,
-              confirmedCount: participationsWithPlayers.filter((p) => p.status === "confirmed").length,
-              maybeCount: participationsWithPlayers.filter((p) => p.status === "maybe").length,
-              declinedCount: participationsWithPlayers.filter((p) => p.status === "declined").length,
-            }
-          }),
-        )
-
-        setTies(tiesWithDetails)
-
-        // Initialize selected player from URL parameter or localStorage
-        const playerParam = searchParams.get('player')
-        if (playerParam && mappedPlayers.some(p => p.id === Number(playerParam))) {
+        const playerParam = searchParams.get("player")
+        if (playerParam && players.some((p) => p.id === Number(playerParam))) {
           setSelectedPlayerId(Number(playerParam))
           setShowPlayerSelection(false)
+          updateParticipationCallback(Number(playerParam))
           // Check if we should show remember prompt for URL-selected player
           checkShowRememberPrompt(Number(playerParam))
         } else {
           // Check localStorage only if no URL parameter
           const storedPlayerId = getStoredPlayerId()
-          if (storedPlayerId && mappedPlayers.some(p => p.id === storedPlayerId)) {
+          if (storedPlayerId && players.some((p) => p.id === storedPlayerId)) {
             setSelectedPlayerId(storedPlayerId)
-            updatePlayerInURL(storedPlayerId)
+            // updatePlayerInURL(storedPlayerId)
             setShowPlayerSelection(false)
+            updateParticipationCallback(storedPlayerId)
             // Don't show remember prompt for stored player
           } else {
             // No valid player found - show selection UI
@@ -302,7 +364,17 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     }
 
     loadData()
-  }, [router, accessCode, propSeasonId, searchParams, checkShowRememberPrompt, updatePlayerInURL])
+  }, [
+    router,
+    accessCode,
+    propSeasonId,
+    searchParams,
+    checkShowRememberPrompt,
+    updatePlayerInURL,
+    updateParticipationCallback,
+    season,
+    players,
+  ])
 
   const handleLogout = () => {
     // Simply redirect to home - no localStorage cleanup needed with URL-based routing
@@ -313,8 +385,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     if (selectedPlayerId === null) {
       return undefined
     }
-    const tie = ties.find((t) => t.id === tieId)
-    return tie?.participations.find((p) => p.playerId === selectedPlayerId)
+    return playerParticipations.find((p) => p.tieId === tieId)
   }
 
   const handleParticipationClick = async (tieId: number, status: "confirmed" | "maybe" | "declined") => {
@@ -336,7 +407,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     const { tieId, status } = pendingParticipation
 
     try {
-      await updateParticipation(String(tieId), String(selectedPlayerId), status, comment || '')
+      await updateParticipation(String(tieId), String(selectedPlayerId), status, comment || "")
 
       const participations = await getParticipationsForTie(String(tieId))
       const participationsWithPlayers: SpieltageParticipation[] = participations.map((p) => ({
@@ -369,13 +440,14 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
       )
 
       setPendingParticipation(null)
+      updateParticipationCallback(selectedPlayerId)
     } catch (error) {
       console.error("Failed to update participation:", error)
     }
   }
 
-  const handleShowDetails = (tie: TieWithDetails) => {
-    setSelectedTie(tie)
+  const handleShowDetails = async (tie: Tie) => {
+    setSelectedTie({ ...tie } as TieWithDetails)
     setShowDetailsDialog(true)
   }
 
@@ -394,15 +466,14 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     })
   }
 
-  const isPlayerOnTeam = (tie: TieWithDetails) => {
+  const isPlayerOnTeam = (teamId: number) => {
     if (selectedPlayerId === null) return false
-    return tie.teamPlayerIds.includes(selectedPlayerId)
+    return teams.find((team) => team.id === teamId)?.playerIds.includes(selectedPlayerId)
   }
 
   // Filter ties based on toggle state
-  const filteredTies = showOnlyMyMatches && selectedPlayerId !== null
-    ? ties.filter(tie => isPlayerOnTeam(tie))
-    : ties
+  const filteredTies =
+    showOnlyMyMatches && selectedPlayerId !== null ? ties.filter((tie) => isPlayerOnTeam(tie.teamId)) : ties
 
   if (loading) {
     return (
@@ -434,7 +505,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             </div>
             <nav className="flex items-center">
               <a href="#" className="border-b-2 border-blue-500 px-4 py-6 text-sm font-medium text-white">
-                {seasonName ? seasonName : t("matchDays")}
+                {season ? season.name : t("matchDays")}
               </a>
             </nav>
           </div>
@@ -455,7 +526,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-6 py-12">
         <h1 className="mb-12 text-3xl font-semibold text-white">
-          {seasonName ? `${seasonName} - ${t("upcomingMatches")}` : t("upcomingMatches")}
+          {season ? `${season.name} - ${t("upcomingMatches")}` : t("upcomingMatches")}
         </h1>
 
         {/* Player Selection Section */}
@@ -481,7 +552,9 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             </>
           ) : selectedPlayer ? (
             <div className="text-lg text-white">
-              <span>{t("hello")}, {selectedPlayer.firstName}!</span>
+              <span>
+                {t("hello")}, {selectedPlayer.firstName}!
+              </span>
               <span className="ml-2 text-sm opacity-75">
                 (
                 <button
@@ -520,9 +593,9 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             </Button>
             {showOnlyMyMatches && (
               <span className="text-sm text-gray-300">
-                {tWithParams("matchesShown", { 
-                  count: filteredTies.length, 
-                  total: ties.length 
+                {tWithParams("matchesShown", {
+                  count: filteredTies.length,
+                  total: ties.length,
                 })}
               </span>
             )}
@@ -534,8 +607,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
           {filteredTies.map((tie) => {
             const participation = getPlayerParticipation(tie.id)
             const status = participation?.status || null
-            const canParticipate = isPlayerOnTeam(tie) // Check team membership
-
+            const canParticipate = isPlayerOnTeam(tie.teamId) // Check team membership
+            // console.log("Rendering tie", tie.id, " - player participation:", participation, " - canParticipate:", canParticipate)
             return (
               <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg">
                 <h2 className="mb-4 text-xl font-semibold text-white">
@@ -579,10 +652,16 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                   {t("showDetails")}
                 </Button>
 
-                {selectedPlayerId === null ? (
-                  <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
-                    {t("selectPlayerFirst") || "Please select a player first"}
-                  </div>
+                {selectedPlayerId === null || participationsLoading ? (
+                  selectedPlayerId === null ? (
+                    <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
+                      {t("selectPlayerFirst") || "Please select a player first"}
+                    </div>
+                  ) : (
+                    <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
+                      {t("loading")}
+                    </div>
+                  )
                 ) : canParticipate ? (
                   <div className="grid grid-cols-3 gap-2">
                     <button

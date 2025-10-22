@@ -19,5 +19,8 @@ export default async function TiesAccessCodePage({ params }: TiesPageProps) {
     redirect("/?error=invalid")
   }
 
-  return <SpieltageClient accessCode={accessCode.toUpperCase()} seasonId={result.seasonId} />
+  
+  
+  return <SpieltageClient 
+    accessCode={accessCode.toUpperCase()} seasonId={result.seasonId}  />
 }
