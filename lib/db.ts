@@ -709,8 +709,6 @@ export async function getPlayersForSeason(seasonId: number): Promise<Player[]> {
     .where("teams.seasonId", "=", seasonId)
     .selectAll("players")
     .distinctOn("players.id")
-    // .orderBy("players.firstName")
-    // .orderBy("players.lastName")
     .execute()
 
   return players

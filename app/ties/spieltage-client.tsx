@@ -181,18 +181,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     } else {
       setShowRememberPrompt(false)
     }
-    // updatePlayerParticipations()
   }
 
-  // const updatePlayerParticipations = useCallback(async (playerId: number, seasonId: number) => {
-  //   if (playerId === null) return
-  //   const participations = await getParticipationsForPlayer(seasonId, playerId);
-  //   console.log("Fetched participations for player:", participations);
-  //   setPlayerParticipations(participations)
-
-  // }, [])
-
-  // Function to handle switching players
   // Function to handle switching players
   const handleSwitchPlayer = () => {
     setShowPlayerSelection(true)
@@ -245,18 +235,6 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     URL.revokeObjectURL(url)
   }
 
-  // useEffect(() => {
-  //   const doUpdate = async () => {
-  //     if (selectedPlayerId === null) return
-  //     if (!season || !season.id) return
-  //   const participations = await getParticipationsForPlayer(season.id, selectedPlayerId);
-  //   console.log("Fetched participations for player:", participations);
-  //   setPlayerParticipations(participations)
-  //   }
-  //   doUpdate()
-
-  // }, [selectedPlayerId, season])
-
   useEffect(() => {
     const loadData = async () => {
       // Require props - no localStorage fallback needed with URL-based routing
@@ -274,7 +252,16 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             getTiesForSeason(String(propSeasonId)),
           ])
 
-          setPlayers(playersData)
+          setPlayers(
+            playersData.sort((a, b) => {
+              // Sort by firstName first, then by lastName
+              const firstNameCompare = a.firstName.localeCompare(b.firstName)
+              if (firstNameCompare !== 0) {
+                return firstNameCompare
+              }
+              return a.lastName.localeCompare(b.lastName)
+            }),
+          )
 
           // Set season name
           if (seasonData) {
