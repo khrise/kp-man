@@ -414,7 +414,7 @@ export async function getTiesWithLineupInfo(): Promise<TieWithLineupInfo[]> {
   return tiesWithLineup
 }
 
-export type TieWithTeamName = {
+export type TieDto = {
   id: number
   teamId: number
   opponent: string
@@ -422,18 +422,54 @@ export type TieWithTeamName = {
   location: string | null
   isHome: boolean
   createdAt: Date
-  teamName: string
+  participations: Participation[]
 }
 
-export async function getTiesBySeasonId(seasonId: number): Promise<TieWithTeamName[]> {
-  return db
+export type TeamDto = Team & {
+  playerIds: number[]
+}
+
+export async function getTeamsBySeasonId(seasonId: number): Promise<TeamDto[]> {
+  const teams = await db.selectFrom("teams").selectAll().where("seasonId", "=", seasonId).orderBy("name").execute()
+  return await Promise.all(
+    teams.map(async (team) => {
+      const playerIds = await db.selectFrom("teamPlayers").select("playerId").where("teamId", "=", team.id).execute()
+      return {
+        ...team,
+        playerIds: playerIds.map((p) => p.playerId),
+      }
+    }),
+  )
+}
+
+export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
+  console.time("[DB] Fetching ties by season ID")
+  const ties = await db
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
-    .where("tm.seasonId", "=", seasonId)
     .select(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.location", "t.isHome", "t.createdAt"])
-    .select((eb) => eb.ref("tm.name").as("teamName"))
+    .where("tm.seasonId", "=", seasonId)
     .orderBy("t.tieDate", "asc")
     .execute()
+
+  const tiesWithParticipations = await Promise.all(
+    ties.map(async (tie) => {
+      const participations = await db
+        .selectFrom("participations")
+        .selectAll()
+        .where("tieId", "=", tie.id)
+        .orderBy("createdAt")
+        .execute()
+
+      return {
+        ...tie,
+        participations,
+      }
+    }),
+  )
+
+  console.timeEnd("[DB] Fetching ties by season ID")
+  return tiesWithParticipations
 }
 
 export async function getTieById(id: number): Promise<Tie | undefined> {
@@ -465,6 +501,29 @@ export type ParticipationWithPlayer = Participation & {
   lastName: string
   playerRank: number
 }
+
+export type PlayerParticipationDto = {
+  playerId: number
+  tieId: number
+  status: string
+  isInLineup: boolean
+}
+
+export async function getParticipationsForPlayer(
+  seasonId: number,
+  playerId: number,
+): Promise<PlayerParticipationDto[]> {
+  const query = db
+    .selectFrom("participations as p")
+    .where("p.playerId", "=", playerId)
+    .innerJoin("ties as t", "t.id", "p.tieId")
+    .innerJoin("teams as tm", "tm.id", "t.teamId")
+    .where("tm.seasonId", "=", seasonId)
+    .select(["p.playerId", "p.tieId", "p.status", "p.isInLineup"])
+    .orderBy("t.tieDate", "asc")
+  return query.execute()
+}
+// .innerJoin("players as pl", "pl.id", "p.playerId")
 
 export async function getParticipations(tieId: number): Promise<ParticipationWithPlayer[]> {
   return db
@@ -642,6 +701,21 @@ export async function getPlayersWithoutParticipation(tieId: number): Promise<Tea
     .execute()
 }
 
+export async function getPlayersForSeason(seasonId: number): Promise<Player[]> {
+  const players = await db
+    .selectFrom("players")
+    .innerJoin("teamPlayers", "teamPlayers.playerId", "players.id")
+    .innerJoin("teams", "teams.id", "teamPlayers.teamId")
+    .where("teams.seasonId", "=", seasonId)
+    .selectAll("players")
+    .distinctOn("players.id")
+    // .orderBy("players.firstName")
+    // .orderBy("players.lastName")
+    .execute()
+
+  return players
+}
+
 export async function getUserByUsername(username: string): Promise<User | undefined> {
   return db
     .selectFrom("users")
@@ -763,6 +837,7 @@ export type NewAppSetting = Insertable<AppSettingsTable>
 export type AppSettingUpdate = Updateable<AppSettingsTable>
 
 export async function getAllAppSettings(): Promise<AppSetting[]> {
+  console.time("[DB] Fetching all app settings")
   try {
     return db.selectFrom("app_settings").selectAll().orderBy("key").execute()
   } catch (error: unknown) {
@@ -774,6 +849,8 @@ export async function getAllAppSettings(): Promise<AppSetting[]> {
       return []
     }
     throw error
+  } finally {
+    console.timeEnd("[DB] Fetching all app settings")
   }
 }
 

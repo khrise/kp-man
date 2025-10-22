@@ -30,12 +30,15 @@ export interface Team {
   updatedAt: Date
 }
 
-export interface Player {
+export interface Player extends PlayerBase {
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface PlayerBase {
   id: number
   firstName: string
   lastName: string
-  createdAt: Date
-  updatedAt: Date
 }
 
 export interface PlayerWithRank extends Player {

@@ -1,6 +1,8 @@
 "use server"
 
 import * as db from "@/lib/db"
+import { PlayerParticipationDto } from "@/lib/db"
+import { PlayerBase } from "@/lib/types"
 
 export async function validateAccessCode(accessCode: string) {
   const season = await db.getSeasonByAccessCode(accessCode)
@@ -16,6 +18,17 @@ export async function getSeasonInfo(seasonId: string) {
   return await db.getSeasonById(numericSeasonId)
 }
 
+export async function getTeamsForSeason(seasonId: string) {
+  // console.log("Getting teams for season:", seasonId)
+  const numericSeasonId = Number(seasonId)
+  if (Number.isNaN(numericSeasonId)) {
+    throw new Error("Invalid season id")
+  }
+
+  const teams = await db.getTeamsBySeasonId(numericSeasonId)
+  return teams
+}
+
 export async function getTiesForSeason(seasonId: string) {
   const numericSeasonId = Number(seasonId)
   if (Number.isNaN(numericSeasonId)) {
@@ -24,17 +37,7 @@ export async function getTiesForSeason(seasonId: string) {
 
   const ties = await db.getTiesBySeasonId(numericSeasonId)
 
-  const tiesWithTeamPlayers = await Promise.all(
-    ties.map(async (tie) => {
-      const teamPlayers = await db.getTeamPlayers(tie.teamId)
-      return {
-        ...tie,
-        teamPlayerIds: teamPlayers.map((p) => p.id),
-      }
-    }),
-  )
-
-  return tiesWithTeamPlayers
+  return ties
 }
 
 export async function getPlayersForSeason(seasonId: string) {
@@ -43,20 +46,23 @@ export async function getPlayersForSeason(seasonId: string) {
     throw new Error("Invalid season id")
   }
 
-  // Get all teams for the season
-  const teams = await db.getTeams()
-  const seasonTeams = teams.filter((team) => team.seasonId === numericSeasonId)
+  const ps = await db.getPlayersForSeason(numericSeasonId)
 
-  // Get all unique players from these teams
-  const playerIds = new Set<number>()
-  for (const team of seasonTeams) {
-    const teamPlayers = await db.getTeamPlayers(team.id)
-    teamPlayers.forEach((player) => playerIds.add(player.id))
+  // Get all teams for the season
+  return ps.map((p) => ({ id: p.id, firstName: p.firstName, lastName: p.lastName }))
+}
+
+export async function getParticipationsForPlayer(
+  seasonId: number,
+  playerId: number,
+): Promise<PlayerParticipationDto[]> {
+  const numericPlayerId = Number(playerId)
+  if (Number.isNaN(numericPlayerId)) {
+    throw new Error("Invalid player id")
   }
 
-  // Fetch full player details
-  const allPlayers = await db.getPlayers()
-  return allPlayers.filter((player) => playerIds.has(player.id))
+  const result = await db.getParticipationsForPlayer(seasonId, numericPlayerId)
+  return result
 }
 
 export async function getParticipationsForTie(tieId: string) {
@@ -84,6 +90,16 @@ export async function updateParticipation(
     throw new Error("Invalid player id")
   }
 
+  console.log(
+    "Updating participation for tie:",
+    numericTieId,
+    "player:",
+    numericPlayerId,
+    "status:",
+    status,
+    "comment:",
+    comment,
+  )
   return await db.upsertParticipation({
     tieId: numericTieId,
     playerId: numericPlayerId,
