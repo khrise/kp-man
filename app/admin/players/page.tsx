@@ -74,12 +74,12 @@ export default function PlayersPage() {
   const handleBatchAdd = async () => {
     const lines = batchData.split("\n").filter((line) => line.trim())
     const playersToAdd: { firstName: string; lastName: string }[] = []
-    
+
     // Parse all lines first
     for (const line of lines) {
       let firstName = ""
       let lastName = ""
-      
+
       if (line.includes(",")) {
         // Format: "lastname, firstname"
         const [last, first] = line.split(",").map((s) => s.trim())
@@ -96,29 +96,31 @@ export default function PlayersPage() {
           lastName = ""
         }
       }
-      
+
       if (firstName || lastName) {
         playersToAdd.push({ firstName, lastName })
       }
     }
-    
+
     // Filter out duplicates (both within the batch and against existing players)
     const uniquePlayersToAdd = playersToAdd.filter((newPlayer, index, arr) => {
       // Check for duplicates within the batch itself
-      const firstOccurrence = arr.findIndex(p => 
-        p.firstName.toLowerCase() === newPlayer.firstName.toLowerCase() && 
-        p.lastName.toLowerCase() === newPlayer.lastName.toLowerCase()
+      const firstOccurrence = arr.findIndex(
+        (p) =>
+          p.firstName.toLowerCase() === newPlayer.firstName.toLowerCase() &&
+          p.lastName.toLowerCase() === newPlayer.lastName.toLowerCase(),
       )
       if (firstOccurrence !== index) return false
-      
+
       // Check against existing players
-      const existingPlayer = players.find(existing => 
-        existing.firstName.toLowerCase() === newPlayer.firstName.toLowerCase() && 
-        existing.lastName.toLowerCase() === newPlayer.lastName.toLowerCase()
+      const existingPlayer = players.find(
+        (existing) =>
+          existing.firstName.toLowerCase() === newPlayer.firstName.toLowerCase() &&
+          existing.lastName.toLowerCase() === newPlayer.lastName.toLowerCase(),
       )
       return !existingPlayer
     })
-    
+
     // Add only unique players
     let importedCount = 0
     for (const player of uniquePlayersToAdd) {
@@ -133,28 +135,28 @@ export default function PlayersPage() {
         console.error("Failed to add player:", player, error)
       }
     }
-    
+
     await loadPlayers()
     setIsBatchAdding(false)
     setBatchData("")
-    
+
     // Show import results
     const totalParsed = playersToAdd.length
     const skippedCount = totalParsed - importedCount
-    
+
     if (totalParsed === 0) {
-      alert(t('noPlayersToImport'))
+      alert(t("noPlayersToImport"))
     } else if (skippedCount === 0) {
-      alert(`${t('importSuccess')}: ${importedCount} ${importedCount === 1 ? t('player') : t('players')}`)
+      alert(`${t("importSuccess")}: ${importedCount} ${importedCount === 1 ? t("player") : t("players")}`)
     } else if (importedCount === 0) {
-      alert(`${t('allPlayersSkipped')}: ${skippedCount} ${skippedCount === 1 ? t('player') : t('players')}`)
+      alert(`${t("allPlayersSkipped")}: ${skippedCount} ${skippedCount === 1 ? t("player") : t("players")}`)
     } else {
-      alert(`${t('importResult')}: ${importedCount} ${t('imported')}, ${skippedCount} ${t('skipped')}`)
+      alert(`${t("importResult")}: ${importedCount} ${t("imported")}, ${skippedCount} ${t("skipped")}`)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('confirmDeletePlayer'))) {
+    if (confirm(t("confirmDeletePlayer"))) {
       await deletePlayerAction(id)
       await loadPlayers()
     }
@@ -167,21 +169,21 @@ export default function PlayersPage() {
         <main className="mx-auto max-w-7xl px-6 py-8">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h2 className="text-3xl font-bold text-gray-900">{t('players')}</h2>
+              <h2 className="text-3xl font-bold text-gray-900">{t("players")}</h2>
               <p className="mt-2 text-gray-600">
-                {t('managePlayersDesc')} • {players.length} {players.length === 1 ? t('player') : t('players')}
+                {t("managePlayersDesc")} • {players.length} {players.length === 1 ? t("player") : t("players")}
               </p>
             </div>
             <div className="flex gap-2 sm:flex-shrink-0">
               <Button variant="outline" onClick={() => setIsBatchAdding(true)}>
                 <Upload className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">{t('batchAdd')}</span>
-                <span className="sm:hidden">{t('batchAdd')}</span>
+                <span className="hidden sm:inline">{t("batchAdd")}</span>
+                <span className="sm:hidden">{t("batchAdd")}</span>
               </Button>
               <Button onClick={() => setIsAdding(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">{t('addPlayer')}</span>
-                <span className="sm:hidden">{t('add')}</span>
+                <span className="hidden sm:inline">{t("addPlayer")}</span>
+                <span className="sm:hidden">{t("add")}</span>
               </Button>
             </div>
           </div>
@@ -189,12 +191,12 @@ export default function PlayersPage() {
           {(isAdding || editingId !== null) && (
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle>{editingId !== null ? t('editPlayer') : t('addNewPlayer')}</CardTitle>
+                <CardTitle>{editingId !== null ? t("editPlayer") : t("addNewPlayer")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">{t('firstName')}</Label>
+                    <Label htmlFor="firstName">{t("firstName")}</Label>
                     <Input
                       id="firstName"
                       value={formData.firstName}
@@ -203,7 +205,7 @@ export default function PlayersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">{t('lastName')}</Label>
+                    <Label htmlFor="lastName">{t("lastName")}</Label>
                     <Input
                       id="lastName"
                       value={formData.lastName}
@@ -215,11 +217,11 @@ export default function PlayersPage() {
                 <div className="mt-4 flex gap-2">
                   <Button onClick={editingId !== null ? handleUpdate : handleAdd}>
                     <Check className="mr-2 h-4 w-4" />
-                    {t('save')}
+                    {t("save")}
                   </Button>
                   <Button variant="outline" onClick={handleCancel}>
                     <X className="mr-2 h-4 w-4" />
-                    {t('cancel')}
+                    {t("cancel")}
                   </Button>
                 </div>
               </CardContent>
@@ -229,11 +231,11 @@ export default function PlayersPage() {
           {isBatchAdding && (
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle>{t('batchAddPlayers')}</CardTitle>
+                <CardTitle>{t("batchAddPlayers")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="batchData">{t('enterPlayerData')}</Label>
+                  <Label htmlFor="batchData">{t("enterPlayerData")}</Label>
                   <Textarea
                     id="batchData"
                     value={batchData}
@@ -245,11 +247,11 @@ export default function PlayersPage() {
                 <div className="mt-4 flex gap-2">
                   <Button onClick={handleBatchAdd}>
                     <Check className="mr-2 h-4 w-4" />
-                    {t('addPlayers')}
+                    {t("addPlayers")}
                   </Button>
                   <Button variant="outline" onClick={() => setIsBatchAdding(false)}>
                     <X className="mr-2 h-4 w-4" />
-                    {t('cancel')}
+                    {t("cancel")}
                   </Button>
                 </div>
               </CardContent>
@@ -266,18 +268,19 @@ export default function PlayersPage() {
                         {player.firstName} {player.lastName}
                       </h3>
                     </div>
+
                     <div className="flex gap-2 sm:flex-shrink-0">
                       <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
                         <Edit className="h-4 w-4" />
-                        <span className="ml-1 hidden sm:inline">{t('edit')}</span>
+                        <span className="ml-1 hidden sm:inline">{t("edit")}</span>
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => handleDelete(String(player.id))}>
                         <Trash2 className="h-4 w-4" />
-                        <span className="ml-1 hidden sm:inline">{t('delete')}</span>
+                        <span className="ml-1 hidden sm:inline">{t("delete")}</span>
                       </Button>
                     </div>
                   </div>
-{player.teams.map((team) => (
+                  {player.teams.map((team) => (
                     <div key={team.id} className="flex">
                       <div className="text-muted-foreground text-sm">
                         {team.name} - {team.seasonName} ({t("rank")} {team.rank})
