@@ -280,13 +280,40 @@ export default function PlayersPage() {
                       </Button>
                     </div>
                   </div>
-                  {player.teams.map((team) => (
-                    <div key={team.id} className="flex">
-                      <div className="text-muted-foreground text-sm">
-                        {team.name} - {team.seasonName} ({t("rank")} {team.rank})
+
+                  {player.teams.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{t("teams")}</div>
+                      <div className="space-y-3">
+                        {Object.entries(
+                          player.teams.reduce((acc, team) => {
+                            if (!acc[team.seasonName]) {
+                              acc[team.seasonName] = []
+                            }
+                            acc[team.seasonName].push(team)
+                            return acc
+                          }, {} as Record<string, typeof player.teams>),
+                        ).map(([seasonName, seasonTeams]) => (
+                          <div key={seasonName} className="space-y-2">
+                            <div className="text-xs font-medium text-gray-700">{seasonName}</div>
+                            <div className="flex flex-wrap gap-2">
+                              {seasonTeams.map((team) => (
+                                <div
+                                  key={team.id}
+                                  className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
+                                >
+                                  <span className="font-semibold text-blue-700">{team.name}</span>
+                                  <span className="text-blue-600">
+                                    ({t("rank")} {team.rank})
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </CardContent>
               </Card>
             ))}
