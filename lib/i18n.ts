@@ -213,6 +213,9 @@ export const translations = {
     allPlayersSkipped: "Alle Spieler übersprungen (bereits vorhanden)",
     importResult: "Import abgeschlossen",
     skipped: "übersprungen",
+    searchPlayers: "Spieler suchen...",
+    noPlayersFound: "Keine Spieler gefunden für",
+    clearSearch: "Suche löschen",
 
     // Ties
     manageTiesDesc: "Verwalten Sie Ihre Spiele",
@@ -473,6 +476,9 @@ export const translations = {
     allPlayersSkipped: "All players skipped (already exist)",
     importResult: "Import completed",
     skipped: "skipped",
+    searchPlayers: "Search players...",
+    noPlayersFound: "No players found for",
+    clearSearch: "Clear search",
 
     // Ties
     manageTiesDesc: "Manage your matches",

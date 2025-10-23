@@ -20,6 +20,7 @@ export default function PlayersPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isBatchAdding, setIsBatchAdding] = useState(false)
   const [batchData, setBatchData] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -33,6 +34,13 @@ export default function PlayersPage() {
     const data = await getPlayersAdminList()
     setPlayers(data)
   }
+
+  // Filter players based on search term
+  const filteredPlayers = players.filter((player) => {
+    if (!searchTerm.trim()) return true
+    const searchLower = searchTerm.toLowerCase()
+    return player.firstName.toLowerCase().includes(searchLower) || player.lastName.toLowerCase().includes(searchLower)
+  })
 
   const handleEdit = (player: PlayerAdminListItem) => {
     setEditingId(String(player.id))
@@ -171,7 +179,9 @@ export default function PlayersPage() {
             <div className="flex-1 min-w-0">
               <h2 className="text-3xl font-bold text-gray-900">{t("players")}</h2>
               <p className="mt-2 text-gray-600">
-                {t("managePlayersDesc")} • {players.length} {players.length === 1 ? t("player") : t("players")}
+                {t("managePlayersDesc")} • {filteredPlayers.length}{" "}
+                {filteredPlayers.length === 1 ? t("player") : t("players")}
+                {searchTerm && ` (${t("of")} ${players.length})`}
               </p>
             </div>
             <div className="flex gap-2 sm:flex-shrink-0">
@@ -185,6 +195,33 @@ export default function PlayersPage() {
                 <span className="hidden sm:inline">{t("addPlayer")}</span>
                 <span className="sm:hidden">{t("add")}</span>
               </Button>
+            </div>
+          </div>
+
+          {/* Search Field */}
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <Label htmlFor="search" className="sr-only">
+                {t("searchPlayers")}
+              </Label>
+              <Input
+                id="search"
+                type="text"
+                placeholder={t("searchPlayers")}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pr-10"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  aria-label={t("clearSearch")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -259,64 +296,72 @@ export default function PlayersPage() {
           )}
 
           <div className="grid gap-4">
-            {players.map((player) => (
-              <Card key={player.id}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold truncate">
-                        {player.firstName} {player.lastName}
-                      </h3>
-                    </div>
+            {filteredPlayers.length === 0 && searchTerm ? (
+              <div className="text-center py-8 text-gray-500">
+                {t("noPlayersFound")} &quot;{searchTerm}&quot;
+              </div>
+            ) : (
+              filteredPlayers.map((player) => (
+                <Card key={player.id}>
+                  <CardContent className="p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold truncate">
+                          {player.firstName} {player.lastName}
+                        </h3>
+                      </div>
 
-                    <div className="flex gap-2 sm:flex-shrink-0">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
-                        <Edit className="h-4 w-4" />
-                        <span className="ml-1 hidden sm:inline">{t("edit")}</span>
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(String(player.id))}>
-                        <Trash2 className="h-4 w-4" />
-                        <span className="ml-1 hidden sm:inline">{t("delete")}</span>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {player.teams.length > 0 && (
-                    <div className="mt-3">
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{t("teams")}</div>
-                      <div className="space-y-3">
-                        {Object.entries(
-                          player.teams.reduce((acc, team) => {
-                            if (!acc[team.seasonName]) {
-                              acc[team.seasonName] = []
-                            }
-                            acc[team.seasonName].push(team)
-                            return acc
-                          }, {} as Record<string, typeof player.teams>),
-                        ).map(([seasonName, seasonTeams]) => (
-                          <div key={seasonName} className="space-y-2">
-                            <div className="text-xs font-medium text-gray-700">{seasonName}</div>
-                            <div className="flex flex-wrap gap-2">
-                              {seasonTeams.map((team) => (
-                                <div
-                                  key={team.id}
-                                  className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
-                                >
-                                  <span className="font-semibold text-blue-700">{team.name}</span>
-                                  <span className="text-blue-600">
-                                    ({t("rank")} {team.rank})
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                      <div className="flex gap-2 sm:flex-shrink-0">
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
+                          <Edit className="h-4 w-4" />
+                          <span className="ml-1 hidden sm:inline">{t("edit")}</span>
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(String(player.id))}>
+                          <Trash2 className="h-4 w-4" />
+                          <span className="ml-1 hidden sm:inline">{t("delete")}</span>
+                        </Button>
                       </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+
+                    {player.teams.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                          {t("teams")}
+                        </div>
+                        <div className="space-y-3">
+                          {Object.entries(
+                            player.teams.reduce((acc, team) => {
+                              if (!acc[team.seasonName]) {
+                                acc[team.seasonName] = []
+                              }
+                              acc[team.seasonName].push(team)
+                              return acc
+                            }, {} as Record<string, typeof player.teams>),
+                          ).map(([seasonName, seasonTeams]) => (
+                            <div key={seasonName} className="space-y-2">
+                              <div className="text-xs font-medium text-gray-700">{seasonName}</div>
+                              <div className="flex flex-wrap gap-2">
+                                {seasonTeams.map((team) => (
+                                  <div
+                                    key={team.id}
+                                    className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm"
+                                  >
+                                    <span className="font-semibold text-blue-700">{team.name}</span>
+                                    <span className="text-blue-600">
+                                      ({t("rank")} {team.rank})
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </main>
       </div>
