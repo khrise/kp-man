@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
 
+export async function getPlayersAdminList() {
+  return await db.getPlayersAdminList()
+}
+
 export async function getPlayers() {
   return await db.getPlayers()
 }

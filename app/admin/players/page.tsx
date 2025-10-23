@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Edit, Trash2, Check, X, Upload } from "lucide-react"
-import type { Player } from "@/lib/types"
-import { getPlayers, createPlayerAction, updatePlayerAction, deletePlayerAction } from "@/app/actions/players"
+import type { PlayerAdminListItem } from "@/lib/types"
+import { getPlayersAdminList, createPlayerAction, updatePlayerAction, deletePlayerAction } from "@/app/actions/players"
 import { useTranslation } from "@/lib/i18n"
 
 export default function PlayersPage() {
   const { t } = useTranslation()
-  const [players, setPlayers] = useState<Player[]>([])
+  const [players, setPlayers] = useState<PlayerAdminListItem[]>([])
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isBatchAdding, setIsBatchAdding] = useState(false)
@@ -30,11 +30,11 @@ export default function PlayersPage() {
   }, [])
 
   const loadPlayers = async () => {
-    const data = await getPlayers()
-    setPlayers(data as unknown as Player[])
+    const data = await getPlayersAdminList()
+    setPlayers(data)
   }
 
-  const handleEdit = (player: Player) => {
+  const handleEdit = (player: PlayerAdminListItem) => {
     setEditingId(String(player.id))
     setFormData({
       firstName: player.firstName,
@@ -277,6 +277,13 @@ export default function PlayersPage() {
                       </Button>
                     </div>
                   </div>
+{player.teams.map((team) => (
+                    <div key={team.id} className="flex">
+                      <div className="text-muted-foreground text-sm">
+                        {team.name} - {team.seasonName} ({t("rank")} {team.rank})
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
             ))}
