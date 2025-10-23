@@ -251,18 +251,18 @@ export const translations = {
 
     // Sorting and Filtering
     filterByTeam: "Nach Mannschaft filtern",
-    allTeams: "Alle Mannschaften",
-    sortByDate: "Nach Datum sortieren",
-    ascending: "Aufsteigend",
-    descending: "Absteigend",
-    teamAndSeason: "Mannschaft & Saison",
-    noTiesFound: "Keine Spieltage gefunden",
-    noTiesFoundFor: "Keine Spieltage gefunden für",
-    showAllTeams: "Alle Mannschaften anzeigen",
-    tiesCount: "Spieltage",
-    of: "von",
-    selectValidTeamSeason: "Bitte wählen Sie eine gültige Mannschaft und eine gültige Saison",
-    teamSeasonNotFound: "Ausgewählte Mannschaft oder Saison nicht gefunden",
+    showAllPlayers: "Alle Mannschaften anzeigen",
+    showMyTeams: "Nur meine Mannschaften",
+    filterByDate: "Nach Datum filtern",
+    showAllDates: "Alle Termine",
+    showUpcomingMatches: "Nur kommende Spiele",
+    filterByTime: "Nach Zeit filtern",
+    showAllTimes: "Alle Zeiten",
+    sortBy: "Sortieren nach",
+    dateAsc: "Datum (älteste zuerst)",
+    dateDesc: "Datum (neueste zuerst)",
+    opponentName: "Gegner",
+    applyFilter: "Filter anwenden",
   },
   en: {
     // Common
@@ -514,18 +514,18 @@ export const translations = {
 
     // Sorting and Filtering
     filterByTeam: "Filter by Team",
-    allTeams: "All Teams",
-    sortByDate: "Sort by date",
-    ascending: "Ascending",
-    descending: "Descending",
-    teamAndSeason: "Team & Season",
-    noTiesFound: "No ties found",
-    noTiesFoundFor: "No ties found for",
-    showAllTeams: "Show all teams",
-    tiesCount: "ties",
-    of: "of",
-    selectValidTeamSeason: "Please select a valid team and season",
-    teamSeasonNotFound: "Selected team or season not found",
+    showAllPlayers: "Show all teams",
+    showMyTeams: "Show only my teams",
+    filterByDate: "Filter by Date",
+    showAllDates: "All dates",
+    showUpcomingMatches: "Upcoming matches only",
+    filterByTime: "Filter by Time",
+    showAllTimes: "All times",
+    sortBy: "Sort by",
+    dateAsc: "Date (oldest first)",
+    dateDesc: "Date (newest first)",
+    opponentName: "Opponent",
+    applyFilter: "Filter anwenden",
   },
 }
 
@@ -548,7 +548,7 @@ export function t(key: keyof typeof translations.de, locale?: Locale): string {
 export function tWithParams(
   key: keyof typeof translations.de,
   params: Record<string, string | number>,
-  locale?: Locale
+  locale?: Locale,
 ): string {
   const text = t(key, locale)
   return Object.entries(params).reduce((result, [paramKey, value]) => {
@@ -561,7 +561,7 @@ export function useTranslation() {
 
   return {
     t: (key: keyof typeof translations.de) => t(key, locale),
-    tWithParams: (key: keyof typeof translations.de, params: Record<string, string | number>) => 
+    tWithParams: (key: keyof typeof translations.de, params: Record<string, string | number>) =>
       tWithParams(key, params, locale),
     locale,
     setLocale,

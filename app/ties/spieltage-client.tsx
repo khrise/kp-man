@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Calendar, MapPin, Users, Download, LogOut, Eye } from "lucide-react"
+import { Calendar, MapPin, Users, Download, LogOut, Eye, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import {
   getTiesForSeason,
   getPlayersForSeason,
@@ -99,8 +100,10 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     tieId: number
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
-  const [showOnlyMyMatches, setShowOnlyMyMatches] = useState(false)
-  const { t, tWithParams } = useTranslation()
+  const [timeFilter, setTimeFilter] = useState<"all" | "upcoming">("all")
+  const [teamFilter, setTeamFilter] = useState<"all" | "my">("all")
+  const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "team" | "opponent">("date-asc")
+  const { t } = useTranslation()
 
   // localStorage utility functions
   const getStoredPlayerId = (): number | null => {
@@ -458,9 +461,39 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     return teams.find((team) => team.id === teamId)?.playerIds.includes(selectedPlayerId)
   }
 
-  // Filter ties based on toggle state
-  const filteredTies =
-    showOnlyMyMatches && selectedPlayerId !== null ? ties.filter((tie) => isPlayerOnTeam(tie.teamId)) : ties
+  // Apply all filters and sorting
+  const filteredAndSortedTies = (() => {
+    let filtered = ties
+
+    // Time filter
+    if (timeFilter === "upcoming") {
+      const now = new Date()
+      filtered = filtered.filter((tie) => new Date(tie.tieDate) >= now)
+    }
+
+    // Team filter
+    if (teamFilter === "my" && selectedPlayerId !== null) {
+      filtered = filtered.filter((tie) => isPlayerOnTeam(tie.teamId))
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "date-asc":
+          return new Date(a.tieDate).getTime() - new Date(b.tieDate).getTime()
+        case "date-desc":
+          return new Date(b.tieDate).getTime() - new Date(a.tieDate).getTime()
+        case "team":
+          return a.teamName.localeCompare(b.teamName)
+        case "opponent":
+          return a.opponent.localeCompare(b.opponent)
+        default:
+          return 0
+      }
+    })
+
+    return filtered
+  })()
 
   if (loading) {
     return (
@@ -567,31 +600,154 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
           ) : null}
         </div>
 
-        {/* Toggle for showing all matches vs only player's matches */}
-        {selectedPlayerId !== null && (
-          <div className="mb-8 flex items-center gap-3">
-            <Button
-              onClick={() => setShowOnlyMyMatches(!showOnlyMyMatches)}
-              variant="outline"
-              size="sm"
-              className="border-gray-400 bg-white text-gray-900 hover:bg-gray-100"
-            >
-              {showOnlyMyMatches ? t("showAllMatches") : t("showMyMatches")}
-            </Button>
-            {showOnlyMyMatches && (
-              <span className="text-sm text-gray-300">
-                {tWithParams("matchesShown", {
-                  count: filteredTies.length,
-                  total: ties.length,
-                })}
-              </span>
-            )}
-          </div>
-        )}
+        {/* Filters & Sorting Section */}
+        <div className="mb-8">
+          <details className="group">
+            <summary className="flex w-full cursor-pointer items-center justify-between rounded-lg bg-[#34495e] px-4 py-3 text-left text-sm font-medium text-white transition-all hover:bg-[#3d5266] group-open:bg-[#3d5266]">
+              <span>{t("filterByTeam")}</span>
+              <ChevronDown className="h-5 w-5 text-white transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <div className="mt-3 space-y-6 rounded-lg bg-[#2c3e50] p-4">
+              {/* Team Filter */}
+              <div>
+                <Label className="mb-2 block text-sm font-medium text-white">{t("filterByTeam")}</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="filter-all-teams"
+                      name="teamFilter"
+                      value="all"
+                      checked={teamFilter === "all"}
+                      onChange={(e) => setTeamFilter(e.target.value as "all" | "my")}
+                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="filter-all-teams" className="text-sm text-white">
+                      {t("showAllPlayers")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="filter-my-teams"
+                      name="teamFilter"
+                      value="my"
+                      checked={teamFilter === "my"}
+                      onChange={(e) => setTeamFilter(e.target.value as "all" | "my")}
+                      disabled={selectedPlayerId === null}
+                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 disabled:opacity-50"
+                    />
+                    <Label htmlFor="filter-my-teams" className="text-sm text-white">
+                      {t("showMyTeams")}
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Filter */}
+              <div>
+                <Label className="mb-2 block text-sm font-medium text-white">{t("filterByDate")}</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="filter-all-times"
+                      name="timeFilter"
+                      value="all"
+                      checked={timeFilter === "all"}
+                      onChange={(e) => setTimeFilter(e.target.value as "all" | "upcoming")}
+                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="filter-all-times" className="text-sm text-white">
+                      {t("showAllDates")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="filter-upcoming"
+                      name="timeFilter"
+                      value="upcoming"
+                      checked={timeFilter === "upcoming"}
+                      onChange={(e) => setTimeFilter(e.target.value as "all" | "upcoming")}
+                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="filter-upcoming" className="text-sm text-white">
+                      {t("showUpcomingMatches")}
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sort Options */}
+              <div>
+                <Label className="mb-2 block text-sm font-medium text-white">{t("sortBy")}</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="sort-date-asc"
+                      name="sortBy"
+                      value="date-asc"
+                      checked={sortBy === "date-asc"}
+                      onChange={(e) => setSortBy(e.target.value as "date-desc" | "date-asc" | "team" | "opponent")}
+                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="sort-date-asc" className="text-sm text-white">
+                      {t("dateAsc")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="sort-date-desc"
+                      name="sortBy"
+                      value="date-desc"
+                      checked={sortBy === "date-desc"}
+                      onChange={(e) => setSortBy(e.target.value as "date-desc" | "date-asc" | "team" | "opponent")}
+                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="sort-date-desc" className="text-sm text-white">
+                      {t("dateDesc")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="sort-team"
+                      name="sortBy"
+                      value="team"
+                      checked={sortBy === "team"}
+                      onChange={(e) => setSortBy(e.target.value as "date-desc" | "date-asc" | "team" | "opponent")}
+                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="sort-team" className="text-sm text-white">
+                      {t("teamName")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="sort-opponent"
+                      name="sortBy"
+                      value="opponent"
+                      checked={sortBy === "opponent"}
+                      onChange={(e) => setSortBy(e.target.value as "date-desc" | "date-asc" | "team" | "opponent")}
+                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
+                    />
+                    <Label htmlFor="sort-opponent" className="text-sm text-white">
+                      {t("opponentName")}
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
 
         {/* Game Cards Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredTies.map((tie) => {
+          {filteredAndSortedTies.map((tie) => {
             const participation = getPlayerParticipation(tie.id)
             const status = participation?.status || null
             const canParticipate = isPlayerOnTeam(tie.teamId) // Check team membership
