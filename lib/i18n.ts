@@ -31,7 +31,7 @@ export const translations = {
 
     // Public Access
     planning: " - 🎾 Spieltage Planner",
-    enterAccessCode: "Geben Sie Ihren Saison-Zugangscode ein, um bevorstehende Spiele anzuzeigen",
+    enterAccessCode: "Geben Sie Ihren Saison-Zugangscode ein, um Spieltage anzuzeigen",
     seasonAccessCode: "Saison-Zugangscode",
     accessSeason: "Saison zugreifen",
     invalidAccessCode: "Ungültiger Zugangscode. Bitte versuchen Sie es erneut.",
@@ -41,7 +41,7 @@ export const translations = {
     matchDays: "Spieltage",
 
     // Spieltage
-    upcomingMatches: "Kommende Spieltage",
+    upcomingMatches: "Spieltage",
     impersonatePlayer: "Spieler auswählen:",
     selectPlayer: "Spieler auswählen...",
     selectPlayerFirst: "Bitte wählen Sie zuerst einen Spieler aus",
@@ -115,7 +115,7 @@ export const translations = {
     activeAndArchived: "Aktive und archivierte Saisons",
     teamsInSeason: "Mannschaften in aktueller Saison",
     registeredPlayers: "Registrierte Spieler",
-    upcomingTies: "Bevorstehende Spieltage",
+    upcomingTies: "Spieltage",
     quickActions: "Schnellaktionen",
     commonTasks: "Häufige administrative Aufgaben",
     manageSeasons: "Saisons verwalten",
@@ -251,18 +251,20 @@ export const translations = {
 
     // Sorting and Filtering
     filterByTeam: "Nach Mannschaft filtern",
-    showAllPlayers: "Alle Mannschaften anzeigen",
-    showMyTeams: "Nur meine Mannschaften",
+    showAllTeams: "alle",
+    showMyTeams: "meine",
     filterByDate: "Nach Datum filtern",
-    showAllDates: "Alle Termine",
-    showUpcomingMatches: "Nur kommende Spiele",
+    showAllDates: "alle",
+    showUpcomingMatches: "zukünftige",
     filterByTime: "Nach Zeit filtern",
     showAllTimes: "Alle Zeiten",
     sortBy: "Sortieren nach",
-    dateAsc: "Datum (älteste zuerst)",
-    dateDesc: "Datum (neueste zuerst)",
+    dateAsc: "Datum (aufsteigend)",
+    dateDesc: "Datum (absteigend)",
     opponentName: "Gegner",
-    applyFilter: "Filter anwenden",
+    show: "Zeige",
+    for: "für",
+    advancedFilters: "Erweiterte Filter",
   },
   en: {
     // Common
@@ -514,18 +516,20 @@ export const translations = {
 
     // Sorting and Filtering
     filterByTeam: "Filter by Team",
-    showAllPlayers: "Show all teams",
-    showMyTeams: "Show only my teams",
+    showAllTeams: "all",
+    showMyTeams: "my",
     filterByDate: "Filter by Date",
-    showAllDates: "All dates",
-    showUpcomingMatches: "Upcoming matches only",
+    showAllDates: "all",
+    showUpcomingMatches: "upcoming",
     filterByTime: "Filter by Time",
     showAllTimes: "All times",
     sortBy: "Sort by",
-    dateAsc: "Date (oldest first)",
-    dateDesc: "Date (newest first)",
+    dateAsc: "Date (ascending)",
+    dateDesc: "Date (descending)",
     opponentName: "Opponent",
-    applyFilter: "Filter anwenden",
+    show: "Show",
+    for: "for",
+    advancedFilters: "Advanced Filters",
   },
 }
 

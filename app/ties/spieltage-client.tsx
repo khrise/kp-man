@@ -100,8 +100,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     tieId: number
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
-  const [timeFilter, setTimeFilter] = useState<"all" | "upcoming">("all")
-  const [teamFilter, setTeamFilter] = useState<"all" | "my">("all")
+  const [timeFilter, setTimeFilter] = useState<"all" | "upcoming">("upcoming")
+  const [teamFilter, setTeamFilter] = useState<"all" | "my">("my")
   const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "team" | "opponent">("date-asc")
   const { t } = useTranslation()
 
@@ -544,8 +544,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-6 py-12">
-        <h1 className="mb-12 text-3xl font-semibold text-white">
+      <main className="mx-auto max-w-7xl px-6 py-8 md:py-12">
+        <h1 className="hidden md:block mb-8 text-3xl font-semibold text-white">
           {season ? `${season.name} - ${t("upcomingMatches")}` : t("upcomingMatches")}
         </h1>
 
@@ -575,7 +575,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
               <span>
                 {t("hello")}, {selectedPlayer.firstName}!
               </span>
-              <span className="ml-2 text-sm opacity-75">
+              <div className="md:ml-2 text-sm opacity-75 md:inline">
                 (
                 <button
                   onClick={handleSwitchPlayer}
@@ -595,16 +595,60 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                   </>
                 )}
                 )
-              </span>
+              </div>
             </div>
           ) : null}
         </div>
 
         {/* Filters & Sorting Section */}
-        <div className="mb-8">
-          <details className="group">
+        <div className="mb-8 space-y-4">
+          {/* Current Filter Status and Sorting */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="text-white">
+              <span>{t("show")} </span>
+              <button
+                onClick={() => setTimeFilter(timeFilter === "all" ? "upcoming" : "all")}
+                className="text-blue-300 hover:text-blue-100 underline underline-offset-2"
+              >
+                {timeFilter === "all" ? t("showAllDates") : t("showUpcomingMatches")}
+              </button>
+              <span>
+                {" "}
+                {t("ties")} {t("for")}{" "}
+              </span>
+              <button
+                onClick={() => setTeamFilter(teamFilter === "all" ? "my" : "all")}
+                className="text-blue-300 hover:text-blue-100 underline underline-offset-2"
+                disabled={selectedPlayerId === null && teamFilter === "all"}
+              >
+                {teamFilter === "all" ? t("showAllTeams") : t("showMyTeams")} {t("teams")}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="sort-select" className="text-sm text-white">
+                {t("sortBy")}:
+              </Label>
+              <Select
+                value={sortBy}
+                onValueChange={(value: "date-desc" | "date-asc" | "team" | "opponent") => setSortBy(value)}
+              >
+                <SelectTrigger className="w-[180px] border-gray-400 bg-[#34495e] text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date-asc">{t("dateAsc")}</SelectItem>
+                  <SelectItem value="date-desc">{t("dateDesc")}</SelectItem>
+                  <SelectItem value="team">{t("teamName")}</SelectItem>
+                  <SelectItem value="opponent">{t("opponentName")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Advanced Filters */}
+          <details className="group hidden">
             <summary className="flex w-full cursor-pointer items-center justify-between rounded-lg bg-[#34495e] px-4 py-3 text-left text-sm font-medium text-white transition-all hover:bg-[#3d5266] group-open:bg-[#3d5266]">
-              <span>{t("filterByTeam")}</span>
+              <span>{t("advancedFilters")}</span>
               <ChevronDown className="h-5 w-5 text-white transition-transform duration-200 group-open:rotate-180" />
             </summary>
             <div className="mt-3 space-y-6 rounded-lg bg-[#2c3e50] p-4">
@@ -623,7 +667,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                       className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
                     />
                     <Label htmlFor="filter-all-teams" className="text-sm text-white">
-                      {t("showAllPlayers")}
+                      {t("showAllTeams")}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -674,69 +718,6 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                     />
                     <Label htmlFor="filter-upcoming" className="text-sm text-white">
                       {t("showUpcomingMatches")}
-                    </Label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sort Options */}
-              <div>
-                <Label className="mb-2 block text-sm font-medium text-white">{t("sortBy")}</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="sort-date-asc"
-                      name="sortBy"
-                      value="date-asc"
-                      checked={sortBy === "date-asc"}
-                      onChange={(e) => setSortBy(e.target.value as "date-desc" | "date-asc" | "team" | "opponent")}
-                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                    />
-                    <Label htmlFor="sort-date-asc" className="text-sm text-white">
-                      {t("dateAsc")}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="sort-date-desc"
-                      name="sortBy"
-                      value="date-desc"
-                      checked={sortBy === "date-desc"}
-                      onChange={(e) => setSortBy(e.target.value as "date-desc" | "date-asc" | "team" | "opponent")}
-                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                    />
-                    <Label htmlFor="sort-date-desc" className="text-sm text-white">
-                      {t("dateDesc")}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="sort-team"
-                      name="sortBy"
-                      value="team"
-                      checked={sortBy === "team"}
-                      onChange={(e) => setSortBy(e.target.value as "date-desc" | "date-asc" | "team" | "opponent")}
-                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                    />
-                    <Label htmlFor="sort-team" className="text-sm text-white">
-                      {t("teamName")}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="sort-opponent"
-                      name="sortBy"
-                      value="opponent"
-                      checked={sortBy === "opponent"}
-                      onChange={(e) => setSortBy(e.target.value as "date-desc" | "date-asc" | "team" | "opponent")}
-                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                    />
-                    <Label htmlFor="sort-opponent" className="text-sm text-white">
-                      {t("opponentName")}
                     </Label>
                   </div>
                 </div>
