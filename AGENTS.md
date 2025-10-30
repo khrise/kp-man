@@ -35,7 +35,9 @@ This file provides guidance to any Coding Agent when working with code in this r
 
 ## Project Purpose
 
-Sports clubv
+Sports (tennis) club management system to handle seasons, teams, players, and ties. Provides an admin area for managing entities and a public view for upcoming and past ties.
+In the public view, players and visitors can see scheduled matches (ties), filter them by season and team, and view details such as date, location, and participating players.
+They can also indicate their availability for upcoming ties.
 
 ## Architecture
 
@@ -75,23 +77,29 @@ Sports clubv
 ### Admin area
 
 - User authentication and authorization
-- m
+- Management of seasons, teams, players, and ties
 
 ### Public ties view
 
+- View upcoming and past ties
+- Filter ties by season and team
+- View tie details including date, location, and participating players
+
 ## Data Model (Implemented)
 
-### Core Entities (PostgreSQL + Prisma)
+### Core Entities (PostgreSQL + Kysely)
 
 - **User**: ✅ NextAuth.js user model with id, name, email, accounts, sessions, per-user `icsToken`
 
-- **Player**: ✅
+- **Season**: ✅ Kysely season model with id, name, startDate, endDate
 
-- **Season**: ✅
+- **Player**: ✅ Kysely player model with id, name, email, teamId
 
-- **Team**: ✅
+- **Team**: ✅ Kysely team model with id, name, players
 
-- **Tie**: ✅
+- **Tie**: ✅ Kysely tie model with id, date, location, seasonId, teamAId, teamBId, participatingPlayerIds
+
+- **Participation**: ✅ Kysely participation model linking players to ties
 
 ## UI Patterns
 

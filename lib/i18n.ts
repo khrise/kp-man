@@ -63,6 +63,9 @@ export const translations = {
     showAllMatches: "Alle Spiele anzeigen",
     showMyMatches: "Nur meine Spiele",
     matchesShown: "{count} von {total} Spielen",
+    of: "von",
+    weekHeading: "KW {week} · {range}",
+    noTiesFound: "Keine Spieltage gefunden.",
 
     // Participation Comments
     addComment: "Kommentar hinzufügen",
@@ -252,10 +255,10 @@ export const translations = {
     // Sorting and Filtering
     filterByTeam: "Nach Mannschaft filtern",
     showAllTeams: "alle",
-    showMyTeams: "meine",
+    showMyTeams: "nur meine",
     filterByDate: "Nach Datum filtern",
-    showAllDates: "alle",
-    showUpcomingMatches: "zukünftige",
+    showAllDates: "alle Spieltage",
+    showUpcomingMatches: "zukünftige Spieltage",
     filterByTime: "Nach Zeit filtern",
     showAllTimes: "Alle Zeiten",
     sortBy: "Sortieren nach",
@@ -328,6 +331,9 @@ export const translations = {
     showAllMatches: "Show all matches",
     showMyMatches: "Show only my matches",
     matchesShown: "{count} of {total} matches",
+    of: "of",
+    weekHeading: "Week {week} · {range}",
+    noTiesFound: "No ties found.",
 
     // Participation Comments
     addComment: "Add Comment",
@@ -516,11 +522,11 @@ export const translations = {
 
     // Sorting and Filtering
     filterByTeam: "Filter by Team",
-    showAllTeams: "all",
-    showMyTeams: "my",
+    showAllTeams: "all teams",
+    showMyTeams: "my teams",
     filterByDate: "Filter by Date",
-    showAllDates: "all",
-    showUpcomingMatches: "upcoming",
+    showAllDates: "all ties",
+    showUpcomingMatches: "upcoming ties",
     filterByTime: "Filter by Time",
     showAllTimes: "All times",
     sortBy: "Sort by",
