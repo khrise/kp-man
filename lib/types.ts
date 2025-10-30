@@ -45,6 +45,10 @@ export interface PlayerWithRank extends Player {
   playerRank: number
 }
 
+export type PlayerAdminListItem = Pick<Player, "id" | "firstName" | "lastName"> & {
+  teams: { id: number; name: string; seasonName: string; rank: number }[]
+}
+
 export interface Tie {
   id: number
   teamId: number

@@ -20,7 +20,7 @@ import {
   sql,
   Updateable,
 } from "kysely"
-import type { TieWithDetails } from "./types"
+import type { PlayerAdminListItem, TieWithDetails } from "./types"
 
 type TimestampColumn = ColumnType<Date, string | Date | undefined, string | Date | undefined>
 type DateColumn = ColumnType<Date, string | Date, string | Date>
@@ -322,6 +322,46 @@ export async function setTeamPlayers(teamId: number, playerIds: number[]) {
 
 export async function getPlayers(): Promise<Player[]> {
   return db.selectFrom("players").selectAll().orderBy("firstName").orderBy("lastName").execute()
+}
+
+export async function getPlayersAdminList(): Promise<PlayerAdminListItem[]> {
+  try {
+    return db
+      .selectFrom("players")
+      .innerJoin("teamPlayers", "teamPlayers.playerId", "players.id")
+      .innerJoin("teams", "teams.id", "teamPlayers.teamId")
+      .leftJoin("seasons", "seasons.id", "teams.seasonId")
+      .select((eb) => [
+        "players.id",
+        "players.lastName",
+        "players.firstName",
+        eb.fn
+          .coalesce(
+            eb.fn
+              .jsonAgg(
+                sql`
+                jsonb_build_object(
+                  'id', teams.id,
+                  'name', teams.name,
+                  'seasonName', seasons.name,
+                  'rank', "team_players".player_rank
+                )
+                ORDER BY seasons.start_date ASC
+              `,
+              )
+              .filterWhere("teams.id", "is not", null),
+            sql`'[]'::json`,
+          )
+          .as("teams"),
+      ])
+      .groupBy(["players.id", "players.firstName", "players.lastName"])
+      .orderBy("players.firstName")
+      .orderBy("players.lastName")
+      .execute() as unknown as PlayerAdminListItem[]
+  } catch (error) {
+    console.error("Error fetching players list:", error)
+    throw error
+  }
 }
 
 export async function getPlayerById(id: number): Promise<Player | undefined> {

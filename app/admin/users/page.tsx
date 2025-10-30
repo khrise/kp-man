@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X, Key, Shield } from "lucide-react"
 import type { Player } from "@/lib/types"
-import { 
-  getUsers, 
-  createUserAction, 
-  updateUserAction, 
+import {
+  getUsers,
+  createUserAction,
+  updateUserAction,
   updateUserPasswordAction,
-  deleteUserAction 
+  deleteUserAction,
 } from "@/app/actions/users"
 import { getPlayers } from "@/app/actions/players"
 import { useTranslation } from "@/lib/i18n"
@@ -52,10 +52,7 @@ export default function UsersPage() {
   }, [])
 
   const loadData = async () => {
-    const [usersData, playersData] = await Promise.all([
-      getUsers(),
-      getPlayers()
-    ])
+    const [usersData, playersData] = await Promise.all([getUsers(), getPlayers()])
     setUsers(usersData as UserWithPlayer[])
     setPlayers(playersData as Player[])
   }
@@ -128,7 +125,7 @@ export default function UsersPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm(t('confirmDeleteUser'))) {
+    if (confirm(t("confirmDeleteUser"))) {
       await deleteUserAction(id)
       await loadData()
     }
@@ -151,12 +148,12 @@ export default function UsersPage() {
         <main className="mx-auto max-w-7xl px-6 py-8">
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">{t('users')}</h2>
-              <p className="mt-2 text-gray-600">{t('manageUsersDesc')}</p>
+              <h2 className="text-3xl font-bold text-gray-900">{t("users")}</h2>
+              <p className="mt-2 text-gray-600">{t("manageUsersDesc")}</p>
             </div>
             <Button onClick={() => setIsAdding(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              {t('addUser')}
+              {t("addUser")}
             </Button>
           </div>
 
@@ -165,13 +162,13 @@ export default function UsersPage() {
               <CardHeader>
                 <CardTitle>
                   <Shield className="mr-2 inline h-5 w-5" />
-                  {editingId !== null ? t('editUser') : t('addNewUser')}
+                  {editingId !== null ? t("editUser") : t("addNewUser")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="username">{t('username')}</Label>
+                    <Label htmlFor="username">{t("username")}</Label>
                     <Input
                       id="username"
                       value={formData.username}
@@ -180,7 +177,7 @@ export default function UsersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">{t('email')}</Label>
+                    <Label htmlFor="email">{t("email")}</Label>
                     <Input
                       id="email"
                       type="email"
@@ -191,7 +188,7 @@ export default function UsersPage() {
                   </div>
                   {isAdding && (
                     <div className="space-y-2">
-                      <Label htmlFor="password">{t('password')}</Label>
+                      <Label htmlFor="password">{t("password")}</Label>
                       <Input
                         id="password"
                         type="password"
@@ -202,27 +199,35 @@ export default function UsersPage() {
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label htmlFor="role">{t('role')}</Label>
-                    <Select value={formData.role} onValueChange={(value: "admin" | "user" | "team_captain" | "player") => setFormData({ ...formData, role: value })}>
+                    <Label htmlFor="role">{t("role")}</Label>
+                    <Select
+                      value={formData.role}
+                      onValueChange={(value: "admin" | "user" | "team_captain" | "player") =>
+                        setFormData({ ...formData, role: value })
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="user">{t('user')}</SelectItem>
-                        <SelectItem value="team_captain">{t('teamCaptain')}</SelectItem>
-                        <SelectItem value="admin">{t('admin')}</SelectItem>
-                        <SelectItem value="player">{t('player')}</SelectItem>
+                        <SelectItem value="user">{t("user")}</SelectItem>
+                        <SelectItem value="team_captain">{t("teamCaptain")}</SelectItem>
+                        <SelectItem value="admin">{t("admin")}</SelectItem>
+                        <SelectItem value="player">{t("player")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="playerId">{t('associatedPlayer')}</Label>
-                    <Select value={formData.playerId} onValueChange={(value) => setFormData({ ...formData, playerId: value })}>
+                    <Label htmlFor="playerId">{t("associatedPlayer")}</Label>
+                    <Select
+                      value={formData.playerId}
+                      onValueChange={(value) => setFormData({ ...formData, playerId: value })}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a player" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">{t('noPlayerAssociation')}</SelectItem>
+                        <SelectItem value="none">{t("noPlayerAssociation")}</SelectItem>
                         {players.map((player) => (
                           <SelectItem key={player.id} value={String(player.id)}>
                             {player.firstName} {player.lastName}
@@ -235,11 +240,11 @@ export default function UsersPage() {
                 <div className="mt-4 flex gap-2">
                   <Button onClick={editingId !== null ? handleUpdate : handleAdd}>
                     <Check className="mr-2 h-4 w-4" />
-                    {t('save')}
+                    {t("save")}
                   </Button>
                   <Button variant="outline" onClick={handleCancel}>
                     <X className="mr-2 h-4 w-4" />
-                    {t('cancel')}
+                    {t("cancel")}
                   </Button>
                 </div>
               </CardContent>
@@ -251,12 +256,12 @@ export default function UsersPage() {
               <CardHeader>
                 <CardTitle>
                   <Key className="mr-2 inline h-5 w-5" />
-                  {t('changePassword')}
+                  {t("changePassword")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="newPassword">{t('newPassword')}</Label>
+                  <Label htmlFor="newPassword">{t("newPassword")}</Label>
                   <Input
                     id="newPassword"
                     type="password"
@@ -268,11 +273,11 @@ export default function UsersPage() {
                 <div className="mt-4 flex gap-2">
                   <Button onClick={handleUpdatePassword}>
                     <Check className="mr-2 h-4 w-4" />
-                    {t('updatePassword')}
+                    {t("updatePassword")}
                   </Button>
                   <Button variant="outline" onClick={handleCancel}>
                     <X className="mr-2 h-4 w-4" />
-                    {t('cancel')}
+                    {t("cancel")}
                   </Button>
                 </div>
               </CardContent>
@@ -286,14 +291,18 @@ export default function UsersPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <h3 className="text-lg font-semibold">{user.username}</h3>
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${getRoleBadge(user.role)}`}>
-                        {user.role.replace('_', ' ')}
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${getRoleBadge(
+                          user.role,
+                        )}`}
+                      >
+                        {user.role.replace("_", " ")}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">{user.email}</p>
                     {user.playerFirstName && user.playerLastName && (
                       <p className="text-sm text-blue-600">
-                        {t('linkedTo')}: {user.playerFirstName} {user.playerLastName}
+                        {t("linkedTo")}: {user.playerFirstName} {user.playerLastName}
                       </p>
                     )}
                   </div>
@@ -301,10 +310,14 @@ export default function UsersPage() {
                     <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => {
-                      setChangingPasswordId(String(user.id))
-                      setFormData({ ...formData, password: "" })
-                    }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setChangingPasswordId(String(user.id))
+                        setFormData({ ...formData, password: "" })
+                      }}
+                    >
                       <Key className="h-4 w-4" />
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => handleDelete(String(user.id))}>
