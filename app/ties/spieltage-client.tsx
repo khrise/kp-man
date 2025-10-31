@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Calendar, MapPin, Users, Download, LogOut, Eye, ChevronDown } from "lucide-react"
+import { Calendar, MapPin, Users, Download, LogOut, Eye, Filter, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   getTiesForSeason,
   getPlayersForSeason,
@@ -21,7 +21,7 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { useTranslation } from "@/lib/i18n"
 import { Season, Team } from "@/lib/types"
 import { PlayerParticipationDto } from "@/lib/db"
-import { getISOWeekInfo } from "@/lib/utils"
+import { cn, getISOWeekInfo } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
@@ -181,6 +181,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   const [timeFilter, setTimeFilter] = useState<"all" | "upcoming">("upcoming")
   const [teamFilter, setTeamFilter] = useState<"all" | "my">("my")
   const [sortBy, setSortBy] = useState<SortOption>("date-asc")
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
   const { t, tWithParams, locale } = useTranslation()
 
   // localStorage utility functions
@@ -610,6 +611,114 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
   const weekGroups = useMemo(() => buildWeekGroups(filteredTies, sortBy), [filteredTies, sortBy])
 
+  const matchesSummary = tWithParams("matchesShown", { count: filteredTies.length, total: ties.length })
+  const timeFilterLabel = timeFilter === "all" ? t("showAllDates") : t("showUpcomingMatches")
+  const teamFilterLabel = teamFilter === "all" ? t("allTeams") : t("showMyTeams")
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const mediaQuery = window.matchMedia("(min-width: 768px)")
+    const handleChange = () => {
+      if (mediaQuery.matches) {
+        setIsMobileFiltersOpen(false)
+      }
+    }
+
+    mediaQuery.addEventListener("change", handleChange)
+    return () => mediaQuery.removeEventListener("change", handleChange)
+  }, [])
+
+  const FilterToggleGroup = ({
+    label,
+    value,
+    onChange,
+    options,
+    variant,
+  }: {
+    label: string
+    value: string
+    onChange: (value: string) => void
+    options: { value: string; label: string; disabled?: boolean }[]
+    variant: "desktop" | "mobile"
+  }) => (
+    <div className="space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{label}</p>
+      <div className={cn("flex gap-2", variant === "desktop" ? "flex-wrap" : "flex-col")}>
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            disabled={option.disabled}
+            aria-pressed={value === option.value}
+            className={cn(
+              "inline-flex min-h-[2.25rem] items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50",
+              variant === "desktop" ? "min-w-[140px]" : "w-full",
+              value === option.value
+                ? "border-blue-300 bg-blue-500/40 text-white shadow-sm"
+                : "border-white/15 text-blue-100 hover:border-blue-200 hover:bg-white/10",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  const renderFilterControls = (variant: "desktop" | "mobile") => (
+    <div className={cn("gap-6", variant === "desktop" ? "grid md:grid-cols-3" : "space-y-6")}>
+      <FilterToggleGroup
+        label={t("filterByDate")}
+        value={timeFilter}
+        onChange={(value) => setTimeFilter(value as "all" | "upcoming")}
+        options={[
+          { value: "upcoming", label: t("showUpcomingMatches") },
+          { value: "all", label: t("showAllDates") },
+        ]}
+        variant={variant}
+      />
+      <FilterToggleGroup
+        label={t("filterByTeam")}
+        value={teamFilter}
+        onChange={(value) => setTeamFilter(value as "all" | "my")}
+        options={[
+          { value: "my", label: t("showMyTeams"), disabled: selectedPlayerId === null },
+          { value: "all", label: t("allTeams") },
+        ]}
+        variant={variant}
+      />
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{t("sortBy")}</p>
+        <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+          <SelectTrigger
+            className={cn(
+              "w-full border-white/20 bg-[#1e2d3d] text-sm text-blue-50 shadow-none transition hover:border-blue-200 focus-visible:border-blue-300 focus-visible:ring-blue-300/40",
+              variant === "mobile" ? "h-11" : "h-10",
+            )}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-[#1e2d3d] text-blue-50">
+            <SelectItem value="date-asc" className="text-blue-50 focus:bg-blue-500/30 focus:text-white">
+              {t("dateAsc")}
+            </SelectItem>
+            <SelectItem value="date-desc" className="text-blue-50 focus:bg-blue-500/30 focus:text-white">
+              {t("dateDesc")}
+            </SelectItem>
+            <SelectItem value="team" className="text-blue-50 focus:bg-blue-500/30 focus:text-white">
+              {t("teamName")}
+            </SelectItem>
+            <SelectItem value="opponent" className="text-blue-50 focus:bg-blue-500/30 focus:text-white">
+              {t("opponentName")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#2c3e50]">
@@ -716,130 +825,81 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
         </div>
 
         {/* Filters & Sorting Section */}
-        <div className="mb-8 space-y-4">
-          {/* Current Filter Status and Sorting */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="text-white">
-              <span>{t("show")} </span>
-              <button
-                onClick={() => setTimeFilter(timeFilter === "all" ? "upcoming" : "all")}
-                className="text-blue-300 hover:text-blue-100 underline underline-offset-2"
-              >
-                {timeFilter === "all" ? t("showAllDates") : t("showUpcomingMatches")}
-              </button>
-              <span>
-                {" "}
-                {t("ties")} {t("for")}{" "}
-              </span>
-              <button
-                onClick={() => setTeamFilter(teamFilter === "all" ? "my" : "all")}
-                className="text-blue-300 hover:text-blue-100 underline underline-offset-2"
-                disabled={selectedPlayerId === null && teamFilter === "all"}
-              >
-                {teamFilter === "all" ? t("showAllTeams") : t("showMyTeams")} {t("teams")}
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="sort-select" className="text-sm text-white">
-                {t("sortBy")}:
-              </Label>
-              <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                <SelectTrigger className="w-[180px] border-gray-400 bg-[#34495e] text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date-asc">{t("dateAsc")}</SelectItem>
-                  <SelectItem value="date-desc">{t("dateDesc")}</SelectItem>
-                  <SelectItem value="team">{t("teamName")}</SelectItem>
-                  <SelectItem value="opponent">{t("opponentName")}</SelectItem>
-                </SelectContent>
-              </Select>
+        <section className="relative mb-12">
+          <div className="hidden md:block">
+            <div className="rounded-2xl border border-white/10 bg-[#243648]/80 p-6 shadow-lg backdrop-blur">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{t("filters")}</p>
+                    <p className="text-sm text-blue-100">{matchesSummary}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-blue-100">
+                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1">{timeFilterLabel}</span>
+                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1">{teamFilterLabel}</span>
+                  </div>
+                </div>
+                {renderFilterControls("desktop")}
+              </div>
             </div>
           </div>
 
-          <p className="text-sm text-blue-200">
-            {tWithParams("matchesShown", { count: filteredTies.length, total: ties.length })}
-          </p>
-
-          {/* Advanced Filters */}
-          <details className="group hidden">
-            <summary className="flex w-full cursor-pointer items-center justify-between rounded-lg bg-[#34495e] px-4 py-3 text-left text-sm font-medium text-white transition-all hover:bg-[#3d5266] group-open:bg-[#3d5266]">
-              <span>{t("advancedFilters")}</span>
-              <ChevronDown className="h-5 w-5 text-white transition-transform duration-200 group-open:rotate-180" />
-            </summary>
-            <div className="mt-3 space-y-6 rounded-lg bg-[#2c3e50] p-4">
-              {/* Team Filter */}
-              <div>
-                <Label className="mb-2 block text-sm font-medium text-white">{t("filterByTeam")}</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="filter-all-teams"
-                      name="teamFilter"
-                      value="all"
-                      checked={teamFilter === "all"}
-                      onChange={(e) => setTeamFilter(e.target.value as "all" | "my")}
-                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                    />
-                    <Label htmlFor="filter-all-teams" className="text-sm text-white">
-                      {t("showAllTeams")}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="filter-my-teams"
-                      name="teamFilter"
-                      value="my"
-                      checked={teamFilter === "my"}
-                      onChange={(e) => setTeamFilter(e.target.value as "all" | "my")}
-                      disabled={selectedPlayerId === null}
-                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 disabled:opacity-50"
-                    />
-                    <Label htmlFor="filter-my-teams" className="text-sm text-white">
-                      {t("showMyTeams")}
-                    </Label>
-                  </div>
+          <div className="md:hidden">
+            <div className="rounded-2xl border border-white/10 bg-[#243648]/80 p-4 shadow-md">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 text-sm text-blue-100">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{t("filters")}</p>
+                  <p>{timeFilterLabel}</p>
+                  <p>{teamFilterLabel}</p>
+                  <p className="text-xs text-blue-200">{matchesSummary}</p>
                 </div>
-              </div>
-
-              {/* Time Filter */}
-              <div>
-                <Label className="mb-2 block text-sm font-medium text-white">{t("filterByDate")}</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="filter-all-times"
-                      name="timeFilter"
-                      value="all"
-                      checked={timeFilter === "all"}
-                      onChange={(e) => setTimeFilter(e.target.value as "all" | "upcoming")}
-                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                    />
-                    <Label htmlFor="filter-all-times" className="text-sm text-white">
-                      {t("showAllDates")}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      id="filter-upcoming"
-                      name="timeFilter"
-                      value="upcoming"
-                      checked={timeFilter === "upcoming"}
-                      onChange={(e) => setTimeFilter(e.target.value as "all" | "upcoming")}
-                      className="h-4 w-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500"
-                    />
-                    <Label htmlFor="filter-upcoming" className="text-sm text-white">
-                      {t("showUpcomingMatches")}
-                    </Label>
-                  </div>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="border-white/20 bg-white/10 text-blue-100 hover:border-blue-200 hover:bg-white/20"
+                >
+                  <Filter className="h-4 w-4" />
+                  {t("showFilters")}
+                </Button>
               </div>
             </div>
-          </details>
+          </div>
+
+          <Dialog open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+            <DialogContent className="md:hidden border-white/10 bg-[#1e2a38] text-white shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-white">{t("filters")}</DialogTitle>
+                <DialogDescription className="text-blue-200">{matchesSummary}</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 space-y-6">{renderFilterControls("mobile")}</div>
+              <div className="mt-6 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsMobileFiltersOpen(false)}
+                  className="mb-4 w-full bg-blue-600 text-sm font-bold uppercase tracking-wide text-white hover:bg-blue-700"
+                >
+                  {t("close")}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </section>
+
+        <div className="pointer-events-none fixed bottom-6 right-5 z-40 md:hidden">
+          <Button
+            type="button"
+            size="lg"
+            onClick={() => setIsMobileFiltersOpen((prev) => !prev)}
+            className="pointer-events-auto gap-2 rounded-full bg-blue-500 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-900/40 hover:bg-blue-400"
+            aria-expanded={isMobileFiltersOpen}
+            aria-label={isMobileFiltersOpen ? t("hideFilters") : t("showFilters")}
+          >
+            {isMobileFiltersOpen ? <X className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+            {isMobileFiltersOpen ? t("hideFilters") : t("showFilters")}
+          </Button>
         </div>
 
         {/* Game Cards Grid */}
