@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Calendar, MapPin, Users, Download, LogOut, Eye, Filter, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -182,6 +182,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   const [teamFilter, setTeamFilter] = useState<"all" | "my">("my")
   const [sortBy, setSortBy] = useState<SortOption>("date-asc")
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
+  const detailsCloseTimeoutRef = useRef<number | null>(null)
   const { t, tWithParams, locale } = useTranslation()
 
   // localStorage utility functions
@@ -516,9 +517,36 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   }
 
   const handleShowDetails = async (tie: Tie) => {
+    if (detailsCloseTimeoutRef.current !== null) {
+      window.clearTimeout(detailsCloseTimeoutRef.current)
+      detailsCloseTimeoutRef.current = null
+    }
     setSelectedTie({ ...tie } as TieWithDetails)
     setShowDetailsDialog(true)
   }
+
+  const handleDetailsDialogChange = (open: boolean) => {
+    setShowDetailsDialog(open)
+
+    if (!open) {
+      detailsCloseTimeoutRef.current = window.setTimeout(() => {
+        setSelectedTie(null)
+        detailsCloseTimeoutRef.current = null
+      }, 200)
+    } else if (detailsCloseTimeoutRef.current !== null) {
+      window.clearTimeout(detailsCloseTimeoutRef.current)
+      detailsCloseTimeoutRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (detailsCloseTimeoutRef.current !== null) {
+        window.clearTimeout(detailsCloseTimeoutRef.current)
+        detailsCloseTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   const formatDate = useCallback(
     (date: Date) => {
@@ -923,6 +951,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                     const participation = getPlayerParticipation(tie.id)
                     const status = participation?.status || null
                     const canParticipate = isPlayerOnTeam(tie.teamId)
+                    const confirmLabel = status === "confirmed" ? t("confirmedStatusButton") : t("confirm")
+                    const declineLabel = status === "declined" ? t("declinedStatusButton") : t("decline")
 
                     return (
                       <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg">
@@ -993,7 +1023,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                                   : "border-gray-400 bg-white text-gray-600 hover:border-green-400"
                               }`}
                             >
-                              {t("confirm")}
+                              {confirmLabel}
                             </button>
                             <button
                               onClick={() => handleParticipationClick(tie.id, "maybe")}
@@ -1013,7 +1043,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                                   : "border-gray-400 bg-white text-gray-600 hover:border-red-400"
                               }`}
                             >
-                              {t("decline")}
+                              {declineLabel}
                             </button>
                           </div>
                         ) : (
@@ -1033,7 +1063,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
       {/* Tie Details Dialog */}
       {selectedTie && (
-        <TieDetailsDialog tie={selectedTie} open={showDetailsDialog} onOpenChange={setShowDetailsDialog} />
+        <TieDetailsDialog tie={selectedTie} open={showDetailsDialog} onOpenChange={handleDetailsDialogChange} />
       )}
 
       {/* Participation Comment Dialog */}
