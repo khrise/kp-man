@@ -31,7 +31,7 @@ export const translations = {
 
     // Public Access
     planning: " - 🎾 Spieltage Planner",
-    enterAccessCode: "Geben Sie Ihren Saison-Zugangscode ein, um bevorstehende Spiele anzuzeigen",
+    enterAccessCode: "Geben Sie Ihren Saison-Zugangscode ein, um Spieltage anzuzeigen",
     seasonAccessCode: "Saison-Zugangscode",
     accessSeason: "Saison zugreifen",
     invalidAccessCode: "Ungültiger Zugangscode. Bitte versuchen Sie es erneut.",
@@ -41,7 +41,7 @@ export const translations = {
     matchDays: "Spieltage",
 
     // Spieltage
-    upcomingMatches: "Kommende Spieltage",
+    upcomingMatches: "Spieltage",
     impersonatePlayer: "Spieler auswählen:",
     selectPlayer: "Spieler auswählen...",
     selectPlayerFirst: "Bitte wählen Sie zuerst einen Spieler aus",
@@ -54,6 +54,7 @@ export const translations = {
     showFilters: "Filter anzeigen",
     hideFilters: "Filter ausblenden",
     showDetails: "Details anzeigen",
+  filters: "Filter",
     confirm: "Bestätigen",
     maybe: "Vielleicht",
     decline: "Ablehnen",
@@ -62,7 +63,10 @@ export const translations = {
     notOnTeam: "Sie sind kein Mitglied dieses Teams",
     showAllMatches: "Alle Spiele anzeigen",
     showMyMatches: "Nur meine Spiele",
-    matchesShown: "{count} von {total} Spielen",
+    matchesShown: "{count} von {total} Spieltage",
+    of: "von",
+    weekHeading: "KW {week} · {range}",
+    noTiesFound: "Keine Spieltage gefunden.",
 
     // Participation Comments
     addComment: "Kommentar hinzufügen",
@@ -115,7 +119,7 @@ export const translations = {
     activeAndArchived: "Aktive und archivierte Saisons",
     teamsInSeason: "Mannschaften in aktueller Saison",
     registeredPlayers: "Registrierte Spieler",
-    upcomingTies: "Bevorstehende Spieltage",
+    upcomingTies: "Spieltage",
     quickActions: "Schnellaktionen",
     commonTasks: "Häufige administrative Aufgaben",
     manageSeasons: "Saisons verwalten",
@@ -213,6 +217,9 @@ export const translations = {
     allPlayersSkipped: "Alle Spieler übersprungen (bereits vorhanden)",
     importResult: "Import abgeschlossen",
     skipped: "übersprungen",
+    searchPlayers: "Spieler suchen...",
+    noPlayersFound: "Keine Spieler gefunden für",
+    clearSearch: "Suche löschen",
 
     // Ties
     manageTiesDesc: "Verwalten Sie Ihre Spiele",
@@ -220,6 +227,7 @@ export const translations = {
     addNewTie: "Neuen Spieltag hinzufügen",
     editTie: "Spieltag bearbeiten",
     team: "Mannschaft",
+    teamAndSeason: "Mannschaft & Saison",
     opponent: "Gegner",
     date: "Datum",
     time: "Zeit",
@@ -228,6 +236,8 @@ export const translations = {
     home: "Heim",
     away: "Auswärts",
     vs: "gegen",
+    selectValidTeamSeason: "Bitte wählen Sie eine gültige Mannschaft/Saison-Kombination",
+    teamSeasonNotFound: "Mannschaft/Saison-Kombination wurde nicht gefunden",
     manageMatches: "Spieltage verwalten",
     importTies: "Spieltage importieren",
     importUrl: "Import-URL",
@@ -245,21 +255,29 @@ export const translations = {
     corsError: "Fehler beim Laden der Seite. Bitte überprüfen Sie die URL.",
     confirmDeleteTie: "Sind Sie sicher, dass Sie diesen Spieltag löschen möchten?",
     loading: "Lade...",
+    tiesCount: "Spieltage",
+    noTiesFoundFor: "Keine Spieltage gefunden für",
 
     // Sorting and Filtering
     filterByTeam: "Nach Mannschaft filtern",
     allTeams: "Alle Mannschaften",
-    sortByDate: "Nach Datum sortieren",
-    ascending: "Aufsteigend",
-    descending: "Absteigend",
-    teamAndSeason: "Mannschaft & Saison",
-    noTiesFound: "Keine Spieltage gefunden",
-    noTiesFoundFor: "Keine Spieltage gefunden für",
-    showAllTeams: "Alle Mannschaften anzeigen",
-    tiesCount: "Spieltage",
-    of: "von",
-    selectValidTeamSeason: "Bitte wählen Sie eine gültige Mannschaft und eine gültige Saison",
-    teamSeasonNotFound: "Ausgewählte Mannschaft oder Saison nicht gefunden",
+    showAllTeams: "alle",
+    showMyTeams: "nur meine",
+    filterByDate: "Nach Datum filtern",
+    showAllDates: "alle Spieltage",
+    showUpcomingMatches: "zukünftige Spieltage",
+    filterByTime: "Nach Zeit filtern",
+    showAllTimes: "Alle Zeiten",
+    sortBy: "Sortieren nach",
+    sortByDate: "Sortieren nach Datum",
+    ascending: "aufsteigend",
+    descending: "absteigend",
+    dateAsc: "Datum (aufsteigend)",
+    dateDesc: "Datum (absteigend)",
+    opponentName: "Gegner",
+    show: "Zeige",
+    for: "für",
+    advancedFilters: "Erweiterte Filter",
   },
   en: {
     // Common
@@ -314,6 +332,7 @@ export const translations = {
     showFilters: "Show Filters",
     hideFilters: "Hide Filters",
     showDetails: "Show Details",
+  filters: "Filters",
     confirm: "Confirm",
     maybe: "Maybe",
     decline: "Decline",
@@ -323,6 +342,9 @@ export const translations = {
     showAllMatches: "Show all matches",
     showMyMatches: "Show only my matches",
     matchesShown: "{count} of {total} matches",
+    of: "of",
+    weekHeading: "Week {week} · {range}",
+    noTiesFound: "No ties found.",
 
     // Participation Comments
     addComment: "Add Comment",
@@ -473,6 +495,9 @@ export const translations = {
     allPlayersSkipped: "All players skipped (already exist)",
     importResult: "Import completed",
     skipped: "skipped",
+    searchPlayers: "Search players...",
+    noPlayersFound: "No players found for",
+    clearSearch: "Clear search",
 
     // Ties
     manageTiesDesc: "Manage your matches",
@@ -480,6 +505,7 @@ export const translations = {
     addNewTie: "Add New Tie",
     editTie: "Edit Tie",
     team: "Team",
+    teamAndSeason: "Team & Season",
     opponent: "Opponent",
     date: "Date",
     time: "Time",
@@ -488,6 +514,8 @@ export const translations = {
     home: "Home",
     away: "Away",
     vs: "vs",
+    selectValidTeamSeason: "Please select a valid team/season combination",
+    teamSeasonNotFound: "Team/season combination not found",
     manageMatches: "Manage your ties",
     importTies: "Import Ties",
     importUrl: "Import URL",
@@ -505,21 +533,29 @@ export const translations = {
     corsError: "Error loading page. Please check the URL.",
     confirmDeleteTie: "Are you sure you want to delete this tie?",
     loading: "Loading...",
+    tiesCount: "ties",
+    noTiesFoundFor: "No ties found for",
 
     // Sorting and Filtering
     filterByTeam: "Filter by Team",
-    allTeams: "All Teams",
+    allTeams: "All teams",
+    showAllTeams: "all teams",
+    showMyTeams: "my teams",
+    filterByDate: "Filter by Date",
+    showAllDates: "all ties",
+    showUpcomingMatches: "upcoming ties",
+    filterByTime: "Filter by Time",
+    showAllTimes: "All times",
+    sortBy: "Sort by",
     sortByDate: "Sort by date",
-    ascending: "Ascending",
-    descending: "Descending",
-    teamAndSeason: "Team & Season",
-    noTiesFound: "No ties found",
-    noTiesFoundFor: "No ties found for",
-    showAllTeams: "Show all teams",
-    tiesCount: "ties",
-    of: "of",
-    selectValidTeamSeason: "Please select a valid team and season",
-    teamSeasonNotFound: "Selected team or season not found",
+    ascending: "ascending",
+    descending: "descending",
+    dateAsc: "Date (ascending)",
+    dateDesc: "Date (descending)",
+    opponentName: "Opponent",
+    show: "Show",
+    for: "for",
+    advancedFilters: "Advanced Filters",
   },
 }
 
@@ -542,7 +578,7 @@ export function t(key: keyof typeof translations.de, locale?: Locale): string {
 export function tWithParams(
   key: keyof typeof translations.de,
   params: Record<string, string | number>,
-  locale?: Locale
+  locale?: Locale,
 ): string {
   const text = t(key, locale)
   return Object.entries(params).reduce((result, [paramKey, value]) => {
@@ -555,7 +591,7 @@ export function useTranslation() {
 
   return {
     t: (key: keyof typeof translations.de) => t(key, locale),
-    tWithParams: (key: keyof typeof translations.de, params: Record<string, string | number>) => 
+    tWithParams: (key: keyof typeof translations.de, params: Record<string, string | number>) =>
       tWithParams(key, params, locale),
     locale,
     setLocale,

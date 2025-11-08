@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Calendar, MapPin, Users, Download, LogOut, Eye } from "lucide-react"
+import { Calendar, MapPin, Users, Download, LogOut, Eye, Filter, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   getTiesForSeason,
   getPlayersForSeason,
@@ -20,6 +21,7 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { useTranslation } from "@/lib/i18n"
 import { Season, Team } from "@/lib/types"
 import { PlayerParticipationDto } from "@/lib/db"
+import { cn, getISOWeekInfo } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
@@ -73,6 +75,83 @@ export type Tie = {
   declinedCount: number
 }
 
+type SortOption = "date-desc" | "date-asc" | "team" | "opponent"
+
+type WeekGroup = {
+  key: string
+  weekNumber: number
+  year: number
+  startOfWeek: Date
+  endOfWeek: Date
+  ties: Tie[]
+}
+
+const compareTies = (sortBy: SortOption) => {
+  return (a: Tie, b: Tie) => {
+    switch (sortBy) {
+      case "date-desc":
+        return new Date(b.tieDate).getTime() - new Date(a.tieDate).getTime()
+      case "date-asc":
+        return new Date(a.tieDate).getTime() - new Date(b.tieDate).getTime()
+      case "team":
+        return a.teamName.localeCompare(b.teamName) || new Date(a.tieDate).getTime() - new Date(b.tieDate).getTime()
+      case "opponent":
+        return a.opponent.localeCompare(b.opponent) || new Date(a.tieDate).getTime() - new Date(b.tieDate).getTime()
+      default:
+        return 0
+    }
+  }
+}
+
+const buildWeekGroups = (ties: Tie[], sortBy: SortOption): WeekGroup[] => {
+  if (ties.length === 0) {
+    return []
+  }
+
+  const groupsByKey = new Map<string, WeekGroup>()
+
+  ties.forEach((tie) => {
+    const tieDate = new Date(tie.tieDate)
+    const { weekNumber, year, startOfWeek, endOfWeek } = getISOWeekInfo(tieDate)
+    const key = `${year}-W${String(weekNumber).padStart(2, "0")}`
+
+    if (!groupsByKey.has(key)) {
+      groupsByKey.set(key, {
+        key,
+        weekNumber,
+        year,
+        startOfWeek,
+        endOfWeek,
+        ties: [],
+      })
+    }
+
+    groupsByKey.get(key)?.ties.push(tie)
+  })
+
+  const sortedGroups = Array.from(groupsByKey.values())
+  const tieComparator = compareTies(sortBy)
+
+  sortedGroups.forEach((group) => {
+    group.ties = [...group.ties].sort(tieComparator)
+  })
+
+  sortedGroups.sort((a, b) => {
+    if (sortBy === "date-desc") {
+      return b.startOfWeek.getTime() - a.startOfWeek.getTime()
+    }
+
+    if (sortBy === "date-asc") {
+      return a.startOfWeek.getTime() - b.startOfWeek.getTime()
+    }
+
+    // For non-date sorts keep chronological order
+    return a.startOfWeek.getTime() - b.startOfWeek.getTime()
+  })
+
+  return sortedGroups
+}
+
 interface SpieltageClientProps {
   accessCode?: string
   seasonId?: number
@@ -99,8 +178,11 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     tieId: number
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
-  const [showOnlyMyMatches, setShowOnlyMyMatches] = useState(false)
-  const { t, tWithParams } = useTranslation()
+  const [timeFilter, setTimeFilter] = useState<"all" | "upcoming">("upcoming")
+  const [teamFilter, setTeamFilter] = useState<"all" | "my">("my")
+  const [sortBy, setSortBy] = useState<SortOption>("date-asc")
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
+  const { t, tWithParams, locale } = useTranslation()
 
   // localStorage utility functions
   const getStoredPlayerId = (): number | null => {
@@ -438,29 +520,204 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     setShowDetailsDialog(true)
   }
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+  const formatDate = useCallback(
+    (date: Date) => {
+      const localeTag = locale === "de" ? "de-DE" : "en-GB"
+      return new Date(date).toLocaleDateString(localeTag, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    },
+    [locale],
+  )
+
+  const formatTime = useCallback(
+    (date: Date) => {
+      const localeTag = locale === "de" ? "de-DE" : "en-GB"
+      return new Date(date).toLocaleTimeString(localeTag, {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    },
+    [locale],
+  )
+
+  const formatWeekday = useCallback(
+    (date: Date) => {
+      const localeTag = locale === "de" ? "de-DE" : "en-GB"
+      return new Date(date).toLocaleDateString(localeTag, {
+        weekday: "short",
+      })
+    },
+    [locale],
+  )
+
+  const formatWeekHeading = useCallback(
+    (group: WeekGroup) => {
+      const localeTag = locale === "de" ? "de-DE" : "en-GB"
+      const formatter = new Intl.DateTimeFormat(localeTag, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+      const formatterWithRange = formatter as Intl.DateTimeFormat & {
+        formatRange?: (start: Date, end: Date) => string
+      }
+
+      let range: string
+
+      if (typeof formatterWithRange.formatRange === "function") {
+        range = formatterWithRange.formatRange(group.startOfWeek, group.endOfWeek)
+      } else if (group.startOfWeek.toDateString() === group.endOfWeek.toDateString()) {
+        range = formatter.format(group.startOfWeek)
+      } else {
+        range = `${formatter.format(group.startOfWeek)} – ${formatter.format(group.endOfWeek)}`
+      }
+
+      return tWithParams("weekHeading", {
+        week: group.weekNumber,
+        range,
+      })
+    },
+    [locale, tWithParams],
+  )
+
+  const isPlayerOnTeam = useCallback(
+    (teamId: number) => {
+      if (selectedPlayerId === null) return false
+      return teams.find((team) => team.id === teamId)?.playerIds.includes(selectedPlayerId)
+    },
+    [selectedPlayerId, teams],
+  )
+
+  const filteredTies = useMemo(() => {
+    const now = new Date()
+
+    return ties.filter((tie) => {
+      const tieDate = new Date(tie.tieDate)
+
+      if (timeFilter === "upcoming" && tieDate < now) {
+        return false
+      }
+
+      if (teamFilter === "my" && selectedPlayerId !== null && !isPlayerOnTeam(tie.teamId)) {
+        return false
+      }
+
+      return true
     })
-  }
+  }, [ties, timeFilter, teamFilter, selectedPlayerId, isPlayerOnTeam])
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("de-DE", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
+  const weekGroups = useMemo(() => buildWeekGroups(filteredTies, sortBy), [filteredTies, sortBy])
 
-  const isPlayerOnTeam = (teamId: number) => {
-    if (selectedPlayerId === null) return false
-    return teams.find((team) => team.id === teamId)?.playerIds.includes(selectedPlayerId)
-  }
+  const matchesSummary = tWithParams("matchesShown", { count: filteredTies.length, total: ties.length })
+  const timeFilterLabel = timeFilter === "all" ? t("showAllDates") : t("showUpcomingMatches")
+  const teamFilterLabel = teamFilter === "all" ? t("allTeams") : t("showMyTeams")
 
-  // Filter ties based on toggle state
-  const filteredTies =
-    showOnlyMyMatches && selectedPlayerId !== null ? ties.filter((tie) => isPlayerOnTeam(tie.teamId)) : ties
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const mediaQuery = window.matchMedia("(min-width: 768px)")
+    const handleChange = () => {
+      if (mediaQuery.matches) {
+        setIsMobileFiltersOpen(false)
+      }
+    }
+
+    mediaQuery.addEventListener("change", handleChange)
+    return () => mediaQuery.removeEventListener("change", handleChange)
+  }, [])
+
+  const FilterToggleGroup = ({
+    label,
+    value,
+    onChange,
+    options,
+    variant,
+  }: {
+    label: string
+    value: string
+    onChange: (value: string) => void
+    options: { value: string; label: string; disabled?: boolean }[]
+    variant: "desktop" | "mobile"
+  }) => (
+    <div className="space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{label}</p>
+      <div className={cn("flex gap-2", variant === "desktop" ? "flex-wrap" : "flex-col")}>
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            disabled={option.disabled}
+            aria-pressed={value === option.value}
+            className={cn(
+              "inline-flex min-h-[2.25rem] items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:opacity-50",
+              variant === "desktop" ? "min-w-[140px]" : "w-full",
+              value === option.value
+                ? "border-blue-300 bg-blue-500/40 text-white shadow-sm"
+                : "border-white/15 text-blue-100 hover:border-blue-200 hover:bg-white/10",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  const renderFilterControls = (variant: "desktop" | "mobile") => (
+    <div className={cn("gap-6", variant === "desktop" ? "grid md:grid-cols-3" : "space-y-6")}>
+      <FilterToggleGroup
+        label={t("filterByDate")}
+        value={timeFilter}
+        onChange={(value) => setTimeFilter(value as "all" | "upcoming")}
+        options={[
+          { value: "upcoming", label: t("showUpcomingMatches") },
+          { value: "all", label: t("showAllDates") },
+        ]}
+        variant={variant}
+      />
+      <FilterToggleGroup
+        label={t("filterByTeam")}
+        value={teamFilter}
+        onChange={(value) => setTeamFilter(value as "all" | "my")}
+        options={[
+          { value: "my", label: t("showMyTeams"), disabled: selectedPlayerId === null },
+          { value: "all", label: t("allTeams") },
+        ]}
+        variant={variant}
+      />
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{t("sortBy")}</p>
+        <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+          <SelectTrigger
+            className={cn(
+              "w-full border-white/20 bg-[#1e2d3d] text-sm text-blue-50 shadow-none transition hover:border-blue-200 focus-visible:border-blue-300 focus-visible:ring-blue-300/40",
+              variant === "mobile" ? "h-11" : "h-10",
+            )}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-[#1e2d3d] text-blue-50">
+            <SelectItem value="date-asc" className="text-blue-50 focus:bg-blue-500/30 focus:text-white">
+              {t("dateAsc")}
+            </SelectItem>
+            <SelectItem value="date-desc" className="text-blue-50 focus:bg-blue-500/30 focus:text-white">
+              {t("dateDesc")}
+            </SelectItem>
+            <SelectItem value="team" className="text-blue-50 focus:bg-blue-500/30 focus:text-white">
+              {t("teamName")}
+            </SelectItem>
+            <SelectItem value="opponent" className="text-blue-50 focus:bg-blue-500/30 focus:text-white">
+              {t("opponentName")}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
 
   if (loading) {
     return (
@@ -511,8 +768,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-6 py-12">
-        <h1 className="mb-12 text-3xl font-semibold text-white">
+      <main className="mx-auto max-w-7xl px-6 py-8 md:py-12">
+        <h1 className="hidden md:block mb-8 text-3xl font-semibold text-white">
           {season ? `${season.name} - ${t("upcomingMatches")}` : t("upcomingMatches")}
         </h1>
 
@@ -542,7 +799,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
               <span>
                 {t("hello")}, {selectedPlayer.firstName}!
               </span>
-              <span className="ml-2 text-sm opacity-75">
+              <div className="md:ml-2 text-sm opacity-75 md:inline">
                 (
                 <button
                   onClick={handleSwitchPlayer}
@@ -562,135 +819,216 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                   </>
                 )}
                 )
-              </span>
+              </div>
             </div>
           ) : null}
         </div>
 
-        {/* Toggle for showing all matches vs only player's matches */}
-        {selectedPlayerId !== null && (
-          <div className="mb-8 flex items-center gap-3">
-            <Button
-              onClick={() => setShowOnlyMyMatches(!showOnlyMyMatches)}
-              variant="outline"
-              size="sm"
-              className="border-gray-400 bg-white text-gray-900 hover:bg-gray-100"
-            >
-              {showOnlyMyMatches ? t("showAllMatches") : t("showMyMatches")}
-            </Button>
-            {showOnlyMyMatches && (
-              <span className="text-sm text-gray-300">
-                {tWithParams("matchesShown", {
-                  count: filteredTies.length,
-                  total: ties.length,
-                })}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Game Cards Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredTies.map((tie) => {
-            const participation = getPlayerParticipation(tie.id)
-            const status = participation?.status || null
-            const canParticipate = isPlayerOnTeam(tie.teamId) // Check team membership
-            // console.log("Rendering tie", tie.id, " - player participation:", participation, " - canParticipate:", canParticipate)
-            return (
-              <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg">
-                <h2 className="mb-4 text-xl font-semibold text-white">
-                  {tie.teamName} {t("vs")} {tie.opponent}
-                </h2>
-
-                <div className="mb-4 space-y-3">
-                  <div className="flex items-center gap-3 text-white">
-                    <Calendar className="h-5 w-5" />
-                    <span className="text-sm">
-                      {formatDate(tie.tieDate)} {formatTime(tie.tieDate)}
-                    </span>
-                    <button
-                      onClick={() => downloadICS(tie)}
-                      className="ml-auto inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-300"
-                      title="Download calendar event"
-                    >
-                      <Download className="h-3 w-3" />
-                      ICS
-                    </button>
+        {/* Filters & Sorting Section */}
+        <section className="relative mb-12">
+          <div className="hidden md:block">
+            <div className="rounded-2xl border border-white/10 bg-[#243648]/80 p-6 shadow-lg backdrop-blur">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{t("filters")}</p>
+                    <p className="text-sm text-blue-100">{matchesSummary}</p>
                   </div>
-
-                  <div className="flex items-center gap-3 text-white">
-                    <MapPin className="h-5 w-5" />
-                    <span className="text-sm">{tie.location || "—"}</span>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-white">
-                    <Users className="h-5 w-5" />
-                    <span className="text-sm">
-                      {tie.confirmedCount} {t("participants")}, {tie.maybeCount} {t("undecided")}
-                    </span>
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-blue-100">
+                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1">{timeFilterLabel}</span>
+                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1">{teamFilterLabel}</span>
                   </div>
                 </div>
+                {renderFilterControls("desktop")}
+              </div>
+            </div>
+          </div>
 
+          <div className="md:hidden">
+            <div className="rounded-2xl border border-white/10 bg-[#243648]/80 p-4 shadow-md">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 text-sm text-blue-100">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{t("filters")}</p>
+                  <p>{timeFilterLabel}</p>
+                  <p>{teamFilterLabel}</p>
+                  <p className="text-xs text-blue-200">{matchesSummary}</p>
+                </div>
                 <Button
-                  onClick={() => handleShowDetails(tie)}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="border-white/20 bg-white/10 text-blue-100 hover:border-blue-200 hover:bg-white/20"
+                >
+                  <Filter className="h-4 w-4" />
+                  {t("showFilters")}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <Dialog open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+            <DialogContent className="md:hidden border-white/10 bg-[#1e2a38] text-white shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-white">{t("filters")}</DialogTitle>
+                <DialogDescription className="text-blue-200">{matchesSummary}</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 space-y-6">{renderFilterControls("mobile")}</div>
+              <div className="mt-6 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsMobileFiltersOpen(false)}
                   className="mb-4 w-full bg-blue-600 text-sm font-bold uppercase tracking-wide text-white hover:bg-blue-700"
                 >
-                  <Eye className="mr-2 h-4 w-4" />
-                  {t("showDetails")}
+                  {t("close")}
                 </Button>
-
-                {selectedPlayerId === null || participationsLoading ? (
-                  selectedPlayerId === null ? (
-                    <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
-                      {t("selectPlayerFirst") || "Please select a player first"}
-                    </div>
-                  ) : (
-                    <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
-                      {t("loading")}
-                    </div>
-                  )
-                ) : canParticipate ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => handleParticipationClick(tie.id, "confirmed")}
-                      className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
-                        status === "confirmed"
-                          ? "border-green-500 bg-white text-green-600"
-                          : "border-gray-400 bg-white text-gray-600 hover:border-green-400"
-                      }`}
-                    >
-                      {t("confirm")}
-                    </button>
-                    <button
-                      onClick={() => handleParticipationClick(tie.id, "maybe")}
-                      className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
-                        status === "maybe"
-                          ? "border-yellow-500 bg-white text-yellow-600"
-                          : "border-gray-400 bg-white text-gray-600 hover:border-yellow-400"
-                      }`}
-                    >
-                      {t("maybe")}
-                    </button>
-                    <button
-                      onClick={() => handleParticipationClick(tie.id, "declined")}
-                      className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
-                        status === "declined"
-                          ? "border-red-500 bg-white text-red-600"
-                          : "border-gray-400 bg-white text-gray-600 hover:border-red-400"
-                      }`}
-                    >
-                      {t("decline")}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
-                    {t("notOnTeam") || "You are not a member of this team"}
-                  </div>
-                )}
               </div>
-            )
-          })}
+            </DialogContent>
+          </Dialog>
+        </section>
+
+        <div className="pointer-events-none fixed bottom-6 right-5 z-40 md:hidden">
+          <Button
+            type="button"
+            size="lg"
+            onClick={() => setIsMobileFiltersOpen((prev) => !prev)}
+            className="pointer-events-auto gap-2 rounded-full bg-blue-500 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-900/40 hover:bg-blue-400"
+            aria-expanded={isMobileFiltersOpen}
+            aria-label={isMobileFiltersOpen ? t("hideFilters") : t("showFilters")}
+          >
+            {isMobileFiltersOpen ? <X className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+            {isMobileFiltersOpen ? t("hideFilters") : t("showFilters")}
+          </Button>
         </div>
+
+        {/* Game Cards Grid */}
+        {weekGroups.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-blue-400/60 bg-[#2c3e50] px-6 py-10 text-center text-sm text-blue-100">
+            {t("noTiesFound")}
+          </div>
+        ) : (
+          <div className="space-y-10">
+            {weekGroups.map((group) => (
+              <section key={group.key} className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3 rounded-lg bg-[#34495e] px-4 py-3 shadow-sm">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] text-sm font-semibold text-blue-200">
+                    {group.weekNumber}
+                  </span>
+                  <h2 className="text-lg font-semibold text-white">{formatWeekHeading(group)}</h2>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {group.ties.map((tie) => {
+                    const participation = getPlayerParticipation(tie.id)
+                    const status = participation?.status || null
+                    const canParticipate = isPlayerOnTeam(tie.teamId)
+
+                    return (
+                      <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg">
+                        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-blue-200">
+                          <span className="inline-flex items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] px-3 py-1 text-[11px] font-semibold">
+                            {formatWeekday(tie.tieDate)}
+                          </span>
+                        </div>
+
+                        <h3 className="mb-3 text-xl font-semibold text-white">
+                          {tie.teamName} {t("vs")} {tie.opponent}
+                        </h3>
+
+                        <div className="mb-4 space-y-3">
+                          <div className="flex items-center gap-3 text-white">
+                            <Calendar className="h-5 w-5" />
+                            <span className="text-sm">
+                              {formatDate(tie.tieDate)} {formatTime(tie.tieDate)}
+                            </span>
+                            <button
+                              onClick={() => downloadICS(tie)}
+                              className="ml-auto inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-300"
+                              title="Download calendar event"
+                            >
+                              <Download className="h-3 w-3" />
+                              ICS
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-white">
+                            <MapPin className="h-5 w-5" />
+                            <span className="text-sm">{tie.location || "—"}</span>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-white">
+                            <Users className="h-5 w-5" />
+                            <span className="text-sm">
+                              {tie.confirmedCount} {t("participants")}, {tie.maybeCount} {t("undecided")}
+                            </span>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={() => handleShowDetails(tie)}
+                          className="mb-4 w-full bg-blue-600 text-sm font-bold uppercase tracking-wide text-white hover:bg-blue-700"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          {t("showDetails")}
+                        </Button>
+
+                        {selectedPlayerId === null || participationsLoading ? (
+                          selectedPlayerId === null ? (
+                            <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
+                              {t("selectPlayerFirst") || "Please select a player first"}
+                            </div>
+                          ) : (
+                            <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
+                              {t("loading")}
+                            </div>
+                          )
+                        ) : canParticipate ? (
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              onClick={() => handleParticipationClick(tie.id, "confirmed")}
+                              className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
+                                status === "confirmed"
+                                  ? "border-green-500 bg-white text-green-600"
+                                  : "border-gray-400 bg-white text-gray-600 hover:border-green-400"
+                              }`}
+                            >
+                              {t("confirm")}
+                            </button>
+                            <button
+                              onClick={() => handleParticipationClick(tie.id, "maybe")}
+                              className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
+                                status === "maybe"
+                                  ? "border-yellow-500 bg-white text-yellow-600"
+                                  : "border-gray-400 bg-white text-gray-600 hover:border-yellow-400"
+                              }`}
+                            >
+                              {t("maybe")}
+                            </button>
+                            <button
+                              onClick={() => handleParticipationClick(tie.id, "declined")}
+                              className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
+                                status === "declined"
+                                  ? "border-red-500 bg-white text-red-600"
+                                  : "border-gray-400 bg-white text-gray-600 hover:border-red-400"
+                              }`}
+                            >
+                              {t("decline")}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
+                            {t("notOnTeam") || "You are not a member of this team"}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Tie Details Dialog */}
