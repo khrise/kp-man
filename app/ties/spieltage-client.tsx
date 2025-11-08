@@ -923,6 +923,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                     const participation = getPlayerParticipation(tie.id)
                     const status = participation?.status || null
                     const canParticipate = isPlayerOnTeam(tie.teamId)
+                    const confirmLabel = status === "confirmed" ? t("confirmedStatusButton") : t("confirm")
+                    const declineLabel = status === "declined" ? t("declinedStatusButton") : t("decline")
 
                     return (
                       <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg">
@@ -993,7 +995,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                                   : "border-gray-400 bg-white text-gray-600 hover:border-green-400"
                               }`}
                             >
-                              {t("confirm")}
+                              {confirmLabel}
                             </button>
                             <button
                               onClick={() => handleParticipationClick(tie.id, "maybe")}
@@ -1013,7 +1015,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                                   : "border-gray-400 bg-white text-gray-600 hover:border-red-400"
                               }`}
                             >
-                              {t("decline")}
+                              {declineLabel}
                             </button>
                           </div>
                         ) : (

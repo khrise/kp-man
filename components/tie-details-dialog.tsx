@@ -45,9 +45,27 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
     })
   }
 
-  const confirmedPlayers = participations.filter((p) => p.status === "confirmed")
-  const maybePlayers = participations.filter((p) => p.status === "maybe")
-  const declinedPlayers = participations.filter((p) => p.status === "declined")
+  const sortPlayersByRank = (list: ParticipationWithPlayer[]) => {
+    return [...list].sort((a, b) => {
+      const rankA = typeof a.playerRank === "number" ? a.playerRank : Number.POSITIVE_INFINITY
+      const rankB = typeof b.playerRank === "number" ? b.playerRank : Number.POSITIVE_INFINITY
+
+      if (rankA !== rankB) {
+        return rankA - rankB
+      }
+
+      const lastNameCompare = a.lastName.localeCompare(b.lastName)
+      if (lastNameCompare !== 0) {
+        return lastNameCompare
+      }
+
+      return a.firstName.localeCompare(b.firstName)
+    })
+  }
+
+  const confirmedPlayers = sortPlayersByRank(participations.filter((p) => p.status === "confirmed"))
+  const maybePlayers = sortPlayersByRank(participations.filter((p) => p.status === "maybe"))
+  const declinedPlayers = sortPlayersByRank(participations.filter((p) => p.status === "declined"))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
