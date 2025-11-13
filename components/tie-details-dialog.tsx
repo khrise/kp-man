@@ -127,19 +127,21 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                         key={p.id}
                         className="flex items-center gap-2 rounded bg-green-50 px-3 py-2 text-sm text-gray-700"
                       >
-                        <span className="flex items-center gap-2">
-                          <span>
-                            {p.firstName} {p.lastName} ({p.playerRank})
-                          </span>
-                          {lineupFinalized && p.isInLineup && (
-                            <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
-                              {t("inLineup")}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">
+                              {p.firstName} {p.lastName} ({p.playerRank})
                             </span>
-                          )}
-                        </span>
-                        {p.comment && (
-                          <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
-                            &quot;{p.comment}&quot;
+                            {p.comment && (
+                              <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
+                                &quot;{p.comment}&quot;
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {lineupFinalized && p.isInLineup && (
+                          <span className="ml-2 inline-flex flex-shrink-0 items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
+                            {t("inLineup")}
                           </span>
                         )}
                       </div>
@@ -163,19 +165,21 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                         key={p.id}
                         className="flex items-center gap-2 rounded bg-yellow-50 px-3 py-2 text-sm text-gray-700"
                       >
-                        <span className="flex items-center gap-2">
-                          <span>
-                            {p.firstName} {p.lastName} ({p.playerRank})
-                          </span>
-                          {lineupFinalized && p.isInLineup && (
-                            <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
-                              {t("inLineup")}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">
+                              {p.firstName} {p.lastName} ({p.playerRank})
                             </span>
-                          )}
-                        </span>
-                        {p.comment && (
-                          <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
-                            &quot;{p.comment}&quot;
+                            {p.comment && (
+                              <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
+                                &quot;{p.comment}&quot;
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {lineupFinalized && p.isInLineup && (
+                          <span className="ml-2 inline-flex flex-shrink-0 items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
+                            {t("inLineup")}
                           </span>
                         )}
                       </div>
@@ -199,19 +203,21 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                         key={p.id}
                         className="flex items-center gap-2 rounded bg-red-50 px-3 py-2 text-sm text-gray-700"
                       >
-                        <span className="flex items-center gap-2">
-                          <span>
-                            {p.firstName} {p.lastName} ({p.playerRank})
-                          </span>
-                          {lineupFinalized && p.isInLineup && (
-                            <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
-                              {t("inLineup")}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">
+                              {p.firstName} {p.lastName} ({p.playerRank})
                             </span>
-                          )}
-                        </span>
-                        {p.comment && (
-                          <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
-                            &quot;{p.comment}&quot;
+                            {p.comment && (
+                              <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
+                                &quot;{p.comment}&quot;
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {lineupFinalized && p.isInLineup && (
+                          <span className="ml-2 inline-flex flex-shrink-0 items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
+                            {t("inLineup")}
                           </span>
                         )}
                       </div>
