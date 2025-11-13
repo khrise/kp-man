@@ -68,6 +68,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
   const declinedPlayers = sortPlayersByRank(participations.filter((p) => p.status === "declined"))
 
   // lineupPlayers removed — we show lineup membership inline with a badge per player instead of a separate list
+  const lineupFinalized = (tie as unknown as { isReady?: boolean }).isReady === true
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,7 +131,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                           <span>
                             {p.firstName} {p.lastName} ({p.playerRank})
                           </span>
-                          {p.isInLineup && (
+                          {lineupFinalized && p.isInLineup && (
                             <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
                               im line-up
                             </span>
@@ -166,7 +167,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                           <span>
                             {p.firstName} {p.lastName} ({p.playerRank})
                           </span>
-                          {p.isInLineup && (
+                          {lineupFinalized && p.isInLineup && (
                             <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
                               im line-up
                             </span>
@@ -202,7 +203,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                           <span>
                             {p.firstName} {p.lastName} ({p.playerRank})
                           </span>
-                          {p.isInLineup && (
+                          {lineupFinalized && p.isInLineup && (
                             <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
                               im line-up
                             </span>
