@@ -133,7 +133,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                           </span>
                           {lineupFinalized && p.isInLineup && (
                             <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
-                              im line-up
+                              {t("inLineup")}
                             </span>
                           )}
                         </span>
@@ -169,7 +169,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                           </span>
                           {lineupFinalized && p.isInLineup && (
                             <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
-                              im line-up
+                              {t("inLineup")}
                             </span>
                           )}
                         </span>
@@ -205,7 +205,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                           </span>
                           {lineupFinalized && p.isInLineup && (
                             <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
-                              im line-up
+                              {t("inLineup")}
                             </span>
                           )}
                         </span>
