@@ -168,7 +168,7 @@ export function LineupClient({
                 size="sm"
                 variant={isInLineup ? "outline" : "default"}
                 onClick={() => handleToggleLineup(participation.id, isInLineup)}
-                disabled={isLoading || (!isInLineup && lineupCount >= maxPlayers)}
+                disabled={isLoading || tie.isReady || (!isInLineup && lineupCount >= maxPlayers)}
                 className="w-full sm:w-auto mt-2 sm:mt-0"
               >
                 {isInLineup ? t("remove") : t("add")}
@@ -341,7 +341,7 @@ export function LineupClient({
                       <PlayerCard 
                         participation={participation} 
                         isInLineup={true}
-                        canToggle={true}
+                        canToggle={!tie.isReady}
                       />
                     </div>
                   ))
@@ -372,7 +372,7 @@ export function LineupClient({
                       key={participation.id}
                       participation={participation} 
                       isInLineup={false}
-                      canToggle={true}
+                      canToggle={!tie.isReady}
                     />
                   ))
               ) : (

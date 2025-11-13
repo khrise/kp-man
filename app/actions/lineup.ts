@@ -28,6 +28,11 @@ export async function toggleLineupAction(participationId: string, tieId: string)
     throw new Error("Tie not found")
   }
 
+  // If the lineup is finalized, do not allow toggling lineup membership
+  if ((tie as unknown as { isReady?: boolean }).isReady) {
+    throw new Error("Cannot modify lineup: lineup has been finalized by admin")
+  }
+
   const team = await db.getTeamById(tie.teamId)
   if (!team) {
     throw new Error("Team not found")
