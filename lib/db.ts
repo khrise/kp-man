@@ -431,7 +431,7 @@ export async function getTies(): Promise<TieWithSeasonAndTeam[]> {
       eb.ref("tm.name").as("teamName"),
       eb.ref("s.name").as("seasonName"),
       eb.ref("tm.seasonId").as("seasonId"),
-      eb.ref("t.is_ready").as("isReady"),
+      eb.ref("t.isReady").as("isReady"),
     ])
     .orderBy("t.tieDate", "desc")
     .execute()
@@ -484,6 +484,7 @@ export type TieDto = {
   isHome: boolean
   createdAt: Date
   participations: Participation[]
+  isReady: boolean
 }
 
 export type TeamDto = Team & {
@@ -536,11 +537,11 @@ export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
       eb.fn
         .coalesce(eb.fn.jsonAgg(sql`to_jsonb(p)`).filterWhere("p.id", "is not", null), sql`'[]'::json`)
         .as("participations"),
-        eb.ref("t.is_ready").as("isReady"),
+        eb.ref("t.isReady").as("isReady"),
     ])
     .where("tm.seasonId", "=", seasonId)
     .groupBy(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.location", "t.isHome", "t.createdAt"])
-    .orderBy("t.tieDate", "asc")
+    .orderBy("t.isReady", "asc")
     .execute()
 
   console.timeEnd("[DB] Fetching ties by season ID")
