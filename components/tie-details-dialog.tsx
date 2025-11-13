@@ -67,7 +67,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
   const maybePlayers = sortPlayersByRank(participations.filter((p) => p.status === "maybe"))
   const declinedPlayers = sortPlayersByRank(participations.filter((p) => p.status === "declined"))
 
-  const lineupPlayers = sortPlayersByRank(participations.filter((p) => p.isInLineup))
+  // lineupPlayers removed — we show lineup membership inline with a badge per player instead of a separate list
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -110,29 +110,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Finalized lineup if admin marked tie as ready */}
-              {(tie as any).isReady && lineupPlayers.length > 0 && (
-                <div>
-                  <div className="mb-2 flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-blue-600" />
-                    <h3 className="font-semibold text-gray-900">{t("lineupPlayers")} ({lineupPlayers.length})</h3>
-                  </div>
-                  <div className="space-y-1">
-                    {lineupPlayers.map((p) => (
-                      <div key={p.id} className="flex items-center gap-2 rounded bg-blue-50 px-3 py-2 text-sm text-gray-700">
-                        <span>
-                          {p.firstName} {p.lastName} ({p.playerRank})
-                        </span>
-                        {p.comment && (
-                          <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
-                            &quot;{p.comment}&quot;
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Instead of a separate lineup list, show a small badge next to the player name when selected for the lineup. */}
               {/* Confirmed */}
               {confirmedPlayers.length > 0 && (
                 <div>
@@ -148,8 +126,15 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                         key={p.id}
                         className="flex items-center gap-2 rounded bg-green-50 px-3 py-2 text-sm text-gray-700"
                       >
-                        <span>
-                          {p.firstName} {p.lastName} ({p.playerRank})
+                        <span className="flex items-center gap-2">
+                          <span>
+                            {p.firstName} {p.lastName} ({p.playerRank})
+                          </span>
+                          {p.isInLineup && (
+                            <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
+                              im line-up
+                            </span>
+                          )}
                         </span>
                         {p.comment && (
                           <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
@@ -177,8 +162,15 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                         key={p.id}
                         className="flex items-center gap-2 rounded bg-yellow-50 px-3 py-2 text-sm text-gray-700"
                       >
-                        <span>
-                          {p.firstName} {p.lastName} ({p.playerRank})
+                        <span className="flex items-center gap-2">
+                          <span>
+                            {p.firstName} {p.lastName} ({p.playerRank})
+                          </span>
+                          {p.isInLineup && (
+                            <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
+                              im line-up
+                            </span>
+                          )}
                         </span>
                         {p.comment && (
                           <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
@@ -206,8 +198,15 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                         key={p.id}
                         className="flex items-center gap-2 rounded bg-red-50 px-3 py-2 text-sm text-gray-700"
                       >
-                        <span>
-                          {p.firstName} {p.lastName} ({p.playerRank})
+                        <span className="flex items-center gap-2">
+                          <span>
+                            {p.firstName} {p.lastName} ({p.playerRank})
+                          </span>
+                          {p.isInLineup && (
+                            <span className="inline-flex items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
+                              im line-up
+                            </span>
+                          )}
                         </span>
                         {p.comment && (
                           <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
