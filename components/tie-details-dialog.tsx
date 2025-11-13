@@ -67,6 +67,8 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
   const maybePlayers = sortPlayersByRank(participations.filter((p) => p.status === "maybe"))
   const declinedPlayers = sortPlayersByRank(participations.filter((p) => p.status === "declined"))
 
+  const lineupPlayers = sortPlayersByRank(participations.filter((p) => p.isInLineup))
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -107,8 +109,30 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
               <p className="mt-2 text-gray-600">Loading...</p>
             </div>
           ) : (
-            // <p className="text-center text-sm text-gray-500">{t("loading")}</p>
             <div className="space-y-4">
+              {/* Finalized lineup if admin marked tie as ready */}
+              {(tie as any).isReady && lineupPlayers.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-blue-600" />
+                    <h3 className="font-semibold text-gray-900">{t("lineupPlayers")} ({lineupPlayers.length})</h3>
+                  </div>
+                  <div className="space-y-1">
+                    {lineupPlayers.map((p) => (
+                      <div key={p.id} className="flex items-center gap-2 rounded bg-blue-50 px-3 py-2 text-sm text-gray-700">
+                        <span>
+                          {p.firstName} {p.lastName} ({p.playerRank})
+                        </span>
+                        {p.comment && (
+                          <span className="max-w-32 truncate text-xs text-gray-500 italic" title={p.comment}>
+                            &quot;{p.comment}&quot;
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Confirmed */}
               {confirmedPlayers.length > 0 && (
                 <div>

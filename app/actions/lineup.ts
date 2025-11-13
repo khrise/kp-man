@@ -48,6 +48,32 @@ export async function toggleLineupAction(participationId: string, tieId: string)
   return { success: true }
 }
 
+export async function markTieReadyAction(tieId: string, ready: boolean) {
+  const tieIdNum = Number(tieId)
+  if (Number.isNaN(tieIdNum)) {
+    throw new Error("Invalid tie ID")
+  }
+
+  const tie = await db.getTieById(tieIdNum)
+  if (!tie) throw new Error("Tie not found")
+
+  const team = await db.getTeamById(tie.teamId)
+  if (!team) throw new Error("Team not found")
+
+  // If trying to mark ready, ensure lineup is full
+  if (ready) {
+    const currentLineupCount = await db.getLineupCount(tieIdNum)
+    if (currentLineupCount < team.teamSize) {
+      throw new Error(`Cannot mark ready: only ${currentLineupCount}/${team.teamSize} selected`)
+    }
+  }
+
+  await db.updateTieReady(tieIdNum, ready)
+
+  revalidatePath(`/admin/ties/${tieId}/lineup`)
+  return { success: true }
+}
+
 export async function getLineupData(tieId: string) {
   const tieIdNum = Number(tieId)
   if (Number.isNaN(tieIdNum)) {

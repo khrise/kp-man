@@ -28,6 +28,7 @@ type Tie = {
   lineupCount: number
   lineupPlayers: { playerRank: number; firstName: string; lastName: string; status: string }[]
   problematicCount: number
+  isReady?: boolean
 }
 
 type Team = {
@@ -837,6 +838,11 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                               <span className="h-2 w-2 rounded-full bg-yellow-500" title={t("lineupIncomplete")}></span>
                             ) : (
                               <span className="h-2 w-2 rounded-full bg-green-500" title={t("lineupComplete")}></span>
+                            )}
+                            {tie.isReady && (
+                              <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                {t("lineupComplete")}
+                              </span>
                             )}
                           </div>
                         </div>
