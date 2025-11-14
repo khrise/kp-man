@@ -209,9 +209,16 @@ export function LineupClient({
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {t("manageLineup")}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900">
+                {t("manageLineup")}
+              </h1>
+              {tie.isReady && (
+                <Badge variant="outline" className="bg-green-100 text-green-800">
+                  {t("lineupComplete")}
+                </Badge>
+              )}
+            </div>
             <p className="mt-2 text-gray-600">
               {team.name} {t("vs")} {tie.opponent}
             </p>
@@ -229,14 +236,10 @@ export function LineupClient({
                 {lineupCount}/{maxPlayers}
               </span>
             </div>
-            <p className="text-sm text-gray-500">{t("lineupCount")}</p>
+
             <div className="mt-2 flex items-center justify-end space-x-2">
-              {tie.isReady ? (
-                <>
-                  <Badge variant="outline" className="bg-green-100 text-green-800">
-                    {t("lineupComplete")}
-                  </Badge>
-                  <Button
+        {tie.isReady ? (
+          <Button
                     size="sm"
                     variant="ghost"
                     onClick={async () => {
@@ -257,9 +260,7 @@ export function LineupClient({
                   >
                     {t("unmarkLineupReady")}
                   </Button>
-                </>
               ) : (
-                <>
                   <Button
                     size="sm"
                     variant="default"
@@ -284,7 +285,6 @@ export function LineupClient({
                   >
                     {t("markLineupReady")}
                   </Button>
-                </>
               )}
             </div>
           </div>
