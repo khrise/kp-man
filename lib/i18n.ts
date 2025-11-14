@@ -69,6 +69,7 @@ export const translations = {
     of: "von",
     weekHeading: "KW {week} · {range}",
     noTiesFound: "Keine Spieltage gefunden.",
+    yourAreInLineup: "Du spielst",
 
     // Participation Comments
     addComment: "Kommentar hinzufügen",
@@ -352,6 +353,7 @@ export const translations = {
     of: "of",
     weekHeading: "Week {week} · {range}",
     noTiesFound: "No ties found.",
+    yourAreInLineup: "You're playing",
 
     // Participation Comments
     addComment: "Add Comment",

@@ -970,9 +970,16 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
                         {tie.isReady && (
                           <div className="mb-3">
-                            <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
-                              {t("lineupComplete")}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
+                                {t("lineupComplete")}
+                              </span>
+                              {participation?.isInLineup && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                                  {t("yourAreInLineup")}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
 
