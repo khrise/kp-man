@@ -30,6 +30,24 @@ type LineupClientProps = {
   playersWithoutParticipation: TeamPlayerWithDetails[]
   lineupCount: number
   maxPlayers: number
+  auditEntries?: AuditEntry[]
+}
+ 
+type AuditEntry = {
+  id: number
+  participationId: number | null
+  playerId: number
+  tieId: number
+  previousStatus: string | null
+  newStatus: string
+  previousComment: string | null
+  newComment: string | null
+  previousIsInLineup: boolean | null
+  newIsInLineup: boolean | null
+  changedBy: string | null
+  createdAt: string
+  playerFirstName?: string | null
+  playerLastName?: string | null
 }
 
 export function LineupClient({
@@ -40,12 +58,16 @@ export function LineupClient({
   otherParticipations,
   playersWithoutParticipation,
   lineupCount,
-  maxPlayers
+  maxPlayers,
+  auditEntries
 }: LineupClientProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
+  // `auditEntries` are provided by the server via getLineupData and passed
+  // into this client component — no separate API call required.
+  // (already available via the destructured `auditEntries` prop)
 
   const tieDate = useMemo(() => {
     const parsed = tie.tieDate instanceof Date ? tie.tieDate : new Date(tie.tieDate)
@@ -335,6 +357,48 @@ export function LineupClient({
           </Card>
         </div>
       )}
+
+      {/* RSVP Audit Log */}
+      <div className="mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Users className="w-5 h-5 text-gray-600" />
+              <span>RSVP Audit</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {auditEntries && auditEntries.length === 0 && (
+                <p className="text-sm text-gray-500">No audit entries</p>
+              )}
+              {auditEntries && auditEntries.length > 0 && (
+                <ul className="space-y-2">
+                  {auditEntries.map((e) => (
+                    <li key={e.id} className="text-sm text-gray-700">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <strong>{e.playerFirstName} {e.playerLastName}</strong>
+                          <span className="ml-2 text-gray-500">— {new Date(e.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div className="text-right text-xs text-gray-500">
+                          {e.previousStatus ?? "—"} → {e.newStatus}
+                          {e.previousIsInLineup !== e.newIsInLineup && (
+                            <div>{e.previousIsInLineup ? "In lineup → Out" : "Out → In"}</div>
+                          )}
+                        </div>
+                      </div>
+                      {e.previousComment || e.newComment ? (
+                        <div className="mt-1 text-xs text-gray-600">{e.previousComment ?? ""} → {e.newComment ?? ""}</div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   )
 }
