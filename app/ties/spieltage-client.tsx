@@ -990,7 +990,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                           <div className="flex items-center gap-3 text-white">
                             <Users className="h-5 w-5" />
                             <span className="text-sm">
-                              {tie.confirmedCount} {t("participants")}, {tie.maybeCount} {t("undecided")}
+                              {tie.confirmedCount} {t("participants")}, {tie.maybeCount} {t("undecided")}, {tie.declinedCount} {t("declines")}
                             </span>
                           </div>
                         </div>
