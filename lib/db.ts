@@ -549,6 +549,55 @@ export async function deleteTie(id: number) {
   await db.deleteFrom("ties").where("id", "=", id).execute()
 }
 
+/**
+ * Delete all participations for a given tie and return the number of deleted rows.
+ * We first count the rows and then delete to return a reliable count across
+ * different Postgres/Kysely return shapes.
+ */
+export async function deleteParticipationsForTie(tieId: number): Promise<number> {
+  const countRow = await db
+    .selectFrom("participations")
+    .select((eb) => eb.fn.count<number>("id").as("count"))
+    .where("tieId", "=", tieId)
+    .executeTakeFirst()
+
+  const count = Number(countRow?.count ?? 0)
+
+  if (count === 0) return 0
+
+  await db.deleteFrom("participations").where("tieId", "=", tieId).execute()
+  return count
+}
+
+/**
+ * Atomically clear participations for a tie and update the tie in a single
+ * transaction. Returns the updated tie (if any) and the number of deleted
+ * participations.
+ */
+export async function updateTieAndClearParticipations(
+  id: number,
+  data: UpdateTieInput,
+): Promise<{ tie?: Tie; deletedCount: number }> {
+  return db.transaction().execute(async (trx) => {
+    // Count participations
+    const countRow = await trx
+      .selectFrom("participations")
+      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .where("tieId", "=", id)
+      .executeTakeFirst()
+
+    const count = Number(countRow?.count ?? 0)
+
+    if (count > 0) {
+      await trx.deleteFrom("participations").where("tieId", "=", id).execute()
+    }
+
+    const updated = await trx.updateTable("ties").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+
+    return { tie: updated ?? undefined, deletedCount: count }
+  })
+}
+
 export type ParticipationWithPlayer = Participation & {
   firstName: string
   lastName: string
