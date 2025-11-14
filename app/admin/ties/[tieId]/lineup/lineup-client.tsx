@@ -69,6 +69,9 @@ export function LineupClient({
   // into this client component — no separate API call required.
   // (already available via the destructured `auditEntries` prop)
   const [isTogglingReady, setIsTogglingReady] = useState(false)
+  // `auditEntries` are provided by the server via getLineupData and passed
+  // into this client component — no separate API call required.
+  // (already available via the destructured `auditEntries` prop)
 
   const tieDate = useMemo(() => {
     const parsed = tie.tieDate instanceof Date ? tie.tieDate : new Date(tie.tieDate)
