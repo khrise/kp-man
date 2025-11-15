@@ -70,6 +70,7 @@ export const translations = {
     of: "von",
     weekHeading: "KW {week} · {range}",
     noTiesFound: "Keine Spieltage gefunden.",
+    yourAreInLineup: "Du spielst",
 
     // Participation Comments
     addComment: "Kommentar hinzufügen",
@@ -106,6 +107,9 @@ export const translations = {
     lineupIssues: "Aufstellungsprobleme",
     lineupIncomplete: "Aufstellung unvollständig",
     lineupComplete: "Aufstellung vollständig",
+    markLineupReady: "Aufstellung fertigstellen",
+    unmarkLineupReady: "Aufstellung zurücknehmen",
+    confirmUnmarkLineup: "Sind Sie sicher, dass Sie die Aufstellung zurücknehmen möchten?",
     playerNeedsAttention: "Spieler benötigt Aufmerksamkeit",
     playersNeedAttention: "Spieler benötigen Aufmerksamkeit",
     playersWithoutResponse: "Spieler ohne Antwort",
@@ -351,6 +355,7 @@ export const translations = {
     of: "of",
     weekHeading: "Week {week} · {range}",
     noTiesFound: "No ties found.",
+    yourAreInLineup: "You're playing",
 
     // Participation Comments
     addComment: "Add Comment",
@@ -387,6 +392,9 @@ export const translations = {
     lineupIssues: "Lineup issues",
     lineupIncomplete: "Lineup incomplete",
     lineupComplete: "Lineup complete",
+    markLineupReady: "Finalize lineup",
+    unmarkLineupReady: "Unfinalize lineup",
+    confirmUnmarkLineup: "Are you sure you want to unfinalize the lineup?",
     playerNeedsAttention: "player needs attention",
     playersNeedAttention: "players need attention",
     playersWithoutResponse: "Players Without Response",

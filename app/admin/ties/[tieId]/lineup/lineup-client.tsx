@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { Users, UserCheck, UserX, Clock, HelpCircle } from "lucide-react"
-import { toggleLineupAction } from "@/app/actions/lineup"
+import { toggleLineupAction, markTieReadyAction } from "@/app/actions/lineup"
 import { useTranslation } from "@/lib/i18n"
 import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
 import type { TeamPlayerWithDetails } from "@/lib/db"
@@ -46,6 +46,7 @@ export function LineupClient({
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
+  const [isTogglingReady, setIsTogglingReady] = useState(false)
 
   const tieDate = useMemo(() => {
     const parsed = tie.tieDate instanceof Date ? tie.tieDate : new Date(tie.tieDate)
@@ -121,7 +122,7 @@ export function LineupClient({
                 size="sm"
                 variant={isInLineup ? "outline" : "default"}
                 onClick={() => handleToggleLineup(participation.id, isInLineup)}
-                disabled={isLoading || (!isInLineup && lineupCount >= maxPlayers)}
+                disabled={isLoading || tie.isLineupReady || (!isInLineup && lineupCount >= maxPlayers)}
                 className="w-full sm:w-auto mt-2 sm:mt-0"
               >
                 {isInLineup ? t("remove") : t("add")}
@@ -162,9 +163,16 @@ export function LineupClient({
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {t("manageLineup")}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900">
+                {t("manageLineup")}
+              </h1>
+              {tie.isLineupReady && (
+                <Badge variant="outline" className="bg-green-100 text-green-800">
+                  {t("lineupComplete")}
+                </Badge>
+              )}
+            </div>
             <p className="mt-2 text-gray-600">
               {team.name} {t("vs")} {tie.opponent}
             </p>
@@ -182,7 +190,57 @@ export function LineupClient({
                 {lineupCount}/{maxPlayers}
               </span>
             </div>
-            <p className="text-sm text-gray-500">{t("lineupCount")}</p>
+
+            <div className="mt-2 flex items-center justify-end space-x-2">
+  {tie.isLineupReady ? (
+          <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={async () => {
+                      if (isTogglingReady) return
+                      if (!confirm(t("confirmUnmarkLineup") || "Remove finalization?")) return
+                      setIsTogglingReady(true)
+                      try {
+                        await markTieReadyAction(String(tie.id), false)
+                        router.refresh()
+                      } catch (err) {
+                        console.error("Failed to unmark ready:", err)
+                        alert(err instanceof Error ? err.message : String(err))
+                      } finally {
+                        setIsTogglingReady(false)
+                      }
+                    }}
+                    disabled={isTogglingReady}
+                  >
+                    {t("unmarkLineupReady")}
+                  </Button>
+              ) : (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={async () => {
+                      if (isTogglingReady) return
+                      if (lineupCount < maxPlayers) {
+                        alert(t("lineupIncomplete"))
+                        return
+                      }
+                      setIsTogglingReady(true)
+                      try {
+                        await markTieReadyAction(String(tie.id), true)
+                        router.refresh()
+                      } catch (err) {
+                        console.error("Failed to mark ready:", err)
+                        alert(err instanceof Error ? err.message : String(err))
+                      } finally {
+                        setIsTogglingReady(false)
+                      }
+                    }}
+                    disabled={isTogglingReady || lineupCount < maxPlayers}
+                  >
+                    {t("markLineupReady")}
+                  </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -237,7 +295,7 @@ export function LineupClient({
                       <PlayerCard 
                         participation={participation} 
                         isInLineup={true}
-                        canToggle={true}
+                        canToggle={!tie.isLineupReady}
                       />
                     </div>
                   ))
@@ -268,7 +326,7 @@ export function LineupClient({
                       key={participation.id}
                       participation={participation} 
                       isInLineup={false}
-                      canToggle={true}
+                      canToggle={!tie.isLineupReady}
                     />
                   ))
               ) : (
