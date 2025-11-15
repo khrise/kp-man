@@ -60,7 +60,7 @@ export type TieWithDetails = {
   confirmedCount: number
   maybeCount: number
   declinedCount: number
-  isReady?: boolean
+  isLineupReady?: boolean
 }
 
 export type Tie = {
@@ -74,7 +74,7 @@ export type Tie = {
   confirmedCount: number
   maybeCount: number
   declinedCount: number
-  isReady?: boolean
+  isLineupReady?: boolean
 }
 
 type SortOption = "date-desc" | "date-asc" | "team" | "opponent"
@@ -968,7 +968,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                           {tie.teamName} {t("vs")} {tie.opponent}
                         </h3>
 
-                        {tie.isReady && (
+                        {tie.isLineupReady && (
                           <div className="mb-3">
                             <div className="flex items-center gap-2">
                               <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800">
