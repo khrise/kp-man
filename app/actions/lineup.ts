@@ -29,7 +29,7 @@ export async function toggleLineupAction(participationId: string, tieId: string)
   }
 
   // If the lineup is finalized, do not allow toggling lineup membership
-  if ((tie as unknown as { isReady?: boolean }).isReady) {
+  if ((tie as unknown as { isLineupReady?: boolean }).isLineupReady) {
     throw new Error("Cannot modify lineup: lineup has been finalized by admin")
   }
 

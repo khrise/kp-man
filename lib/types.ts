@@ -56,7 +56,7 @@ export interface Tie {
   tieDate: Date
   location: string | null
   isHome: boolean
-  isReady: boolean
+  isLineupReady: boolean
   notes: string | null
   createdAt: Date
   updatedAt: Date

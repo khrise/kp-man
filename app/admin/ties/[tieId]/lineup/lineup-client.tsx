@@ -122,7 +122,7 @@ export function LineupClient({
                 size="sm"
                 variant={isInLineup ? "outline" : "default"}
                 onClick={() => handleToggleLineup(participation.id, isInLineup)}
-                disabled={isLoading || tie.isReady || (!isInLineup && lineupCount >= maxPlayers)}
+                disabled={isLoading || tie.isLineupReady || (!isInLineup && lineupCount >= maxPlayers)}
                 className="w-full sm:w-auto mt-2 sm:mt-0"
               >
                 {isInLineup ? t("remove") : t("add")}
@@ -167,7 +167,7 @@ export function LineupClient({
               <h1 className="text-3xl font-bold text-gray-900">
                 {t("manageLineup")}
               </h1>
-              {tie.isReady && (
+              {tie.isLineupReady && (
                 <Badge variant="outline" className="bg-green-100 text-green-800">
                   {t("lineupComplete")}
                 </Badge>
@@ -192,7 +192,7 @@ export function LineupClient({
             </div>
 
             <div className="mt-2 flex items-center justify-end space-x-2">
-        {tie.isReady ? (
+  {tie.isLineupReady ? (
           <Button
                     size="sm"
                     variant="ghost"
@@ -295,7 +295,7 @@ export function LineupClient({
                       <PlayerCard 
                         participation={participation} 
                         isInLineup={true}
-                        canToggle={!tie.isReady}
+                        canToggle={!tie.isLineupReady}
                       />
                     </div>
                   ))
@@ -326,7 +326,7 @@ export function LineupClient({
                       key={participation.id}
                       participation={participation} 
                       isInLineup={false}
-                      canToggle={!tie.isReady}
+                      canToggle={!tie.isLineupReady}
                     />
                   ))
               ) : (
