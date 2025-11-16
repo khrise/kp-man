@@ -78,6 +78,30 @@ export function LineupClient({
   const problematicPlayers = lineupPlayers.filter(p => p.status !== "confirmed")
   const hasProblematicPlayers = problematicPlayers.length > 0
 
+  // Group audit entries by player for display
+  const groupedAudit = useMemo(() => {
+    if (!auditEntries || auditEntries.length === 0) return [] as Array<{
+      playerId: number
+      playerFirstName?: string | null
+      playerLastName?: string | null
+      entries: AuditEntry[]
+    }>
+
+    const map = new Map<number, AuditEntry[]>()
+    for (const e of auditEntries) {
+      const list = map.get(e.playerId) ?? []
+      list.push(e)
+      map.set(e.playerId, list)
+    }
+
+    return Array.from(map.entries()).map(([playerId, entries]) => ({
+      playerId,
+      playerFirstName: entries[0]?.playerFirstName ?? null,
+      playerLastName: entries[0]?.playerLastName ?? null,
+      entries: entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    }))
+  }, [auditEntries])
+
   const handleToggleLineup = async (participationId: number, isCurrentlyInLineup: boolean) => {
     if (isLoading) return
     
@@ -369,31 +393,55 @@ export function LineupClient({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {auditEntries && auditEntries.length === 0 && (
+              {(!auditEntries || auditEntries.length === 0) && (
                 <p className="text-sm text-gray-500">No audit entries</p>
               )}
-              {auditEntries && auditEntries.length > 0 && (
-                <ul className="space-y-2">
-                  {auditEntries.map((e) => (
-                    <li key={e.id} className="text-sm text-gray-700">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <strong>{e.playerFirstName} {e.playerLastName}</strong>
-                          <span className="ml-2 text-gray-500">— {new Date(e.createdAt).toLocaleString()}</span>
-                        </div>
-                        <div className="text-right text-xs text-gray-500">
-                          {e.previousStatus ?? "—"} → {e.newStatus}
-                          {e.previousIsInLineup !== e.newIsInLineup && (
-                            <div>{e.previousIsInLineup ? "In lineup → Out" : "Out → In"}</div>
-                          )}
-                        </div>
+
+              {groupedAudit.length > 0 && (
+                <div className="space-y-4">
+                  {groupedAudit.map((group) => (
+                    <div key={group.playerId} className="bg-gray-50 border border-gray-100 rounded-md p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium">{group.playerFirstName} {group.playerLastName}</div>
+                        <div className="text-xs text-gray-500">{group.entries.length} {t("participationResponses")}</div>
                       </div>
-                      {e.previousComment || e.newComment ? (
-                        <div className="mt-1 text-xs text-gray-600">{e.previousComment ?? ""} → {e.newComment ?? ""}</div>
-                      ) : null}
-                    </li>
+
+                      <ul className="space-y-2">
+                        {group.entries.map((e) => (
+                          <li key={e.id} className="text-sm text-gray-700 bg-white border border-gray-100 rounded p-3">
+                            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                              <div className="min-w-0 text-left">{e.changedBy ?? ""}</div>
+                              <div className="ml-4 text-right">{new Date(e.createdAt).toLocaleString()}</div>
+                            </div>
+
+                            <div className="text-xs">
+                              <span className="text-gray-400 mr-1">{t("statusLabel")}:</span>
+                              <span className="font-medium">{e.previousStatus ?? "—"}</span>
+                              <span className="mx-2">→</span>
+                              <span className="font-medium">{e.newStatus}</span>
+                            </div>
+
+                            {e.previousIsInLineup !== e.newIsInLineup && (
+                              <div className="text-xs mt-1">
+                                <span className="text-gray-400 mr-1">{t("lineupLabel")}:</span>
+                                <span className="font-medium ml-1">{e.previousIsInLineup ? t("inLineup") : t("notInLineup")}</span>
+                                <span className="mx-2">→</span>
+                                <span className="font-medium">{e.newIsInLineup ? t("inLineup") : t("notInLineup")}</span>
+                              </div>
+                            )}
+
+                            {(e.previousComment || e.newComment) && (
+                              <div className="text-xs mt-1">
+                                  <span className="text-gray-400 mr-1">{t("commentChange")}</span>
+                                  <span className="ml-1">{`"${e.previousComment ?? ""}" → "${e.newComment ?? ""}"`}</span>
+                                </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
           </CardContent>
