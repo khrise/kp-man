@@ -2,8 +2,8 @@
 CREATE TABLE IF NOT EXISTS participation_audit (
   id SERIAL PRIMARY KEY,
   participation_id INTEGER,
-  player_id INTEGER NOT NULL,
-  tie_id INTEGER NOT NULL,
+  player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  tie_id INTEGER NOT NULL REFERENCES ties(id) ON DELETE CASCADE,
   previous_status VARCHAR(32),
   new_status VARCHAR(32) NOT NULL,
   previous_comment TEXT,
