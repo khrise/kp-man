@@ -68,7 +68,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
   const declinedPlayers = sortPlayersByRank(participations.filter((p) => p.status === "declined"))
 
   // lineupPlayers removed — we show lineup membership inline with a badge per player instead of a separate list
-  const lineupFinalized = (tie as unknown as { isLineupReady?: boolean }).isLineupReady === true
+  const lineupFinalized = tie.isLineupReady === true
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
