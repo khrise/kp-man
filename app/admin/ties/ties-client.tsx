@@ -84,11 +84,13 @@ const formatTimeForInput = (date: Date): string => {
 
 export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t, tWithParams } = useTranslation()
   const [isAdding, setIsAdding] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [importUrl, setImportUrl] = useState("")
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [editingOriginalTieIso, setEditingOriginalTieIso] = useState<string | null>(null)
+  const [editingOriginalLineupCount, setEditingOriginalLineupCount] = useState<number>(0)
 
   // Sorting and filtering state
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
@@ -219,6 +221,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
       isHome: tie.isHome,
       notes: tie.notes || "",
     })
+    // store original tie iso and lineup count for confirmation
+    setEditingOriginalTieIso(date.toISOString())
+    setEditingOriginalLineupCount(tie.lineupCount || 0)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -244,6 +249,22 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
     if (editingId !== null) {
       formDataToSend.append("id", String(editingId))
+
+      // If the date was changed compared to the original we need a
+      // confirmation from the admin because participations will be cleared.
+      const newIso = toUtcIsoString(formData.tieDate, formData.tieTime)
+      if (editingOriginalTieIso && editingOriginalTieIso !== newIso) {
+        // Ask for confirmation using native dialog. Show localized message
+        const message = editingOriginalLineupCount > 0
+          ? tWithParams("confirmClearParticipationsMessageWithCount", { count: editingOriginalLineupCount })
+          : t("confirmClearParticipationsMessage")
+
+        const confirmed = typeof window !== "undefined" ? window.confirm(message) : false
+        if (!confirmed) return
+
+        formDataToSend.append("confirm_clear_participations", "true")
+      }
+
       await updateTieAction(String(editingId), formDataToSend)
     } else {
       await createTieAction(formDataToSend)
@@ -252,6 +273,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     handleCancel()
     router.refresh()
   }
+
+  // using native confirm; no separate confirm handler required
 
   const handleCancel = () => {
     setIsAdding(false)
@@ -728,6 +751,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Using native confirm dialog instead of a modal component */}
 
       {/* Sorting and Filtering Controls */}
       <Card className="mb-6">
