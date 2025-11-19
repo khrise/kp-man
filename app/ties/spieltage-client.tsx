@@ -60,6 +60,7 @@ export type TieWithDetails = {
   confirmedCount: number
   maybeCount: number
   declinedCount: number
+  isLineupReady?: boolean
 }
 
 export type Tie = {
@@ -73,6 +74,7 @@ export type Tie = {
   confirmedCount: number
   maybeCount: number
   declinedCount: number
+  isLineupReady?: boolean
 }
 
 type SortOption = "date-desc" | "date-asc" | "team" | "opponent"
@@ -955,16 +957,33 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                     const declineLabel = status === "declined" ? t("declinedStatusButton") : t("decline")
 
                     return (
-                      <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg">
-                        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-blue-200">
-                          <span className="inline-flex items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] px-3 py-1 text-[11px] font-semibold">
-                            {formatWeekday(tie.tieDate)}
-                          </span>
+                      <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg min-w-[220px] md:min-w-[260px]">
+                        <div className="mb-3 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-blue-200 overflow-hidden">
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="inline-flex items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] px-3 py-1 text-[11px] font-semibold">
+                              {formatWeekday(tie.tieDate)}
+                            </span>
+                          </div>
+                          {/* Lineup badges moved next to weekday badge (right-aligned) and slightly smaller. Ensure they don't overflow the card. */}
+                          {tie.isLineupReady && (
+                            <div className="flex items-center gap-2 whitespace-nowrap flex-shrink-0 ml-2">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800">
+                                {t("lineupComplete")}
+                              </span>
+                              {participation?.isInLineup && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                                  {t("yourAreInLineup")}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <h3 className="mb-3 text-xl font-semibold text-white">
                           {tie.teamName} {t("vs")} {tie.opponent}
                         </h3>
+
+                        
 
                         <div className="mb-4 space-y-3">
                           <div className="flex items-center gap-3 text-white">
