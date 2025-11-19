@@ -106,6 +106,15 @@ export async function getLineupData(tieId: string) {
   const availablePlayers = nonLineupParticipations.filter((p) => p.status === "confirmed")
   const otherParticipations = nonLineupParticipations.filter((p) => p.status !== "confirmed")
 
+  // Load RSVP audit entries server-side so the client component doesn't
+  // need to call a separate API route.
+  const auditRows = await db.getParticipationAuditForTie(tieIdNum, 50)
+  const auditEntries = auditRows.map((r) => ({
+    ...r,
+    // Ensure createdAt is serializable for client components
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  }))
+
   return {
     tie,
     team,
@@ -115,5 +124,6 @@ export async function getLineupData(tieId: string) {
     playersWithoutParticipation,
     lineupCount: lineupPlayers.length,
     maxPlayers: team.teamSize,
+    auditEntries,
   }
 }

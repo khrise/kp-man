@@ -30,6 +30,24 @@ type LineupClientProps = {
   playersWithoutParticipation: TeamPlayerWithDetails[]
   lineupCount: number
   maxPlayers: number
+  auditEntries?: AuditEntry[]
+}
+ 
+type AuditEntry = {
+  id: number
+  participationId: number | null
+  playerId: number
+  tieId: number
+  previousStatus: string | null
+  newStatus: string
+  previousComment: string | null
+  newComment: string | null
+  previousIsInLineup: boolean | null
+  newIsInLineup: boolean | null
+  changedBy: string | null
+  createdAt: string
+  playerFirstName?: string | null
+  playerLastName?: string | null
 }
 
 export function LineupClient({
@@ -40,13 +58,18 @@ export function LineupClient({
   otherParticipations,
   playersWithoutParticipation,
   lineupCount,
-  maxPlayers
+  maxPlayers,
+  auditEntries
 }: LineupClientProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
   const [isTogglingReady, setIsTogglingReady] = useState(false)
+  
+  // `auditEntries` are provided by the server via getLineupData and passed
+  // into this client component — no separate API call required.
+  // (already available via the destructured `auditEntries` prop)
 
   const tieDate = useMemo(() => {
     const parsed = tie.tieDate instanceof Date ? tie.tieDate : new Date(tie.tieDate)
@@ -56,6 +79,30 @@ export function LineupClient({
   // Check for problematic lineup situations
   const problematicPlayers = lineupPlayers.filter(p => p.status !== "confirmed")
   const hasProblematicPlayers = problematicPlayers.length > 0
+
+  // Group audit entries by player for display
+  const groupedAudit = useMemo(() => {
+    if (!auditEntries || auditEntries.length === 0) return [] as Array<{
+      playerId: number
+      playerFirstName?: string | null
+      playerLastName?: string | null
+      entries: AuditEntry[]
+    }>
+
+    const map = new Map<number, AuditEntry[]>()
+    for (const e of auditEntries) {
+      const list = map.get(e.playerId) ?? []
+      list.push(e)
+      map.set(e.playerId, list)
+    }
+
+    return Array.from(map.entries()).map(([playerId, entries]) => ({
+      playerId,
+      playerFirstName: entries[0]?.playerFirstName ?? null,
+      playerLastName: entries[0]?.playerLastName ?? null,
+      entries: entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    }))
+  }, [auditEntries])
 
   const handleToggleLineup = async (participationId: number, isCurrentlyInLineup: boolean) => {
     if (isLoading) return
@@ -393,6 +440,72 @@ export function LineupClient({
           </Card>
         </div>
       )}
+
+      {/* RSVP Audit Log */}
+      <div className="mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Users className="w-5 h-5 text-gray-600" />
+              <span>RSVP Audit</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {(!auditEntries || auditEntries.length === 0) && (
+                <p className="text-sm text-gray-500">No audit entries</p>
+              )}
+
+              {groupedAudit.length > 0 && (
+                <div className="space-y-4">
+                  {groupedAudit.map((group) => (
+                    <div key={group.playerId} className="bg-gray-50 border border-gray-100 rounded-md p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium">{group.playerFirstName} {group.playerLastName}</div>
+                        <div className="text-xs text-gray-500">{group.entries.length} {t("participationResponses")}</div>
+                      </div>
+
+                      <ul className="space-y-2">
+                        {group.entries.map((e) => (
+                          <li key={e.id} className="text-sm text-gray-700 bg-white border border-gray-100 rounded p-3">
+                            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                              <div className="min-w-0 text-left">{e.changedBy ?? ""}</div>
+                              <div className="ml-4 text-right">{new Date(e.createdAt).toLocaleString()}</div>
+                            </div>
+
+                            <div className="text-xs">
+                              <span className="text-gray-400 mr-1">{t("statusLabel")}:</span>
+                              <span className="font-medium">{e.previousStatus ?? "—"}</span>
+                              <span className="mx-2">→</span>
+                              <span className="font-medium">{e.newStatus}</span>
+                            </div>
+
+                            {e.previousIsInLineup !== e.newIsInLineup && (
+                              <div className="text-xs mt-1">
+                                <span className="text-gray-400 mr-1">{t("lineupLabel")}:</span>
+                                <span className="font-medium ml-1">{e.previousIsInLineup ? t("inLineup") : t("notInLineup")}</span>
+                                <span className="mx-2">→</span>
+                                <span className="font-medium">{e.newIsInLineup ? t("inLineup") : t("notInLineup")}</span>
+                              </div>
+                            )}
+
+                            {(e.previousComment || e.newComment) && (
+                              <div className="text-xs mt-1">
+                                  <span className="text-gray-400 mr-1">{t("commentChange")}</span>
+                                  <span className="ml-1">{`"${e.previousComment ?? ""}" → "${e.newComment ?? ""}"`}</span>
+                                </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   )
 }

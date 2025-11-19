@@ -100,6 +100,21 @@ interface ParticipationsTable {
   updatedAt: TimestampColumn
 }
 
+interface ParticipationAuditTable {
+  id: Generated<number>
+  participationId: number | null
+  playerId: number
+  tieId: number
+  previousStatus: string | null
+  newStatus: string
+  previousComment: string | null
+  newComment: string | null
+  previousIsInLineup: ColumnType<boolean | null, boolean | null | undefined, boolean | null | undefined>
+  newIsInLineup: ColumnType<boolean | null, boolean | null | undefined, boolean | null | undefined>
+  changedBy: string | null
+  createdAt: TimestampColumn
+}
+
 interface MigrationsTable {
   id: string
   filename: string
@@ -124,6 +139,7 @@ export interface Database {
   teamPlayers: TeamPlayersTable
   ties: TiesTable
   participations: ParticipationsTable
+  participation_audit: ParticipationAuditTable
   migrations: MigrationsTable
   app_settings: AppSettingsTable
 }
@@ -214,6 +230,9 @@ export type UpdateTie = Updateable<TiesTable>
 export type Participation = Selectable<ParticipationsTable>
 export type NewParticipation = Insertable<ParticipationsTable>
 export type UpdateParticipation = Updateable<ParticipationsTable>
+
+export type ParticipationAudit = Selectable<ParticipationAuditTable>
+export type NewParticipationAudit = Insertable<ParticipationAuditTable>
 
 export type Migration = Selectable<MigrationsTable>
 export type NewMigration = Insertable<MigrationsTable>
@@ -623,6 +642,14 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
 type UpsertParticipationInput = Pick<Insertable<ParticipationsTable>, "tieId" | "playerId" | "status" | "comment">
 
 export async function upsertParticipation(data: UpsertParticipationInput): Promise<Participation> {
+  // Read previous participation (if any) to record audit
+  const previous = await db
+    .selectFrom("participations")
+    .selectAll()
+    .where("tieId", "=", data.tieId)
+    .where("playerId", "=", data.playerId)
+    .executeTakeFirst()
+
   const inserted = await db
     .insertInto("participations")
     .values({
@@ -642,6 +669,25 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
     throw new Error("Failed to upsert participation")
   }
 
+  // Insert audit row capturing previous and new values
+  try {
+    await db.insertInto("participation_audit").values({
+      participationId: previous?.id ?? inserted.id,
+      playerId: Number(inserted.playerId),
+      tieId: Number(inserted.tieId),
+      previousStatus: previous?.status ?? null,
+      newStatus: inserted.status,
+      previousComment: previous?.comment ?? null,
+      newComment: inserted.comment ?? null,
+      previousIsInLineup: previous?.isInLineup ?? null,
+      newIsInLineup: inserted.isInLineup ?? null,
+      changedBy: null,
+      createdAt: sql`now()`,
+    }).execute()
+  } catch (err) {
+    console.error("Failed to insert participation audit:", err)
+  }
+
   return inserted
 }
 
@@ -650,12 +696,90 @@ export async function getParticipationById(id: number): Promise<Participation | 
 }
 
 export async function updateParticipationLineup(id: number, isInLineup: boolean): Promise<Participation | undefined> {
-  return db
+  // Read previous participation to record audit
+  const previous = await getParticipationById(id)
+
+  const updated = await db
     .updateTable("participations")
     .set({ isInLineup, updatedAt: sql`now()` })
     .where("id", "=", id)
     .returningAll()
     .executeTakeFirst()
+
+  if (updated) {
+    try {
+      await db.insertInto("participation_audit").values({
+        participationId: id,
+        playerId: updated.playerId,
+        tieId: updated.tieId,
+        previousStatus: previous?.status ?? null,
+        newStatus: updated.status,
+        previousComment: previous?.comment ?? null,
+        newComment: updated.comment ?? null,
+        previousIsInLineup: previous?.isInLineup ?? null,
+        newIsInLineup: updated.isInLineup ?? null,
+        changedBy: null,
+        createdAt: sql`now()`,
+      }).execute()
+    } catch (err) {
+      console.error("Failed to insert participation audit:", err)
+    }
+  }
+
+  return updated
+}
+
+export async function insertParticipationAudit(entry: {
+  participationId?: number | null
+  playerId: number
+  tieId: number
+  previousStatus?: string | null
+  newStatus: string
+  previousComment?: string | null
+  newComment?: string | null
+  previousIsInLineup?: boolean | null
+  newIsInLineup?: boolean | null
+  changedBy?: string | null
+}) {
+  return db.insertInto("participation_audit").values({
+    participationId: entry.participationId ?? null,
+    playerId: entry.playerId,
+    tieId: entry.tieId,
+    previousStatus: entry.previousStatus ?? null,
+    newStatus: entry.newStatus,
+    previousComment: entry.previousComment ?? null,
+    newComment: entry.newComment ?? null,
+    previousIsInLineup: entry.previousIsInLineup ?? null,
+    newIsInLineup: entry.newIsInLineup ?? null,
+    changedBy: entry.changedBy ?? null,
+    createdAt: sql`now()`,
+  }).execute()
+}
+
+export async function getParticipationAuditForTie(tieId: number, limit = 50) {
+  return db
+    .selectFrom("participation_audit as a")
+    .leftJoin("players as p", "p.id", "a.playerId")
+    .select([
+      "a.id",
+      "a.participationId",
+      "a.playerId",
+      "a.tieId",
+      "a.previousStatus",
+      "a.newStatus",
+      "a.previousComment",
+      "a.newComment",
+      "a.previousIsInLineup",
+      "a.newIsInLineup",
+      "a.changedBy",
+      "a.createdAt",
+      "p.firstName as playerFirstName",
+      "p.lastName as playerLastName",
+    ])
+    .where("a.tieId", "=", tieId)
+    .orderBy("a.createdAt", "desc")
+    .limit(limit)
+    .execute()
 }
 
 export async function getLineupCount(tieId: number): Promise<number> {
