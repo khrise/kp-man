@@ -1,16 +1,18 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Users, UserCheck, UserX, Clock, HelpCircle } from "lucide-react"
+import { Users, UserCheck, UserX, Clock, HelpCircle, Mail, Copy } from "lucide-react"
 import { toggleLineupAction, markTieReadyAction } from "@/app/actions/lineup"
 import { useTranslation } from "@/lib/i18n"
 import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
 import type { TeamPlayerWithDetails } from "@/lib/db"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 type TieWithDetails = Tie & {
   opponent: string
@@ -47,11 +49,77 @@ export function LineupClient({
   const [isLoading, setIsLoading] = useState(false)
   const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
   const [isTogglingReady, setIsTogglingReady] = useState(false)
+  const [isInvitationDialogOpen, setIsInvitationDialogOpen] = useState(false)
+  const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied">("idle")
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const tieDate = useMemo(() => {
     const parsed = tie.tieDate instanceof Date ? tie.tieDate : new Date(tie.tieDate)
     return Number.isNaN(parsed.getTime()) ? new Date(NaN) : parsed
   }, [tie.tieDate])
+
+  const invitationEmailContent = useMemo(() => {
+    if (Number.isNaN(tieDate.getTime()) || lineupPlayers.length === 0) {
+      return ""
+    }
+
+    const sortedPlayers = [...lineupPlayers].sort((a, b) => a.player.playerRank - b.player.playerRank)
+    const playerNames = sortedPlayers
+      .map((participation) => {
+        const nameParts = [participation.player.firstName, participation.player.lastName].filter(Boolean)
+        return nameParts.join(" ").trim()
+      })
+      .join(", ")
+
+    const weekday = new Intl.DateTimeFormat("de-DE", { weekday: "short" }).format(tieDate).replace(".", "")
+    const dateText = new Intl.DateTimeFormat("de-DE", { day: "numeric", month: "numeric", year: "numeric" }).format(
+      tieDate,
+    )
+    const timeText = new Intl.DateTimeFormat("de-DE", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    }).format(tieDate)
+
+    const meetingTime = new Date(tieDate.getTime() - 15 * 60 * 1000)
+    const meetingTimeText = new Intl.DateTimeFormat("de-DE", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    }).format(meetingTime)
+
+    const location = tie.location?.trim() ? tie.location.trim() : "Ort wird noch bestätigt"
+    const homeAwayText = tie.isHome ? "Heimspiel" : "Auswärtsspiel"
+
+    return `${team.name} vs. ${tie.opponent}
+${homeAwayText}
+${weekday}, ${dateText} · ${timeText} Uhr · ${location} (Treff ${meetingTimeText} Uhr vor Ort)
+Aufstellung: ${playerNames}`
+  }, [lineupPlayers, team.name, tie.location, tie.isHome, tie.opponent, tieDate])
+
+  const handleCopyInvitation = async () => {
+    if (!invitationEmailContent) return
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(invitationEmailContent)
+      } else {
+        throw new Error("Clipboard API unavailable")
+      }
+    } catch (error) {
+      console.warn("Clipboard API failed, attempting fallback", error)
+      if (textareaRef.current) {
+        textareaRef.current.focus()
+        textareaRef.current.select()
+        document.execCommand("copy")
+      }
+    } finally {
+      setCopyFeedback("copied")
+      setTimeout(() => setCopyFeedback("idle"), 2000)
+    }
+  }
 
   // Check for problematic lineup situations
   const problematicPlayers = lineupPlayers.filter(p => p.status !== "confirmed")
@@ -191,9 +259,21 @@ export function LineupClient({
               </span>
             </div>
 
-            <div className="mt-2 flex items-center justify-end space-x-2">
-  {tie.isLineupReady ? (
-          <Button
+            <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+              {tie.isLineupReady ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => {
+                      setCopyFeedback("idle")
+                      setIsInvitationDialogOpen(true)
+                    }}
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    {t("sendInvitations")}
+                  </Button>
+                  <Button
                     size="sm"
                     variant="ghost"
                     onClick={async () => {
@@ -214,31 +294,32 @@ export function LineupClient({
                   >
                     {t("unmarkLineupReady")}
                   </Button>
+                </>
               ) : (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={async () => {
-                      if (isTogglingReady) return
-                      if (lineupCount < maxPlayers) {
-                        alert(t("lineupIncomplete"))
-                        return
-                      }
-                      setIsTogglingReady(true)
-                      try {
-                        await markTieReadyAction(String(tie.id), true)
-                        router.refresh()
-                      } catch (err) {
-                        console.error("Failed to mark ready:", err)
-                        alert(err instanceof Error ? err.message : String(err))
-                      } finally {
-                        setIsTogglingReady(false)
-                      }
-                    }}
-                    disabled={isTogglingReady || lineupCount < maxPlayers}
-                  >
-                    {t("markLineupReady")}
-                  </Button>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={async () => {
+                    if (isTogglingReady) return
+                    if (lineupCount < maxPlayers) {
+                      alert(t("lineupIncomplete"))
+                      return
+                    }
+                    setIsTogglingReady(true)
+                    try {
+                      await markTieReadyAction(String(tie.id), true)
+                      router.refresh()
+                    } catch (err) {
+                      console.error("Failed to mark ready:", err)
+                      alert(err instanceof Error ? err.message : String(err))
+                    } finally {
+                      setIsTogglingReady(false)
+                    }
+                  }}
+                  disabled={isTogglingReady || lineupCount < maxPlayers}
+                >
+                  {t("markLineupReady")}
+                </Button>
               )}
             </div>
           </div>
@@ -368,15 +449,17 @@ export function LineupClient({
         <div className="mt-8">
           <Card>
             <CardContent className="p-0">
-              <AccordionItem 
-                value="no-response" 
-                open={isNoResponseOpen} 
+              <AccordionItem
+                value="no-response"
+                open={isNoResponseOpen}
                 onOpenChange={setIsNoResponseOpen}
               >
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <div className="flex items-center space-x-2">
                     <HelpCircle className="w-5 h-5 text-gray-600" />
-                    <span className="font-semibold">{t("playersWithoutResponse")} ({playersWithoutParticipation.length})</span>
+                    <span className="font-semibold">
+                      {t("playersWithoutResponse")} ({playersWithoutParticipation.length})
+                    </span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-6 pb-6" maxHeight="max-h-none">
@@ -393,6 +476,31 @@ export function LineupClient({
           </Card>
         </div>
       )}
+
+      <Dialog open={isInvitationDialogOpen} onOpenChange={setIsInvitationDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t("invitationEmailTitle")}</DialogTitle>
+            <DialogDescription>{t("invitationEmailDescription")}</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            ref={textareaRef}
+            value={invitationEmailContent || t("invitationEmailUnavailable")}
+            readOnly
+            rows={6}
+            className="font-mono text-sm"
+          />
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsInvitationDialogOpen(false)}>
+              {t("close")}
+            </Button>
+            <Button onClick={handleCopyInvitation} disabled={!invitationEmailContent}>
+              <Copy className="mr-2 h-4 w-4" />
+              {copyFeedback === "copied" ? t("emailContentCopied") : t("copyEmailContent")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
