@@ -271,6 +271,13 @@ export const translations = {
     tiesCount: "Spieltage",
     noTiesFoundFor: "Keine Spieltage gefunden für",
 
+    // Confirmations
+    confirmClearParticipationsTitle: "Datum ändern — Aufstellungen entfernen?",
+    confirmClearParticipationsMessageWithCount:
+      "Die Änderung des Datums entfernt alle {count} bestehenden Meldungen/Aufstellungen für diesen Spieltag. Fortfahren?",
+    confirmClearParticipationsMessage:
+      "Die Änderung des Datums entfernt alle bestehenden Meldungen/Aufstellungen für diesen Spieltag. Fortfahren?",
+
     // Sorting and Filtering
     filterByTeam: "Nach Mannschaft filtern",
     allTeams: "Alle Mannschaften",
@@ -561,6 +568,13 @@ export const translations = {
     loading: "Loading...",
     tiesCount: "ties",
     noTiesFoundFor: "No ties found for",
+
+    // Confirmations
+    confirmClearParticipationsTitle: "Change date — remove lineups?",
+    confirmClearParticipationsMessageWithCount:
+      "Changing the date will remove the {count} existing participations/lineups for this tie. Continue?",
+    confirmClearParticipationsMessage:
+      "Changing the date will remove existing participations/lineups for this tie. Continue?",
 
     // Sorting and Filtering
     filterByTeam: "Filter by Team",
