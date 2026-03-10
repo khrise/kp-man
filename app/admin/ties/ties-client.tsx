@@ -512,7 +512,6 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                             continue
                           }
                           const dateTimeText = cells[1].textContent?.trim() || "" // Date and time in format "22.11.2025 10:00"
-                          const locationText = cells[2].textContent?.replace(/\u00a0/g, "").trim() || ""
                           const homeCell = cells[3]
                           const guestCell = cells[4]
 
@@ -528,6 +527,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                             teamIsHome = true
                             opponent = guestCell.textContent?.trim() || ""
                           }
+
+                          // Use the home team name as location (no separate location column in the new table format)
+                          const locationText = homeCell.textContent?.trim() || ""
 
                           // Parse date and time. Format: "22.11.2025 10:00"
                           let dateIso = ""
