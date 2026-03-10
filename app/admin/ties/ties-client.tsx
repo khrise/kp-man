@@ -84,7 +84,8 @@ const formatTimeForInput = (date: Date): string => {
 
 export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
+  const localeTag = locale === "de" ? "de-DE" : "en-GB"
   const [isAdding, setIsAdding] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [importUrl, setImportUrl] = useState("")
@@ -877,8 +878,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="h-4 w-4" />
                         <span>
-                          {tie.tieDate.toLocaleDateString()}{" "}
-                          {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {tie.tieDate.toLocaleDateString(localeTag)}{" "}
+                          {tie.tieDate.toLocaleTimeString(localeTag, { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
