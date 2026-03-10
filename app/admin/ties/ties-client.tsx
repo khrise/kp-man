@@ -506,15 +506,15 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                             `Debug Row ${i}: Found ${cells.length} cells`,
                             cells.map((c) => c.textContent?.trim()),
                           )
-                          // Adjusted for colspan: Skip [0], Date+Time [1], Skip [2], Location [3], Home [4], Guest [5]
-                          if (cells.length < 6) {
-                            console.log(`Debug: Skipping row ${i} - only ${cells.length} cells (need at least 6)`)
+                          // Skip [0], Date+Time [1], Skip [2], Home [3], Guest [4], ...
+                          if (cells.length < 5) {
+                            console.log(`Debug: Skipping row ${i} - only ${cells.length} cells (need at least 5)`)
                             continue
                           }
                           const dateTimeText = cells[1].textContent?.trim() || "" // Date and time in format "22.11.2025 10:00"
-                          const locationText = cells[3].textContent?.trim() || ""
-                          const homeCell = cells[4]
-                          const guestCell = cells[5]
+                          const locationText = cells[2].textContent?.replace(/\u00a0/g, "").trim() || ""
+                          const homeCell = cells[3]
+                          const guestCell = cells[4]
 
                           let teamIsHome = true
                           let opponent = ""
