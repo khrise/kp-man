@@ -226,8 +226,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
     // Extract team and season from selected combination
     const [selectedTeamName, selectedSeasonName] = formData.teamSeason.split("|")
-    const selectedTeam = teams.find((t) => t.name === selectedTeamName)
     const selectedSeason = seasons.find((s) => s.name === selectedSeasonName)
+    const selectedTeam = teams.find((t) => t.name === selectedTeamName && t.seasonId === selectedSeason?.id)
 
     if (!selectedTeam || !selectedSeason) {
       alert(t("selectValidTeamSeason"))
@@ -665,8 +665,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                         try {
                           // Extract team and season from selected combination
                           const [selectedTeamName, selectedSeasonName] = importTeamSeason.split("|")
-                          const selectedTeam = teams.find((t) => t.name === selectedTeamName)
                           const selectedSeason = seasons.find((s) => s.name === selectedSeasonName)
+                          const selectedTeam = teams.find((t) => t.name === selectedTeamName && t.seasonId === selectedSeason?.id)
 
                           if (!selectedTeam || !selectedSeason) {
                             throw new Error(t("teamSeasonNotFound"))
