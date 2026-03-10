@@ -272,6 +272,8 @@ export const translations = {
     noTiesFoundFor: "Keine Spieltage gefunden für",
 
     // Sorting and Filtering
+    filterBySeason: "Nach Saison filtern",
+    allSeasons: "Alle Saisons",
     filterByTeam: "Nach Mannschaft filtern",
     allTeams: "Alle Mannschaften",
     showAllTeams: "alle",
@@ -563,6 +565,8 @@ export const translations = {
     noTiesFoundFor: "No ties found for",
 
     // Sorting and Filtering
+    filterBySeason: "Filter by Season",
+    allSeasons: "All seasons",
     filterByTeam: "Filter by Team",
     allTeams: "All teams",
     showAllTeams: "all teams",
