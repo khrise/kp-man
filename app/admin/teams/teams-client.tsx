@@ -336,6 +336,7 @@ export function TeamsClient({
                         </label>
                       </div>
                     </div>
+                    <div className="max-h-64 overflow-y-auto space-y-2">
                     {formData.playerIds.map((playerId, index) => {
                       const player = players.find((p) => String(p.id) === playerId)
                       if (!player) return null
@@ -407,6 +408,7 @@ export function TeamsClient({
                         </div>
                       )
                     })}
+                    </div>
                   </div>
                 ) : (
                   <p className="text-center text-sm text-gray-500 py-4">{t("noPlayersAdded")}</p>
@@ -456,7 +458,7 @@ export function TeamsClient({
                             {t("roster")} ({team.players.length} {t("playersCount")})
                           </AccordionTrigger>
                           <AccordionContent className="pt-3 pb-0">
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
                               {team.players.map((player, index) => (
                                 <div
                                   key={player.id}
