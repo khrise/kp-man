@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Calendar, MapPin, Users, Download, LogOut, Eye, Filter, X } from "lucide-react"
+import { Calendar, MapPin, Users, Download, LogOut, Eye, Filter, X, Check, Loader2, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -14,6 +14,7 @@ import {
   getSeasonInfo,
   getTeamsForSeason,
   getParticipationsForPlayer,
+  getPlayerRanksForSeason,
 } from "@/app/actions/public"
 import { TieDetailsDialog } from "@/components/tie-details-dialog"
 import { ParticipationCommentDialog } from "@/components/participation-comment-dialog"
@@ -78,6 +79,14 @@ export type Tie = {
 }
 
 type SortOption = "date-desc" | "date-asc" | "team" | "opponent"
+type WeeklyTableSort = "name-asc" | "rank-asc"
+
+type SeasonPlayerRankEntry = {
+  playerId: number
+  teamId: number
+  teamName: string
+  playerRank: number
+}
 
 type WeekGroup = {
   key: string
@@ -169,6 +178,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   const [ties, setTies] = useState<Tie[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [players, setPlayers] = useState<SpieltagePlayer[]>([])
+  const [seasonPlayerRanks, setSeasonPlayerRanks] = useState<SeasonPlayerRankEntry[]>([])
   const [playerParticipations, setPlayerParticipations] = useState<PlayerParticipationDto[]>([])
   const [season, setSeason] = useState<Pick<Season, "id" | "name">>({ id: 0, name: "" })
   const [loading, setLoading] = useState(true)
@@ -183,6 +193,13 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   const [timeFilter, setTimeFilter] = useState<"all" | "upcoming">("upcoming")
   const [teamFilter, setTeamFilter] = useState<"all" | "my">("my")
   const [sortBy, setSortBy] = useState<SortOption>("date-asc")
+  const [weeklyTableVisible, setWeeklyTableVisible] = useState<Record<string, boolean>>({})
+  const [weeklyTableSort, setWeeklyTableSort] = useState<Record<string, WeeklyTableSort>>({})
+  const [weeklyTableLoading, setWeeklyTableLoading] = useState<Record<string, boolean>>({})
+  const [weeklyTieLoading, setWeeklyTieLoading] = useState<Record<string, Record<number, boolean>>>({})
+  const [weeklyParticipations, setWeeklyParticipations] = useState<
+    Record<string, Record<number, SpieltageParticipation[]>>
+  >({})
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
   const detailsCloseTimeoutRef = useRef<number | null>(null)
   const { t, tWithParams, locale } = useTranslation()
@@ -330,11 +347,12 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
       try {
         if (!season || season.id !== propSeasonId) {
-          const [seasonData, playersData, teamsData, tiesData] = await Promise.all([
+          const [seasonData, playersData, teamsData, tiesData, rankData] = await Promise.all([
             getSeasonInfo(String(propSeasonId)),
             getPlayersForSeason(String(propSeasonId)),
             getTeamsForSeason(String(propSeasonId)),
             getTiesForSeason(String(propSeasonId)),
+            getPlayerRanksForSeason(String(propSeasonId)),
           ])
 
           setPlayers(
@@ -353,6 +371,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             setSeason(seasonData)
           }
           setTeams(teamsData)
+          setSeasonPlayerRanks(rankData)
 
           // Load participations for each tie
           // const tiesWithDetails = await Promise.all(
@@ -640,6 +659,171 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
   }, [ties, timeFilter, teamFilter, selectedPlayerId, isPlayerOnTeam])
 
   const weekGroups = useMemo(() => buildWeekGroups(filteredTies, sortBy), [filteredTies, sortBy])
+
+  const playerRankMeta = useMemo(() => {
+    const byPlayer = new Map<
+      number,
+      {
+        highestRank: number | null
+        rankByTeam: Record<number, { teamName: string; rank: number }>
+      }
+    >()
+
+    seasonPlayerRanks.forEach((entry) => {
+      const current = byPlayer.get(entry.playerId)
+      if (!current) {
+        byPlayer.set(entry.playerId, {
+          highestRank: entry.playerRank,
+          rankByTeam: {
+            [entry.teamId]: { teamName: entry.teamName, rank: entry.playerRank },
+          },
+        })
+        return
+      }
+
+      current.highestRank =
+        current.highestRank === null ? entry.playerRank : Math.min(current.highestRank, entry.playerRank)
+      current.rankByTeam[entry.teamId] = { teamName: entry.teamName, rank: entry.playerRank }
+    })
+
+    return byPlayer
+  }, [seasonPlayerRanks])
+
+  const getPlayerRankTooltip = useCallback(
+    (playerId: number) => {
+      const meta = playerRankMeta.get(playerId)
+      if (!meta) {
+        return t("noRankInformation")
+      }
+
+      const ranks = Object.values(meta.rankByTeam)
+        .sort((a, b) => a.rank - b.rank || a.teamName.localeCompare(b.teamName))
+        .map((item) => `${item.teamName}: #${item.rank}`)
+
+      return ranks.join(" | ")
+    },
+    [playerRankMeta, t],
+  )
+
+  const fetchTieParticipationsForWeek = useCallback(async (weekKey: string, tieId: number) => {
+    setWeeklyTieLoading((prev) => ({
+      ...prev,
+      [weekKey]: {
+        ...(prev[weekKey] ?? {}),
+        [tieId]: true,
+      },
+    }))
+
+    try {
+      const participations = await getParticipationsForTie(String(tieId))
+      const parsed: SpieltageParticipation[] = participations.map((p) => ({
+        id: p.id,
+        tieId: p.tieId,
+        playerId: p.playerId,
+        status: p.status,
+        comment: p.comment ?? null,
+        playerRank: p.playerRank,
+        player: {
+          id: p.playerId,
+          firstName: p.firstName,
+          lastName: p.lastName,
+        },
+      }))
+
+      setWeeklyParticipations((prev) => ({
+        ...prev,
+        [weekKey]: {
+          ...(prev[weekKey] ?? {}),
+          [tieId]: parsed,
+        },
+      }))
+    } catch (error) {
+      console.error(`Failed to load participations for tie ${tieId}:`, error)
+    } finally {
+      setWeeklyTieLoading((prev) => ({
+        ...prev,
+        [weekKey]: {
+          ...(prev[weekKey] ?? {}),
+          [tieId]: false,
+        },
+      }))
+    }
+  }, [])
+
+  const ensureWeeklyTableData = useCallback(
+    async (group: WeekGroup, forceRefresh = false) => {
+      const weekKey = group.key
+      const currentWeekData = weeklyParticipations[weekKey] ?? {}
+      const tieIdsToLoad = forceRefresh
+        ? group.ties.map((tie) => tie.id)
+        : group.ties.map((tie) => tie.id).filter((tieId) => !currentWeekData[tieId])
+
+      if (tieIdsToLoad.length === 0) {
+        return
+      }
+
+      setWeeklyTableLoading((prev) => ({ ...prev, [weekKey]: true }))
+      try {
+        await Promise.all(tieIdsToLoad.map((tieId) => fetchTieParticipationsForWeek(weekKey, tieId)))
+      } finally {
+        setWeeklyTableLoading((prev) => ({ ...prev, [weekKey]: false }))
+      }
+    },
+    [fetchTieParticipationsForWeek, weeklyParticipations],
+  )
+
+  const toggleWeeklyTable = useCallback(
+    async (group: WeekGroup) => {
+      const weekKey = group.key
+      const currentlyVisible = weeklyTableVisible[weekKey] ?? false
+      const nextVisible = !currentlyVisible
+
+      setWeeklyTableVisible((prev) => ({ ...prev, [weekKey]: nextVisible }))
+      if (!weeklyTableSort[weekKey]) {
+        setWeeklyTableSort((prev) => ({ ...prev, [weekKey]: "rank-asc" }))
+      }
+
+      if (nextVisible) {
+        setWeeklyParticipations((prev) => ({ ...prev, [weekKey]: {} }))
+        await ensureWeeklyTableData(group, true)
+      }
+    },
+    [ensureWeeklyTableData, weeklyTableSort, weeklyTableVisible],
+  )
+
+  const getWeeklyTableRows = useCallback(
+    (group: WeekGroup) => {
+      const tieTeamIds = new Set(group.ties.map((tie) => tie.teamId))
+      const playerIdsInWeek = new Set(
+        seasonPlayerRanks.filter((entry) => tieTeamIds.has(entry.teamId)).map((entry) => entry.playerId),
+      )
+
+      const rows = players
+        .filter((player) => playerIdsInWeek.has(player.id))
+        .map((player) => {
+          const meta = playerRankMeta.get(player.id)
+          const highestRank = meta?.highestRank ?? Number.MAX_SAFE_INTEGER
+          const fullName = `${player.firstName} ${player.lastName}`
+          return {
+            player,
+            fullName,
+            highestRank,
+          }
+        })
+
+      const weekSort = weeklyTableSort[group.key] ?? "rank-asc"
+      rows.sort((a, b) => {
+        if (weekSort === "name-asc") {
+          return a.fullName.localeCompare(b.fullName)
+        }
+
+        return a.highestRank - b.highestRank || a.fullName.localeCompare(b.fullName)
+      })
+
+      return rows
+    },
+    [playerRankMeta, players, seasonPlayerRanks, weeklyTableSort],
+  )
 
   const matchesSummary = tWithParams("matchesShown", { count: filteredTies.length, total: ties.length })
   const timeFilterLabel = timeFilter === "all" ? t("showAllDates") : t("showUpcomingMatches")
@@ -941,139 +1125,327 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
           <div className="space-y-10">
             {weekGroups.map((group) => (
               <section key={group.key} className="space-y-4">
-                <div className="flex flex-wrap items-center gap-3 rounded-lg bg-[#34495e] px-4 py-3 shadow-sm">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] text-sm font-semibold text-blue-200">
-                    {group.weekNumber}
-                  </span>
-                  <h2 className="text-lg font-semibold text-white">{formatWeekHeading(group)}</h2>
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#34495e] px-4 py-3 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] text-sm font-semibold text-blue-200">
+                      {group.weekNumber}
+                    </span>
+                    <h2 className="text-lg font-semibold text-white">{formatWeekHeading(group)}</h2>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={weeklyTableVisible[group.key] ?? false}
+                    onClick={() => void toggleWeeklyTable(group)}
+                    className="inline-flex items-center gap-3 rounded-full border border-blue-300/40 bg-[#2c3e50] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-blue-100 transition hover:border-blue-200 hover:text-white"
+                  >
+                    <span>{t("weeklyParticipationOverview")}</span>
+                    <span
+                      className={cn(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                        weeklyTableVisible[group.key] ? "bg-blue-500" : "bg-blue-950",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                          weeklyTableVisible[group.key] ? "translate-x-6" : "translate-x-1",
+                        )}
+                      />
+                    </span>
+                  </button>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {group.ties.map((tie) => {
-                    const participation = getPlayerParticipation(tie.id)
-                    const status = participation?.status || null
-                    const canParticipate = isPlayerOnTeam(tie.teamId)
-                    const confirmLabel = status === "confirmed" ? t("confirmedStatusButton") : t("confirm")
-                    const declineLabel = status === "declined" ? t("declinedStatusButton") : t("decline")
+                {!weeklyTableVisible[group.key] && (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {group.ties.map((tie) => {
+                      const participation = getPlayerParticipation(tie.id)
+                      const status = participation?.status || null
+                      const canParticipate = isPlayerOnTeam(tie.teamId)
+                      const confirmLabel = status === "confirmed" ? t("confirmedStatusButton") : t("confirm")
+                      const declineLabel = status === "declined" ? t("declinedStatusButton") : t("decline")
 
-                    return (
-                      <div key={tie.id} className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg min-w-[220px] md:min-w-[260px]">
-                        <div className="mb-3 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-blue-200 overflow-hidden">
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="inline-flex items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] px-3 py-1 text-[11px] font-semibold">
-                              {formatWeekday(tie.tieDate)}
-                            </span>
-                          </div>
-                          {/* Lineup badges moved next to weekday badge (right-aligned) and slightly smaller. Ensure they don't overflow the card. */}
-                          {tie.isLineupReady && (
-                            <div className="flex items-center gap-2 whitespace-nowrap flex-shrink-0 ml-2">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800">
-                                {t("lineupComplete")}
-                              </span>
-                              {participation?.isInLineup && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
-                                  {t("yourAreInLineup")}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <h3 className="mb-3 text-xl font-semibold text-white">
-                          {tie.teamName} {t("vs")} {tie.opponent}
-                        </h3>
-
-                        
-
-                        <div className="mb-4 space-y-3">
-                          <div className="flex items-center gap-3 text-white">
-                            <Calendar className="h-5 w-5" />
-                            <span className="text-sm">
-                              {formatDate(tie.tieDate)} {formatTime(tie.tieDate)}
-                            </span>
-                            <button
-                              onClick={() => downloadICS(tie)}
-                              className="ml-auto inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-300"
-                              title="Download calendar event"
-                            >
-                              <Download className="h-3 w-3" />
-                              ICS
-                            </button>
-                          </div>
-
-                          <div className="flex items-center gap-3 text-white">
-                            <MapPin className="h-5 w-5" />
-                            <span className="text-sm">{tie.location || "—"}</span>
-                          </div>
-
-                          <div className="flex items-center gap-3 text-white">
-                            <Users className="h-5 w-5" />
-                            <span className="text-sm">
-                              {tie.confirmedCount} {t("participants")}, {tie.maybeCount} {t("undecided")}, {tie.declinedCount} {t("declines")}
-                            </span>
-                          </div>
-                        </div>
-
-                        <Button
-                          onClick={() => handleShowDetails(tie)}
-                          className="mb-4 w-full bg-blue-600 text-sm font-bold uppercase tracking-wide text-white hover:bg-blue-700"
+                      return (
+                        <div
+                          key={tie.id}
+                          className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg min-w-[220px] md:min-w-[260px]"
                         >
-                          <Eye className="mr-2 h-4 w-4" />
-                          {t("showDetails")}
-                        </Button>
+                          <div className="mb-3 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-blue-200 overflow-hidden">
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="inline-flex items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] px-3 py-1 text-[11px] font-semibold">
+                                {formatWeekday(tie.tieDate)}
+                              </span>
+                            </div>
+                            {/* Lineup badges moved next to weekday badge (right-aligned) and slightly smaller. Ensure they don't overflow the card. */}
+                            {tie.isLineupReady && (
+                              <div className="flex items-center gap-2 whitespace-nowrap flex-shrink-0 ml-2">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800">
+                                  {t("lineupComplete")}
+                                </span>
+                                {participation?.isInLineup && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                                    {t("yourAreInLineup")}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
 
-                        {selectedPlayerId === null || participationsLoading ? (
-                          selectedPlayerId === null ? (
-                            <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
-                              {t("selectPlayerFirst") || "Please select a player first"}
+                          <h3 className="mb-3 text-xl font-semibold text-white">
+                            {tie.teamName} {t("vs")} {tie.opponent}
+                          </h3>
+
+                          <div className="mb-4 space-y-3">
+                            <div className="flex items-center gap-3 text-white">
+                              <Calendar className="h-5 w-5" />
+                              <span className="text-sm">
+                                {formatDate(tie.tieDate)} {formatTime(tie.tieDate)}
+                              </span>
+                              <button
+                                onClick={() => downloadICS(tie)}
+                                className="ml-auto inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-300"
+                                title="Download calendar event"
+                              >
+                                <Download className="h-3 w-3" />
+                                ICS
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-white">
+                              <MapPin className="h-5 w-5" />
+                              <span className="text-sm">{tie.location || "—"}</span>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-white">
+                              <Users className="h-5 w-5" />
+                              <span className="text-sm">
+                                {tie.confirmedCount} {t("participants")}, {tie.maybeCount} {t("undecided")},{" "}
+                                {tie.declinedCount} {t("declines")}
+                              </span>
+                            </div>
+                          </div>
+
+                          <Button
+                            onClick={() => handleShowDetails(tie)}
+                            className="mb-4 w-full bg-blue-600 text-sm font-bold uppercase tracking-wide text-white hover:bg-blue-700"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            {t("showDetails")}
+                          </Button>
+
+                          {selectedPlayerId === null || participationsLoading ? (
+                            selectedPlayerId === null ? (
+                              <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
+                                {t("selectPlayerFirst") || "Please select a player first"}
+                              </div>
+                            ) : (
+                              <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
+                                {t("loading")}
+                              </div>
+                            )
+                          ) : canParticipate ? (
+                            <div className="grid grid-cols-3 gap-2">
+                              <button
+                                onClick={() => handleParticipationClick(tie.id, "confirmed")}
+                                className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
+                                  status === "confirmed"
+                                    ? "border-green-500 bg-white text-green-600"
+                                    : "border-gray-400 bg-white text-gray-600 hover:border-green-400"
+                                }`}
+                              >
+                                {confirmLabel}
+                              </button>
+                              <button
+                                onClick={() => handleParticipationClick(tie.id, "maybe")}
+                                className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
+                                  status === "maybe"
+                                    ? "border-yellow-500 bg-white text-yellow-600"
+                                    : "border-gray-400 bg-white text-gray-600 hover:border-yellow-400"
+                                }`}
+                              >
+                                {t("maybe")}
+                              </button>
+                              <button
+                                onClick={() => handleParticipationClick(tie.id, "declined")}
+                                className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
+                                  status === "declined"
+                                    ? "border-red-500 bg-white text-red-600"
+                                    : "border-gray-400 bg-white text-gray-600 hover:border-red-400"
+                                }`}
+                              >
+                                {declineLabel}
+                              </button>
                             </div>
                           ) : (
                             <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
-                              {t("loading")}
+                              {t("notOnTeam") || "You are not a member of this team"}
                             </div>
-                          )
-                        ) : canParticipate ? (
-                          <div className="grid grid-cols-3 gap-2">
-                            <button
-                              onClick={() => handleParticipationClick(tie.id, "confirmed")}
-                              className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
-                                status === "confirmed"
-                                  ? "border-green-500 bg-white text-green-600"
-                                  : "border-gray-400 bg-white text-gray-600 hover:border-green-400"
-                              }`}
-                            >
-                              {confirmLabel}
-                            </button>
-                            <button
-                              onClick={() => handleParticipationClick(tie.id, "maybe")}
-                              className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
-                                status === "maybe"
-                                  ? "border-yellow-500 bg-white text-yellow-600"
-                                  : "border-gray-400 bg-white text-gray-600 hover:border-yellow-400"
-                              }`}
-                            >
-                              {t("maybe")}
-                            </button>
-                            <button
-                              onClick={() => handleParticipationClick(tie.id, "declined")}
-                              className={`rounded border-2 px-3 py-2 text-sm font-medium transition-colors ${
-                                status === "declined"
-                                  ? "border-red-500 bg-white text-red-600"
-                                  : "border-gray-400 bg-white text-gray-600 hover:border-red-400"
-                              }`}
-                            >
-                              {declineLabel}
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="rounded border-2 border-gray-400 bg-gray-100 px-3 py-2 text-center text-sm text-gray-500">
-                            {t("notOnTeam") || "You are not a member of this team"}
-                          </div>
-                        )}
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {weeklyTableVisible[group.key] && (
+                  <div className="rounded-xl border border-white/15 bg-[#223244] p-4 shadow-lg">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <h3 className="text-base font-semibold text-white">{t("weeklyParticipationOverview")}</h3>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setWeeklyTableSort((prev) => ({ ...prev, [group.key]: "rank-asc" }))}
+                          className={cn(
+                            "border-white/20 bg-transparent text-blue-100 hover:bg-white/10",
+                            (weeklyTableSort[group.key] ?? "rank-asc") === "rank-asc" &&
+                              "border-blue-300 bg-blue-500/30 text-white",
+                          )}
+                        >
+                          {t("sortByRank")}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setWeeklyTableSort((prev) => ({ ...prev, [group.key]: "name-asc" }))}
+                          className={cn(
+                            "border-white/20 bg-transparent text-blue-100 hover:bg-white/10",
+                            (weeklyTableSort[group.key] ?? "rank-asc") === "name-asc" &&
+                              "border-blue-300 bg-blue-500/30 text-white",
+                          )}
+                        >
+                          {t("sortByPlayerName")}
+                        </Button>
                       </div>
-                    )
-                  })}
-                </div>
+                    </div>
+
+                    {weeklyTableLoading[group.key] && (
+                      <div className="mb-3 inline-flex items-center gap-2 rounded bg-blue-900/40 px-3 py-2 text-xs text-blue-100">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t("loadingWeeklyOverview")}
+                      </div>
+                    )}
+
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border-collapse text-sm text-blue-50">
+                        <thead>
+                          <tr className="border-b border-white/15 bg-[#1e2d3d]">
+                            <th className="sticky left-0 z-10 min-w-[210px] bg-[#1e2d3d] px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-blue-200">
+                              {t("player")}
+                            </th>
+                            {group.ties.map((tie) => {
+                              const isTieLoading = weeklyTieLoading[group.key]?.[tie.id]
+                              return (
+                                <th key={tie.id} className="min-w-[185px] px-3 py-2 text-center align-top">
+                                  <div className="space-y-1">
+                                    <div className="text-xs font-semibold uppercase tracking-wide text-blue-200">
+                                      {formatDate(tie.tieDate)}
+                                    </div>
+                                    <div className="text-sm font-medium text-white">
+                                      {tie.teamName} {t("vs")} {tie.opponent}
+                                    </div>
+                                    {isTieLoading && (
+                                      <div className="inline-flex items-center gap-1 text-xs text-blue-200">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        {t("loading")}
+                                      </div>
+                                    )}
+                                  </div>
+                                </th>
+                              )
+                            })}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getWeeklyTableRows(group).map(({ player, fullName, highestRank }) => {
+                            const rankLabel = Number.isFinite(highestRank)
+                              ? tWithParams("highestRankLabel", { rank: highestRank })
+                              : t("rankUnknown")
+
+                            return (
+                              <tr key={player.id} className="border-b border-white/10 last:border-b-0 hover:bg-white/5">
+                                <td className="sticky left-0 z-10 bg-[#223244] px-3 py-2 align-top">
+                                  <div className="font-medium text-white" title={getPlayerRankTooltip(player.id)}>
+                                    <span className="mr-2 inline-flex rounded-full border border-blue-300/40 bg-[#1a2634] px-2 py-0.5 text-xs text-blue-100">
+                                      {rankLabel}
+                                    </span>
+                                    <span>{fullName}</span>
+                                  </div>
+                                </td>
+
+                                {group.ties.map((tie) => {
+                                  const isTieLoading = weeklyTieLoading[group.key]?.[tie.id]
+                                  const tieParticipations = weeklyParticipations[group.key]?.[tie.id] ?? []
+                                  const participation = tieParticipations.find((item) => item.playerId === player.id)
+                                  const hasComment = Boolean(participation?.comment)
+
+                                  return (
+                                    <td key={tie.id} className="px-3 py-2 text-center">
+                                      {isTieLoading && tieParticipations.length === 0 ? (
+                                        <span className="inline-flex items-center gap-1 text-xs text-blue-200">
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                          {t("loading")}
+                                        </span>
+                                      ) : participation?.status === "confirmed" ? (
+                                        <span className="inline-flex items-center gap-1">
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+                                            <Check className="h-3 w-3" />
+                                            {t("yes")}
+                                          </span>
+                                          {hasComment && (
+                                            <span
+                                              title={participation?.comment ?? undefined}
+                                              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-blue-300/50 bg-blue-900/60 text-blue-100"
+                                            >
+                                              <MessageSquare className="h-3 w-3" />
+                                            </span>
+                                          )}
+                                        </span>
+                                      ) : participation?.status === "maybe" ? (
+                                        <span className="inline-flex items-center gap-1">
+                                          <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
+                                            {t("maybe")}
+                                          </span>
+                                          {hasComment && (
+                                            <span
+                                              title={participation?.comment ?? undefined}
+                                              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-blue-300/50 bg-blue-900/60 text-blue-100"
+                                            >
+                                              <MessageSquare className="h-3 w-3" />
+                                            </span>
+                                          )}
+                                        </span>
+                                      ) : participation?.status === "declined" ? (
+                                        <span className="inline-flex items-center gap-1">
+                                          <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800">
+                                            {t("no")}
+                                          </span>
+                                          {hasComment && (
+                                            <span
+                                              title={participation?.comment ?? undefined}
+                                              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-blue-300/50 bg-blue-900/60 text-blue-100"
+                                            >
+                                              <MessageSquare className="h-3 w-3" />
+                                            </span>
+                                          )}
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs text-blue-200">-</span>
+                                      )}
+                                    </td>
+                                  )
+                                })}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </section>
             ))}
           </div>
