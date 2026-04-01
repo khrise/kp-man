@@ -1339,7 +1339,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                             {group.ties.map((tie) => {
                               const isTieLoading = weeklyTieLoading[group.key]?.[tie.id]
                               return (
-                                <th key={tie.id} className="min-w-[185px] px-3 py-2 text-left align-top">
+                                <th key={tie.id} className="min-w-[185px] px-3 py-2 text-center align-top">
                                   <div className="space-y-1">
                                     <div className="text-xs font-semibold uppercase tracking-wide text-blue-200">
                                       {formatDate(tie.tieDate)}
