@@ -750,30 +750,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     }
   }, [])
 
-  const ensureWeeklyTableData = useCallback(
-    async (group: WeekGroup, forceRefresh = false) => {
-      const weekKey = group.key
-      const currentWeekData = weeklyParticipations[weekKey] ?? {}
-      const tieIdsToLoad = forceRefresh
-        ? group.ties.map((tie) => tie.id)
-        : group.ties.map((tie) => tie.id).filter((tieId) => !currentWeekData[tieId])
-
-      if (tieIdsToLoad.length === 0) {
-        return
-      }
-
-      setWeeklyTableLoading((prev) => ({ ...prev, [weekKey]: true }))
-      try {
-        await Promise.all(tieIdsToLoad.map((tieId) => fetchTieParticipationsForWeek(weekKey, tieId)))
-      } finally {
-        setWeeklyTableLoading((prev) => ({ ...prev, [weekKey]: false }))
-      }
-    },
-    [fetchTieParticipationsForWeek, weeklyParticipations],
-  )
-
   const toggleWeeklyTable = useCallback(
-    async (group: WeekGroup) => {
+    (group: WeekGroup) => {
       const weekKey = group.key
       const currentlyVisible = weeklyTableVisible[weekKey] ?? false
       const nextVisible = !currentlyVisible
@@ -784,12 +762,34 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
       }
 
       if (nextVisible) {
+        // Clear cached data so the effect below fetches fresh participations
         setWeeklyParticipations((prev) => ({ ...prev, [weekKey]: {} }))
-        await ensureWeeklyTableData(group, true)
       }
     },
-    [ensureWeeklyTableData, weeklyTableSort, weeklyTableVisible],
+    [weeklyTableSort, weeklyTableVisible],
   )
+
+  // Whenever visible week groups change (e.g. due to filter change or explicit toggle),
+  // load participations for any ties that are not yet cached or in-flight.
+  useEffect(() => {
+    weekGroups.forEach((group) => {
+      const weekKey = group.key
+      if (!weeklyTableVisible[weekKey]) return
+
+      const currentWeekData = weeklyParticipations[weekKey] ?? {}
+      const currentlyLoading = weeklyTieLoading[weekKey] ?? {}
+      const missingTieIds = group.ties
+        .map((tie) => tie.id)
+        .filter((tieId) => currentWeekData[tieId] === undefined && !currentlyLoading[tieId])
+
+      if (missingTieIds.length > 0) {
+        setWeeklyTableLoading((prev) => ({ ...prev, [weekKey]: true }))
+        Promise.all(missingTieIds.map((tieId) => fetchTieParticipationsForWeek(weekKey, tieId))).finally(() =>
+          setWeeklyTableLoading((prev) => ({ ...prev, [weekKey]: false })),
+        )
+      }
+    })
+  }, [weekGroups, weeklyTableVisible, weeklyParticipations, weeklyTieLoading, fetchTieParticipationsForWeek])
 
   const getWeeklyTableRows = useCallback(
     (group: WeekGroup) => {
