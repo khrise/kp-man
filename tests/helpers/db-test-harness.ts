@@ -7,24 +7,15 @@ import type { Database } from "@/lib/db"
 
 type GlobalWithDb = typeof globalThis & { db?: Kysely<Database> }
 
-// SQL migration files to run in order (alphabetical = numeric order by filename prefix)
-const MIGRATION_FILES = [
-  "01-create-tables.sql",
-  "04-add-participation-comments.sql",
-  "05-remove-player-contact-fields.sql",
-  "06-add-user-roles.sql",
-  "07-add-team-size.sql",
-  "08-add-lineup-functionality.sql",
-  "09-add-app-settings.sql",
-  "10-update-tie-date-to-timestamptz.sql",
-  "11-add-tie-ready.sql",
-]
-
 async function runMigrations(pool: Pool): Promise<void> {
   const scriptsDir = path.join(process.cwd(), "scripts")
-  for (const filename of MIGRATION_FILES) {
-    const filePath = path.join(scriptsDir, filename)
-    const sql = fs.readFileSync(filePath, "utf-8")
+  const sqlFiles = fs
+    .readdirSync(scriptsDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+
+  for (const filename of sqlFiles) {
+    const sql = fs.readFileSync(path.join(scriptsDir, filename), "utf-8")
     await pool.query(sql)
   }
 }
