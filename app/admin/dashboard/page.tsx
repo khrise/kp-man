@@ -50,14 +50,14 @@ export default function AdminDashboard() {
 
   const dashboardTiles = [
     {
-      title: t("seasons"),
-      description: t("activeAndArchived"),
-      count: stats.totalSeasons,
+      title: t("ties"),
+      description: t("upcomingTies"),
+      count: stats.upcomingTies,
       icon: Calendar,
-      href: "/admin/seasons",
-      color: "bg-blue-500 hover:bg-blue-600",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
+      href: "/admin/ties",
+      color: "bg-orange-500 hover:bg-orange-600",
+      iconBg: "bg-orange-100",
+      iconColor: "text-orange-600",
     },
     {
       title: t("teams"),
@@ -80,14 +80,14 @@ export default function AdminDashboard() {
       iconColor: "text-purple-600",
     },
     {
-      title: t("ties"),
-      description: t("upcomingTies"),
-      count: stats.upcomingTies,
+      title: t("seasons"),
+      description: t("activeAndArchived"),
+      count: stats.totalSeasons,
       icon: Calendar,
-      href: "/admin/ties",
-      color: "bg-orange-500 hover:bg-orange-600",
-      iconBg: "bg-orange-100",
-      iconColor: "text-orange-600",
+      href: "/admin/seasons",
+      color: "bg-blue-500 hover:bg-blue-600",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
     },
     {
       title: t("users"),

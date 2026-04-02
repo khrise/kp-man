@@ -341,8 +341,8 @@ export async function getPlayersAdminList(): Promise<PlayerAdminListItem[]> {
   try {
     return db
       .selectFrom("players")
-      .innerJoin("teamPlayers", "teamPlayers.playerId", "players.id")
-      .innerJoin("teams", "teams.id", "teamPlayers.teamId")
+      .leftJoin("teamPlayers", "teamPlayers.playerId", "players.id")
+      .leftJoin("teams", "teams.id", "teamPlayers.teamId")
       .leftJoin("seasons", "seasons.id", "teams.seasonId")
       .select((eb) => [
         "players.id",
@@ -859,7 +859,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       .executeTakeFirst(),
     db
       .selectFrom("teams")
-      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .innerJoin("seasons", "seasons.id", "teams.seasonId")
+      .select((eb) => eb.fn.count<number>("teams.id").as("count"))
+      .where("seasons.isCurrent", "=", true)
       .executeTakeFirst(),
     db
       .selectFrom("players")
