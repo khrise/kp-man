@@ -46,6 +46,7 @@ type TiesClientProps = {
   initialTies: Tie[]
   teams: Team[]
   seasons: Season[]
+  currentSeasonId: number | null
 }
 
 const normaliseTieDate = (value: Date | string): Date => {
@@ -82,7 +83,7 @@ const formatTimeForInput = (date: Date): string => {
   return `${hours}:${minutes}`
 }
 
-export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
+export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: TiesClientProps) {
   const router = useRouter()
   const { t, locale } = useTranslation()
   const localeTag = locale === "de" ? "de-DE" : "en-GB"
@@ -93,7 +94,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
   // Sorting and filtering state
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
-  const [selectedSeasonFilter, setSelectedSeasonFilter] = useState<string>("all")
+  const [selectedSeasonFilter, setSelectedSeasonFilter] = useState<string>(
+    currentSeasonId ? String(currentSeasonId) : "all",
+  )
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all")
   const [formData, setFormData] = useState({
     teamSeason: "",

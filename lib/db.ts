@@ -44,6 +44,7 @@ interface SeasonsTable {
   endDate: DateColumn
   accessCode: string
   isActive: ColumnType<boolean, boolean | undefined, boolean | undefined>
+  isCurrent: ColumnType<boolean, boolean | undefined, boolean | undefined>
   createdAt: TimestampColumn
   updatedAt: TimestampColumn
 }
@@ -223,6 +224,10 @@ export async function getSeasons(): Promise<Season[]> {
   return result
 }
 
+export async function getCurrentSeason(): Promise<Season | undefined> {
+  return db.selectFrom("seasons").selectAll().where("isCurrent", "=", true).executeTakeFirst()
+}
+
 export async function getSeasonById(id: number): Promise<Season | undefined> {
   return db.selectFrom("seasons").selectAll().where("id", "=", id).executeTakeFirst()
 }
@@ -245,6 +250,13 @@ type UpdateSeasonInput = Pick<Updateable<SeasonsTable>, "name" | "startDate" | "
 
 export async function updateSeason(id: number, data: UpdateSeasonInput): Promise<Season | undefined> {
   return db.updateTable("seasons").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+}
+
+export async function setCurrentSeason(id: number): Promise<void> {
+  await db.transaction().execute(async (trx) => {
+    await trx.updateTable("seasons").set({ isCurrent: false }).execute()
+    await trx.updateTable("seasons").set({ isCurrent: true }).where("id", "=", id).execute()
+  })
 }
 
 export async function deleteSeason(id: number) {
