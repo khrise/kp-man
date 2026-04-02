@@ -44,6 +44,7 @@ interface SeasonsTable {
   endDate: DateColumn
   accessCode: string
   isActive: ColumnType<boolean, boolean | undefined, boolean | undefined>
+  isCurrent: ColumnType<boolean, boolean | undefined, boolean | undefined>
   createdAt: TimestampColumn
   updatedAt: TimestampColumn
 }
@@ -223,6 +224,10 @@ export async function getSeasons(): Promise<Season[]> {
   return result
 }
 
+export async function getCurrentSeason(): Promise<Season | undefined> {
+  return db.selectFrom("seasons").selectAll().where("isCurrent", "=", true).executeTakeFirst()
+}
+
 export async function getSeasonById(id: number): Promise<Season | undefined> {
   return db.selectFrom("seasons").selectAll().where("id", "=", id).executeTakeFirst()
 }
@@ -245,6 +250,13 @@ type UpdateSeasonInput = Pick<Updateable<SeasonsTable>, "name" | "startDate" | "
 
 export async function updateSeason(id: number, data: UpdateSeasonInput): Promise<Season | undefined> {
   return db.updateTable("seasons").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+}
+
+export async function setCurrentSeason(id: number): Promise<void> {
+  await db.transaction().execute(async (trx) => {
+    await trx.updateTable("seasons").set({ isCurrent: false }).execute()
+    await trx.updateTable("seasons").set({ isCurrent: true }).where("id", "=", id).execute()
+  })
 }
 
 export async function deleteSeason(id: number) {
@@ -329,8 +341,8 @@ export async function getPlayersAdminList(): Promise<PlayerAdminListItem[]> {
   try {
     return db
       .selectFrom("players")
-      .innerJoin("teamPlayers", "teamPlayers.playerId", "players.id")
-      .innerJoin("teams", "teams.id", "teamPlayers.teamId")
+      .leftJoin("teamPlayers", "teamPlayers.playerId", "players.id")
+      .leftJoin("teams", "teams.id", "teamPlayers.teamId")
       .leftJoin("seasons", "seasons.id", "teams.seasonId")
       .select((eb) => [
         "players.id",
@@ -847,7 +859,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       .executeTakeFirst(),
     db
       .selectFrom("teams")
-      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .innerJoin("seasons", "seasons.id", "teams.seasonId")
+      .select((eb) => eb.fn.count<number>("teams.id").as("count"))
+      .where("seasons.isCurrent", "=", true)
       .executeTakeFirst(),
     db
       .selectFrom("players")

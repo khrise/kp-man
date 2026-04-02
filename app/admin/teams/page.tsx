@@ -7,7 +7,12 @@ import * as db from "@/lib/db"
 export const dynamic = 'force-dynamic'
 
 export default async function TeamsPage() {
-  const [teams, seasons, players] = await Promise.all([db.getTeams(), db.getSeasons(), db.getPlayers()])
+  const [teams, seasons, players, currentSeason] = await Promise.all([
+    db.getTeams(),
+    db.getSeasons(),
+    db.getPlayers(),
+    db.getCurrentSeason(),
+  ])
 
   const teamsWithPlayers = await Promise.all(
     teams.map(async (team) => {
@@ -29,9 +34,15 @@ export default async function TeamsPage() {
       <div className="min-h-screen bg-gray-50">
         <AdminHeader />
         <main className="mx-auto max-w-7xl px-6 py-8">
-          <TeamsClient initialTeams={teamsWithPlayers} seasons={seasons} players={players} />
+          <TeamsClient
+            initialTeams={teamsWithPlayers}
+            seasons={seasons}
+            players={players}
+            currentSeasonId={currentSeason?.id ?? null}
+          />
         </main>
       </div>
     </AuthGuard>
   )
 }
+

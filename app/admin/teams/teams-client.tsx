@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,10 +47,12 @@ export function TeamsClient({
   initialTeams,
   seasons,
   players,
+  currentSeasonId,
 }: {
   initialTeams: Team[]
   seasons: Season[]
   players: Player[]
+  currentSeasonId: number | null
 }) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -58,6 +60,10 @@ export function TeamsClient({
   const [editingId, setEditingId] = useState<number | null>(null)
   const [enableRankInput, setEnableRankInput] = useState(false)
   const [showAvailablePlayers, setShowAvailablePlayers] = useState(false)
+  const defaultSeasonId = currentSeasonId ?? (seasons[0] ? seasons[0].id : null)
+  const [selectedSeasonFilter, setSelectedSeasonFilter] = useState<string>(
+    defaultSeasonId ? String(defaultSeasonId) : "all",
+  )
   const [formData, setFormData] = useState({
     name: "",
     league: "",
@@ -159,6 +165,11 @@ export function TeamsClient({
   const availablePlayers = players.filter((p) => !formData.playerIds.includes(String(p.id)))
   const [openMap, setOpenMap] = useState<Record<number, boolean>>({})
 
+  const filteredTeams = useMemo(() => {
+    if (selectedSeasonFilter === "all") return initialTeams
+    return initialTeams.filter((team) => String(team.seasonId) === selectedSeasonFilter)
+  }, [initialTeams, selectedSeasonFilter])
+
   return (
     <>
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -174,6 +185,26 @@ export function TeamsClient({
           </Button>
         </div>
       </div>
+
+      {/* Season filter */}
+      {seasons.length > 0 && (
+        <div className="mb-6 flex items-center gap-3">
+          <Label className="shrink-0">{t("season")}:</Label>
+          <Select value={selectedSeasonFilter} onValueChange={setSelectedSeasonFilter}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allSeasons")}</SelectItem>
+              {seasons.map((season) => (
+                <SelectItem key={season.id} value={String(season.id)}>
+                  {season.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {(isAdding || editingId !== null) && (
         <Card className="mb-6">
@@ -431,7 +462,7 @@ export function TeamsClient({
       )}
 
       <div className="grid gap-4">
-        {initialTeams.map((team) => {
+        {filteredTeams.map((team) => {
           const open = !!openMap[team.id]
           return (
           <Card key={team.id}>

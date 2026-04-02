@@ -170,6 +170,12 @@ export const translations = {
     endDate: "Enddatum",
     active: "Aktiv",
     confirmDeleteSeason: "Sind Sie sicher, dass Sie diese Saison löschen möchten?",
+    currentSeason: "Aktuelle Saison",
+    makeCurrent: "Als aktuelle Saison festlegen",
+    current: "Aktuell",
+    cannotDeleteCurrentSeason: "Die aktuelle Saison kann nicht gelöscht werden",
+    orViewPublicParticipationView: "oder schauen Sie sich die",
+    publicParticipationView: "öffentliche Teilnahmeansicht",
 
     // Users
     users: "Benutzer",
@@ -470,6 +476,12 @@ export const translations = {
     endDate: "End Date",
     active: "Active",
     confirmDeleteSeason: "Are you sure you want to delete this season?",
+    currentSeason: "Current Season",
+    makeCurrent: "Mark as current season",
+    current: "Current",
+    cannotDeleteCurrentSeason: "The current season cannot be deleted",
+    orViewPublicParticipationView: "or view the",
+    publicParticipationView: "public participation view",
 
     // Users
     users: "Users",
