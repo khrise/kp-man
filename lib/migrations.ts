@@ -33,8 +33,7 @@ export function getMigrationFiles(): Migration[] {
   const scriptsDir = path.join(process.cwd(), "scripts")
 
   if (!fs.existsSync(scriptsDir)) {
-    console.warn("[MIGRATIONS] Scripts directory not found:", scriptsDir)
-    return []
+    throw new Error(`Migrations directory not found: ${scriptsDir}`)
   }
 
   const files = fs
