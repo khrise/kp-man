@@ -229,13 +229,14 @@ Aufstellung: ${playerNames}`
 
   const maybeParticipations = otherParticipations.filter((p) => p.status === "maybe")
   const declinedParticipations = otherParticipations.filter((p) => p.status !== "maybe")
+  const availableListItems = separateOthers ? availablePlayers : [...availablePlayers, ...otherParticipations]
   const otherSections = (
     separateOthers
       ? [
           { key: "maybe", title: t("maybe"), icon: <HelpCircle className="w-5 h-5 text-yellow-600" />, items: maybeParticipations },
           { key: "declined", title: t("declined"), icon: <UserX className="w-5 h-5 text-red-600" />, items: declinedParticipations },
         ]
-      : [{ key: "other", title: t("otherParticipations"), icon: <Clock className="w-5 h-5 text-gray-600" />, items: otherParticipations }]
+      : []
   ).filter((section) => section.items.length > 0)
 
   return (
@@ -407,19 +408,19 @@ Aufstellung: ${playerNames}`
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Users className="w-5 h-5 text-green-600" />
-                <span>{t("availablePlayers")} ({availablePlayers.length})</span>
+                <span>{t("availablePlayers")} ({availableListItems.length})</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {availablePlayers.length > 0 ? (
-                availablePlayers
+              {availableListItems.length > 0 ? (
+                [...availableListItems]
                   .sort((a, b) => a.player.playerRank - b.player.playerRank)
                   .map((participation) => (
                     <PlayerCard 
                       key={participation.id}
                       participation={participation} 
                       isInLineup={false}
-                      canToggle={!tie.isLineupReady}
+                      canToggle={!tie.isLineupReady && participation.status === "confirmed"}
                     />
                   ))
               ) : (
