@@ -229,7 +229,17 @@ Aufstellung: ${playerNames}`
 
   const maybeParticipations = otherParticipations.filter((p) => p.status === "maybe")
   const declinedParticipations = otherParticipations.filter((p) => p.status !== "maybe")
-  const availableListItems = separateOthers ? availablePlayers : [...availablePlayers, ...otherParticipations]
+  const availableListItems: Array<
+    | { rank: number; kind: "participation"; participation: ParticipationWithPlayer }
+    | { rank: number; kind: "noResponse"; player: TeamPlayerWithDetails }
+  > = [
+    ...(separateOthers ? availablePlayers : [...availablePlayers, ...otherParticipations]).map(
+      (participation) => ({ rank: participation.player.playerRank, kind: "participation" as const, participation })
+    ),
+    ...(separateOthers ? [] : playersWithoutParticipation).map(
+      (player) => ({ rank: player.playerRank, kind: "noResponse" as const, player })
+    ),
+  ]
   const otherSections = (
     separateOthers
       ? [
@@ -241,6 +251,17 @@ Aufstellung: ${playerNames}`
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
+      {(otherParticipations.length > 0 || playersWithoutParticipation.length > 0) && (
+        <div className="mb-4 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSeparateOthers((v) => !v)}
+          >
+            {separateOthers ? t("showSingleList") : t("showSeparateLists")}
+          </Button>
+        </div>
+      )}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -408,21 +429,25 @@ Aufstellung: ${playerNames}`
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Users className="w-5 h-5 text-green-600" />
-                <span>{t("availablePlayers")} ({availableListItems.length})</span>
+                <span>{separateOthers ? t("availablePlayers") : t("allPlayers")} ({availableListItems.length})</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {availableListItems.length > 0 ? (
                 [...availableListItems]
-                  .sort((a, b) => a.player.playerRank - b.player.playerRank)
-                  .map((participation) => (
-                    <PlayerCard 
-                      key={participation.id}
-                      participation={participation} 
-                      isInLineup={false}
-                      canToggle={!tie.isLineupReady && participation.status === "confirmed"}
-                    />
-                  ))
+                  .sort((a, b) => a.rank - b.rank)
+                  .map((item) =>
+                    item.kind === "noResponse" ? (
+                      <NoResponsePlayerCard key={`nr-${item.player.id}`} player={item.player} />
+                    ) : (
+                      <PlayerCard 
+                        key={item.participation.id}
+                        participation={item.participation} 
+                        isInLineup={false}
+                        canToggle={!tie.isLineupReady && item.participation.status === "confirmed"}
+                      />
+                    )
+                  )
               ) : (
                 <p className="text-gray-500 text-center py-8">
                   {t("noPlayersAvailable")}
@@ -432,17 +457,6 @@ Aufstellung: ${playerNames}`
           </Card>
 
           {/* Other Participations (Maybe/Declined) */}
-          {otherParticipations.length > 0 && (
-            <div className="mt-6 flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSeparateOthers((v) => !v)}
-              >
-                {separateOthers ? t("showSingleList") : t("showSeparateLists")}
-              </Button>
-            </div>
-          )}
           {otherSections.map((section) => (
             <Card key={section.key} className="mt-6">
               <CardHeader>
@@ -469,7 +483,7 @@ Aufstellung: ${playerNames}`
       </div>
 
       {/* Players Without Response - Full Width Section */}
-      {playersWithoutParticipation.length > 0 && (
+      {separateOthers && playersWithoutParticipation.length > 0 && (
         <div className="mt-8">
           <Card>
             <CardContent className="p-0">
