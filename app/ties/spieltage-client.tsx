@@ -191,7 +191,8 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     status: "confirmed" | "maybe" | "declined"
   } | null>(null)
   const [timeFilter, setTimeFilter] = useState<"all" | "upcoming">("upcoming")
-  const [teamFilter, setTeamFilter] = useState<"all" | "my">("my")
+  // null means all teams are shown
+  const [selectedTeamIds, setSelectedTeamIds] = useState<number[] | null>(null)
   const [sortBy, setSortBy] = useState<SortOption>("date-asc")
   const [weeklyTableVisible, setWeeklyTableVisible] = useState<Record<string, boolean>>({})
   const [weeklyTableSort, setWeeklyTableSort] = useState<Record<string, WeeklyTableSort>>({})
@@ -220,6 +221,37 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     } catch {
       // Handle storage errors gracefully
     }
+  }
+
+  const teamSelectionStorageKey = "selectedTeams"
+  const seasonKey = String(propSeasonId ?? accessCode ?? "")
+
+  const readTeamSelections = (): Record<string, number[]> => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(teamSelectionStorageKey) ?? "{}")
+      return parsed && typeof parsed === "object" ? parsed : {}
+    } catch {
+      return {}
+    }
+  }
+
+  const storeTeamSelection = (teamIds: number[] | null) => {
+    try {
+      const all = readTeamSelections()
+      if (teamIds === null) {
+        delete all[seasonKey]
+      } else {
+        all[seasonKey] = teamIds
+      }
+      localStorage.setItem(teamSelectionStorageKey, JSON.stringify(all))
+    } catch {
+      // Handle storage errors gracefully
+    }
+  }
+
+  const handleTeamSelectionChange = (teamIds: number[] | null) => {
+    setSelectedTeamIds(teamIds)
+    storeTeamSelection(teamIds)
   }
 
   const updateParticipationCallback = useCallback(
@@ -274,6 +306,9 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
   // Function to handle player selection change
   const handlePlayerChange = (playerId: number | null) => {
+    if (playerId !== selectedPlayerId) {
+      handleTeamSelectionChange(null)
+    }
     setSelectedPlayerId(playerId)
     updatePlayerInURL(playerId)
     setShowPlayerSelection(false)
@@ -371,6 +406,11 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
             setSeason(seasonData)
           }
           setTeams(teamsData)
+          const storedTeamIds = readTeamSelections()[seasonKey]
+          if (Array.isArray(storedTeamIds)) {
+            setSelectedTeamIds(storedTeamIds.filter((id) => teamsData.some((team) => team.id === id)))
+          }
+
           setSeasonPlayerRanks(rankData)
 
           // Load participations for each tie
@@ -650,13 +690,13 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
         return false
       }
 
-      if (teamFilter === "my" && selectedPlayerId !== null && !isPlayerOnTeam(tie.teamId)) {
+      if (selectedTeamIds !== null && !selectedTeamIds.includes(tie.teamId)) {
         return false
       }
 
       return true
     })
-  }, [ties, timeFilter, teamFilter, selectedPlayerId, isPlayerOnTeam])
+  }, [ties, timeFilter, selectedTeamIds])
 
   const weekGroups = useMemo(() => buildWeekGroups(filteredTies, sortBy), [filteredTies, sortBy])
 
@@ -827,7 +867,15 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
   const matchesSummary = tWithParams("matchesShown", { count: filteredTies.length, total: ties.length })
   const timeFilterLabel = timeFilter === "all" ? t("showAllDates") : t("showUpcomingMatches")
-  const teamFilterLabel = teamFilter === "all" ? t("allTeams") : t("showMyTeams")
+  const teamFilterLabel =
+    selectedTeamIds === null
+      ? t("allTeams")
+      : selectedTeamIds.length === 0
+        ? "–"
+        : teams
+            .filter((team) => selectedTeamIds.includes(team.id))
+            .map((team) => team.name)
+            .join(", ")
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -893,16 +941,52 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
         ]}
         variant={variant}
       />
-      <FilterToggleGroup
-        label={t("filterByTeam")}
-        value={teamFilter}
-        onChange={(value) => setTeamFilter(value as "all" | "my")}
-        options={[
-          { value: "my", label: t("showMyTeams"), disabled: selectedPlayerId === null },
-          { value: "all", label: t("allTeams") },
-        ]}
-        variant={variant}
-      />
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{t("filterByTeam")}</p>
+        <div className={cn("flex gap-2", variant === "desktop" ? "flex-wrap" : "flex-col")}>
+          {teams.map((team) => {
+            const active = selectedTeamIds === null || selectedTeamIds.includes(team.id)
+            return (
+              <button
+                key={team.id}
+                type="button"
+                onClick={() => {
+                  const current = selectedTeamIds ?? teams.map((tm) => tm.id)
+                  const next = current.includes(team.id) ? current.filter((id) => id !== team.id) : [...current, team.id]
+                  handleTeamSelectionChange(next.length === teams.length ? null : next)
+                }}
+                aria-pressed={active}
+                className={cn(
+                  "inline-flex min-h-[2.25rem] items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300",
+                  variant === "desktop" ? "min-w-[140px]" : "w-full",
+                  active
+                    ? "border-blue-300 bg-blue-500/40 text-white shadow-sm"
+                    : "border-white/15 text-blue-100 hover:border-blue-200 hover:bg-white/10",
+                )}
+              >
+                {team.name}
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex gap-4 text-xs">
+          <button
+            type="button"
+            className="text-blue-200 underline hover:text-white"
+            onClick={() => handleTeamSelectionChange(null)}
+          >
+            {t("allTeams")}
+          </button>
+          <button
+            type="button"
+            disabled={selectedPlayerId === null}
+            className="text-blue-200 underline hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+            onClick={() => handleTeamSelectionChange(teams.filter((tm) => isPlayerOnTeam(tm.id)).map((tm) => tm.id))}
+          >
+            {t("showMyTeams")}
+          </button>
+        </div>
+      </div>
       <div className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">{t("sortBy")}</p>
         <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
