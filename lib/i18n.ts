@@ -86,6 +86,13 @@ export const translations = {
     commentLabel: "Kommentar (optional)",
     commentPlaceholder: "Geben Sie hier Ihren Kommentar ein...",
     comment: "Kommentar",
+    commentChange: "Kommentar:",
+    participationResponses: "Antworten",
+
+    // Audit labels
+    statusLabel: "Status",
+    newLabel: "Neu",
+    lineupLabel: "Aufstellung",
 
     // Tie Details
     notes: "Notizen",
@@ -395,6 +402,13 @@ export const translations = {
     commentLabel: "Comment (optional)",
     commentPlaceholder: "Enter your comment here...",
     comment: "Comment",
+    commentChange: "Comment:",
+    participationResponses: "Responses",
+
+    // Audit labels
+    statusLabel: "Status",
+    newLabel: "New",
+    lineupLabel: "Lineup",
 
     // Tie Details
     notes: "Notes",
