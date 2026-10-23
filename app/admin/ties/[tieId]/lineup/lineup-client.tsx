@@ -230,11 +230,16 @@ Aufstellung: ${playerNames}`
   const maybeParticipations = otherParticipations.filter((p) => p.status === "maybe")
   const declinedParticipations = otherParticipations.filter((p) => p.status !== "maybe")
   const availableListItems: Array<
-    | { rank: number; kind: "participation"; participation: ParticipationWithPlayer }
+    | { rank: number; kind: "participation"; participation: ParticipationWithPlayer; inLineup: boolean }
     | { rank: number; kind: "noResponse"; player: TeamPlayerWithDetails }
   > = [
-    ...(separateOthers ? availablePlayers : [...availablePlayers, ...otherParticipations]).map(
-      (participation) => ({ rank: participation.player.playerRank, kind: "participation" as const, participation })
+    ...(separateOthers ? availablePlayers : [...lineupPlayers, ...availablePlayers, ...otherParticipations]).map(
+      (participation) => ({
+        rank: participation.player.playerRank,
+        kind: "participation" as const,
+        participation,
+        inLineup: lineupPlayers.some((p) => p.id === participation.id),
+      })
     ),
     ...(separateOthers ? [] : playersWithoutParticipation).map(
       (player) => ({ rank: player.playerRank, kind: "noResponse" as const, player })
@@ -443,8 +448,8 @@ Aufstellung: ${playerNames}`
                       <PlayerCard 
                         key={item.participation.id}
                         participation={item.participation} 
-                        isInLineup={false}
-                        canToggle={!tie.isLineupReady && item.participation.status === "confirmed"}
+                        isInLineup={item.inLineup}
+                        canToggle={!item.inLineup && !tie.isLineupReady && item.participation.status === "confirmed"}
                       />
                     )
                   )
