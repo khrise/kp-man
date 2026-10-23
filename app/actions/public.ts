@@ -28,6 +28,15 @@ export async function getTeamsForSeason(seasonId: string) {
   return teams
 }
 
+export async function getPlayerRanksForSeason(seasonId: string) {
+  const numericSeasonId = Number(seasonId)
+  if (Number.isNaN(numericSeasonId)) {
+    throw new Error("Invalid season id")
+  }
+
+  return db.getSeasonPlayerRanks(numericSeasonId)
+}
+
 export async function getTiesForSeason(seasonId: string) {
   const numericSeasonId = Number(seasonId)
   if (Number.isNaN(numericSeasonId)) {

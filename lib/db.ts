@@ -44,6 +44,7 @@ interface SeasonsTable {
   endDate: DateColumn
   accessCode: string
   isActive: ColumnType<boolean, boolean | undefined, boolean | undefined>
+  isCurrent: ColumnType<boolean, boolean | undefined, boolean | undefined>
   createdAt: TimestampColumn
   updatedAt: TimestampColumn
 }
@@ -242,6 +243,10 @@ export async function getSeasons(): Promise<Season[]> {
   return result
 }
 
+export async function getCurrentSeason(): Promise<Season | undefined> {
+  return db.selectFrom("seasons").selectAll().where("isCurrent", "=", true).executeTakeFirst()
+}
+
 export async function getSeasonById(id: number): Promise<Season | undefined> {
   return db.selectFrom("seasons").selectAll().where("id", "=", id).executeTakeFirst()
 }
@@ -264,6 +269,13 @@ type UpdateSeasonInput = Pick<Updateable<SeasonsTable>, "name" | "startDate" | "
 
 export async function updateSeason(id: number, data: UpdateSeasonInput): Promise<Season | undefined> {
   return db.updateTable("seasons").set(data).where("id", "=", id).returningAll().executeTakeFirst()
+}
+
+export async function setCurrentSeason(id: number): Promise<void> {
+  await db.transaction().execute(async (trx) => {
+    await trx.updateTable("seasons").set({ isCurrent: false }).execute()
+    await trx.updateTable("seasons").set({ isCurrent: true }).where("id", "=", id).execute()
+  })
 }
 
 export async function deleteSeason(id: number) {
@@ -348,8 +360,8 @@ export async function getPlayersAdminList(): Promise<PlayerAdminListItem[]> {
   try {
     return db
       .selectFrom("players")
-      .innerJoin("teamPlayers", "teamPlayers.playerId", "players.id")
-      .innerJoin("teams", "teams.id", "teamPlayers.teamId")
+      .leftJoin("teamPlayers", "teamPlayers.playerId", "players.id")
+      .leftJoin("teams", "teams.id", "teamPlayers.teamId")
       .leftJoin("seasons", "seasons.id", "teams.seasonId")
       .select((eb) => [
         "players.id",
@@ -431,7 +443,7 @@ export async function getTies(): Promise<TieWithSeasonAndTeam[]> {
       eb.ref("tm.name").as("teamName"),
       eb.ref("s.name").as("seasonName"),
       eb.ref("tm.seasonId").as("seasonId"),
-  eb.ref("t.isLineupReady").as("isLineupReady"),
+      eb.ref("t.isLineupReady").as("isLineupReady"),
     ])
     .orderBy("t.tieDate", "desc")
     .execute()
@@ -491,6 +503,13 @@ export type TeamDto = Team & {
   playerIds: number[]
 }
 
+export type SeasonPlayerRankDto = {
+  playerId: number
+  teamId: number
+  teamName: string
+  playerRank: number
+}
+
 export async function getTeamsBySeasonId(seasonId: number): Promise<TeamDto[]> {
   console.time(`[DB] Fetching teams for season ID ${seasonId}`)
 
@@ -519,6 +538,16 @@ export async function getTeamsBySeasonId(seasonId: number): Promise<TeamDto[]> {
   return rows as unknown as TeamDto[]
 }
 
+export async function getSeasonPlayerRanks(seasonId: number): Promise<SeasonPlayerRankDto[]> {
+  return db
+    .selectFrom("teamPlayers as tp")
+    .innerJoin("teams as tm", "tm.id", "tp.teamId")
+    .select(["tp.playerId", "tp.teamId", "tm.name as teamName", "tp.playerRank"])
+    .where("tm.seasonId", "=", seasonId)
+    .orderBy("tp.playerRank")
+    .execute()
+}
+
 export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
   console.time("[DB] Fetching ties by season ID")
 
@@ -537,11 +566,11 @@ export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
       eb.fn
         .coalesce(eb.fn.jsonAgg(sql`to_jsonb(p)`).filterWhere("p.id", "is not", null), sql`'[]'::json`)
         .as("participations"),
-  eb.ref("t.isLineupReady").as("isLineupReady"),
+      eb.ref("t.isLineupReady").as("isLineupReady"),
     ])
     .where("tm.seasonId", "=", seasonId)
     .groupBy(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.location", "t.isHome", "t.createdAt"])
-  .orderBy("t.isLineupReady", "asc")
+    .orderBy("t.isLineupReady", "asc")
     .execute()
 
   console.timeEnd("[DB] Fetching ties by season ID")
@@ -954,7 +983,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       .executeTakeFirst(),
     db
       .selectFrom("teams")
-      .select((eb) => eb.fn.count<number>("id").as("count"))
+      .innerJoin("seasons", "seasons.id", "teams.seasonId")
+      .select((eb) => eb.fn.count<number>("teams.id").as("count"))
+      .where("seasons.isCurrent", "=", true)
       .executeTakeFirst(),
     db
       .selectFrom("players")

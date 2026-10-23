@@ -15,6 +15,7 @@ export interface Season {
   endDate: Date
   accessCode: string
   isActive: boolean
+  isCurrent: boolean
   createdAt: Date
   updatedAt: Date
 }

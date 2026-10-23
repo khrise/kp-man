@@ -46,6 +46,7 @@ type TiesClientProps = {
   initialTies: Tie[]
   teams: Team[]
   seasons: Season[]
+  currentSeasonId: number | null
 }
 
 const normaliseTieDate = (value: Date | string): Date => {
@@ -82,9 +83,10 @@ const formatTimeForInput = (date: Date): string => {
   return `${hours}:${minutes}`
 }
 
-export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
+export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: TiesClientProps) {
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
+  const localeTag = locale === "de" ? "de-DE" : "en-GB"
   const [isAdding, setIsAdding] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [importUrl, setImportUrl] = useState("")
@@ -92,6 +94,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
   // Sorting and filtering state
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [selectedSeasonFilter, setSelectedSeasonFilter] = useState<string>(
+    currentSeasonId ? String(currentSeasonId) : "all",
+  )
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all")
   const [formData, setFormData] = useState({
     teamSeason: "",
@@ -144,11 +149,47 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     return teamSeasonCombos.sort((a, b) => a.label.localeCompare(b.label))
   }, [teams, seasons])
 
-  // Calculate teams that have ties (for filtering dropdown)
+  // Teams available in the create/edit and import forms, filtered by the selected season
+  const availableTeamsForForm = useMemo(() => {
+    if (selectedSeasonFilter === "all") return availableTeams
+    const selectedSeasonId = Number(selectedSeasonFilter)
+    const combos: { value: string; label: string; teamName: string }[] = []
+    teams
+      .filter((team) => team.seasonId === selectedSeasonId)
+      .forEach((team) => {
+        const season = seasons.find((s) => s.id === team.seasonId)
+        if (season) {
+          combos.push({
+            value: `${team.name}|${season.name}`,
+            label: `${team.name} (${season.name})`,
+            teamName: team.name,
+          })
+        }
+      })
+    return combos.sort((a, b) => a.label.localeCompare(b.label))
+  }, [teams, seasons, selectedSeasonFilter])
+
+  // Unique seasons that actually have ties (for the season filter dropdown)
+  const seasonsWithTies = useMemo(() => {
+    const seasonMap = new Map<number, string>()
+    normalisedTies.forEach((tie) => {
+      seasonMap.set(tie.seasonId, tie.seasonName)
+    })
+    return Array.from(seasonMap.entries())
+      .map(([id, name]) => ({ id: String(id), name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [normalisedTies])
+
+  // Calculate teams that have ties (for filtering dropdown), restricted to selected season
   const teamsWithTies = useMemo(() => {
+    const source =
+      selectedSeasonFilter !== "all"
+        ? normalisedTies.filter((tie) => String(tie.seasonId) === selectedSeasonFilter)
+        : normalisedTies
+
     const teamSeasonSet = new Set<string>()
 
-    normalisedTies.forEach((tie) => {
+    source.forEach((tie) => {
       const value = `${tie.teamName}|${tie.seasonName}`
       teamSeasonSet.add(value)
     })
@@ -162,25 +203,32 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
         }
       })
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [normalisedTies])
+  }, [normalisedTies, selectedSeasonFilter])
 
-  // Set default import team-season when availableTeams changes
+  // Reset the team filter when the season filter changes
   useEffect(() => {
-    if (availableTeams.length > 0 && !importTeamSeason) {
-      setImportTeamSeason(availableTeams[0].value)
-    }
-  }, [availableTeams, importTeamSeason])
+    setSelectedTeamFilter("all")
+  }, [selectedSeasonFilter])
 
-  // Set default form team-season when availableTeams changes
+  // Keep form/import team selections in sync with the available teams for the current season.
+  // Uses functional updaters to read current state without adding it as a dependency.
   useEffect(() => {
-    if (availableTeams.length > 0 && !formData.teamSeason) {
-      setFormData((prev) => ({ ...prev, teamSeason: availableTeams[0].value }))
-    }
-  }, [availableTeams, formData.teamSeason])
+    if (availableTeamsForForm.length === 0) return
+    const firstTeam = availableTeamsForForm[0].value
+    const validValues = new Set(availableTeamsForForm.map((t) => t.value))
+    setFormData((prev) => (validValues.has(prev.teamSeason) ? prev : { ...prev, teamSeason: firstTeam }))
+    setImportTeamSeason((prev) => (validValues.has(prev) ? prev : firstTeam))
+  }, [availableTeamsForForm])
 
   // Filter and sort ties
   const filteredAndSortedTies = useMemo(() => {
     let filtered = normalisedTies
+
+    // Filter by season if a specific season is selected
+    if (selectedSeasonFilter !== "all") {
+      const selectedSeasonId = Number(selectedSeasonFilter)
+      filtered = filtered.filter((tie) => tie.seasonId === selectedSeasonId)
+    }
 
     // Filter by team if a specific team is selected
     if (selectedTeamFilter !== "all") {
@@ -198,7 +246,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     })
 
     return sorted
-  }, [normalisedTies, selectedTeamFilter, sortOrder])
+  }, [normalisedTies, selectedSeasonFilter, selectedTeamFilter, sortOrder])
 
   const handleEdit = (tie: Tie) => {
     setEditingId(tie.id)
@@ -226,8 +274,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
 
     // Extract team and season from selected combination
     const [selectedTeamName, selectedSeasonName] = formData.teamSeason.split("|")
-    const selectedTeam = teams.find((t) => t.name === selectedTeamName)
     const selectedSeason = seasons.find((s) => s.name === selectedSeasonName)
+    const selectedTeam = teams.find((t) => t.name === selectedTeamName && t.seasonId === selectedSeason?.id)
 
     if (!selectedTeam || !selectedSeason) {
       alert(t("selectValidTeamSeason"))
@@ -257,7 +305,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
     setIsAdding(false)
     setEditingId(null)
     setFormData({
-      teamSeason: availableTeams.length > 0 ? availableTeams[0].value : "",
+      teamSeason: availableTeamsForForm.length > 0 ? availableTeamsForForm[0].value : "",
       opponent: "",
       tieDate: "",
       tieTime: "",
@@ -312,7 +360,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableTeams.map((team) => (
+                      {availableTeamsForForm.map((team) => (
                         <SelectItem key={team.value} value={team.value}>
                           {team.label}
                         </SelectItem>
@@ -462,15 +510,14 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                             `Debug Row ${i}: Found ${cells.length} cells`,
                             cells.map((c) => c.textContent?.trim()),
                           )
-                          // Adjusted for colspan: Skip [0], Date+Time [1], Skip [2], Location [3], Home [4], Guest [5]
-                          if (cells.length < 6) {
-                            console.log(`Debug: Skipping row ${i} - only ${cells.length} cells (need at least 6)`)
+                          // Skip [0], Date+Time [1], Skip [2], Home [3], Guest [4], ...
+                          if (cells.length < 5) {
+                            console.log(`Debug: Skipping row ${i} - only ${cells.length} cells (need at least 5)`)
                             continue
                           }
                           const dateTimeText = cells[1].textContent?.trim() || "" // Date and time in format "22.11.2025 10:00"
-                          const locationText = cells[3].textContent?.trim() || ""
-                          const homeCell = cells[4]
-                          const guestCell = cells[5]
+                          const homeCell = cells[3]
+                          const guestCell = cells[4]
 
                           let teamIsHome = true
                           let opponent = ""
@@ -484,6 +531,9 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                             teamIsHome = true
                             opponent = guestCell.textContent?.trim() || ""
                           }
+
+                          // Use the home team name as location (no separate location column in the new table format)
+                          const locationText = homeCell.textContent?.trim() || ""
 
                           // Parse date and time. Format: "22.11.2025 10:00"
                           let dateIso = ""
@@ -574,7 +624,7 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableTeams.map((team) => (
+                    {availableTeamsForForm.map((team) => (
                       <SelectItem key={team.value} value={team.value}>
                         {team.label}
                       </SelectItem>
@@ -665,8 +715,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                         try {
                           // Extract team and season from selected combination
                           const [selectedTeamName, selectedSeasonName] = importTeamSeason.split("|")
-                          const selectedTeam = teams.find((t) => t.name === selectedTeamName)
                           const selectedSeason = seasons.find((s) => s.name === selectedSeasonName)
+                          const selectedTeam = teams.find((t) => t.name === selectedTeamName && t.seasonId === selectedSeason?.id)
 
                           if (!selectedTeam || !selectedSeason) {
                             throw new Error(t("teamSeasonNotFound"))
@@ -733,6 +783,25 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
       <Card className="mb-6">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="seasonFilter">{t("filterBySeason")}</Label>
+              <Select
+                value={selectedSeasonFilter}
+                onValueChange={(value) => setSelectedSeasonFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("allSeasons")}</SelectItem>
+                  {seasonsWithTies.map((season) => (
+                    <SelectItem key={season.id} value={season.id}>
+                      {season.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex-1 space-y-2">
               <Label htmlFor="teamFilter">{t("filterByTeam")}</Label>
               <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
@@ -812,8 +881,8 @@ export function TiesClient({ initialTies, teams, seasons }: TiesClientProps) {
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="h-4 w-4" />
                         <span>
-                          {tie.tieDate.toLocaleDateString()}{" "}
-                          {tie.tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {tie.tieDate.toLocaleDateString(localeTag)}{" "}
+                          {tie.tieDate.toLocaleTimeString(localeTag, { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">

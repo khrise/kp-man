@@ -1,16 +1,18 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Users, UserCheck, UserX, Clock, HelpCircle } from "lucide-react"
+import { Users, UserCheck, UserX, Clock, HelpCircle, Mail, Copy } from "lucide-react"
 import { toggleLineupAction, markTieReadyAction } from "@/app/actions/lineup"
 import { useTranslation } from "@/lib/i18n"
 import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
 import type { TeamPlayerWithDetails } from "@/lib/db"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 type TieWithDetails = Tie & {
   opponent: string
@@ -64,17 +66,80 @@ export function LineupClient({
   const { t } = useTranslation()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [separateOthers, setSeparateOthers] = useState(true)
   const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
   const [isTogglingReady, setIsTogglingReady] = useState(false)
-  
-  // `auditEntries` are provided by the server via getLineupData and passed
-  // into this client component — no separate API call required.
-  // (already available via the destructured `auditEntries` prop)
+  const [isInvitationDialogOpen, setIsInvitationDialogOpen] = useState(false)
+  const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied">("idle")
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const tieDate = useMemo(() => {
     const parsed = tie.tieDate instanceof Date ? tie.tieDate : new Date(tie.tieDate)
     return Number.isNaN(parsed.getTime()) ? new Date(NaN) : parsed
   }, [tie.tieDate])
+
+  const invitationEmailContent = useMemo(() => {
+    if (Number.isNaN(tieDate.getTime()) || lineupPlayers.length === 0) {
+      return ""
+    }
+
+    const sortedPlayers = [...lineupPlayers].sort((a, b) => a.player.playerRank - b.player.playerRank)
+    const playerNames = sortedPlayers
+      .map((participation) => {
+        const nameParts = [participation.player.firstName, participation.player.lastName].filter(Boolean)
+        return nameParts.join(" ").trim()
+      })
+      .join(", ")
+
+    const weekday = new Intl.DateTimeFormat("de-DE", { weekday: "short" }).format(tieDate).replace(".", "")
+    const dateText = new Intl.DateTimeFormat("de-DE", { day: "numeric", month: "numeric", year: "numeric" }).format(
+      tieDate,
+    )
+    const timeText = new Intl.DateTimeFormat("de-DE", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    }).format(tieDate)
+
+    const meetingTime = new Date(tieDate.getTime() - 15 * 60 * 1000)
+    const meetingTimeText = new Intl.DateTimeFormat("de-DE", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    }).format(meetingTime)
+
+    const location = tie.location?.trim() ? tie.location.trim() : "Ort wird noch bestätigt"
+    const homeAwayText = tie.isHome ? "Heimspiel" : "Auswärtsspiel"
+
+    return `${team.name} vs. ${tie.opponent}
+${homeAwayText}
+${weekday}, ${dateText} · ${timeText} Uhr · ${location} (Treff ${meetingTimeText} Uhr vor Ort)
+Aufstellung: ${playerNames}`
+  }, [lineupPlayers, team.name, tie.location, tie.isHome, tie.opponent, tieDate])
+
+  const handleCopyInvitation = async () => {
+    if (!invitationEmailContent) return
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(invitationEmailContent)
+      } else {
+        throw new Error("Clipboard API unavailable")
+      }
+    } catch (error) {
+      console.warn("Clipboard API failed, attempting fallback", error)
+      if (textareaRef.current) {
+        textareaRef.current.focus()
+        textareaRef.current.select()
+        document.execCommand("copy")
+      }
+    } finally {
+      setCopyFeedback("copied")
+      setTimeout(() => setCopyFeedback("idle"), 2000)
+    }
+  }
 
   // Check for problematic lineup situations
   const problematicPlayers = lineupPlayers.filter(p => p.status !== "confirmed")
@@ -205,8 +270,46 @@ export function LineupClient({
     )
   }
 
+  const maybeParticipations = otherParticipations.filter((p) => p.status === "maybe")
+  const declinedParticipations = otherParticipations.filter((p) => p.status !== "maybe")
+  const availableListItems: Array<
+    | { rank: number; kind: "participation"; participation: ParticipationWithPlayer; inLineup: boolean }
+    | { rank: number; kind: "noResponse"; player: TeamPlayerWithDetails }
+  > = [
+    ...(separateOthers ? availablePlayers : [...lineupPlayers, ...availablePlayers, ...otherParticipations]).map(
+      (participation) => ({
+        rank: participation.player.playerRank,
+        kind: "participation" as const,
+        participation,
+        inLineup: lineupPlayers.some((p) => p.id === participation.id),
+      })
+    ),
+    ...(separateOthers ? [] : playersWithoutParticipation).map(
+      (player) => ({ rank: player.playerRank, kind: "noResponse" as const, player })
+    ),
+  ]
+  const otherSections = (
+    separateOthers
+      ? [
+          { key: "maybe", title: t("maybe"), icon: <HelpCircle className="w-5 h-5 text-yellow-600" />, items: maybeParticipations },
+          { key: "declined", title: t("declined"), icon: <UserX className="w-5 h-5 text-red-600" />, items: declinedParticipations },
+        ]
+      : []
+  ).filter((section) => section.items.length > 0)
+
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
+      {(otherParticipations.length > 0 || playersWithoutParticipation.length > 0) && (
+        <div className="mb-4 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSeparateOthers((v) => !v)}
+          >
+            {separateOthers ? t("showSingleList") : t("showSeparateLists")}
+          </Button>
+        </div>
+      )}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -238,9 +341,21 @@ export function LineupClient({
               </span>
             </div>
 
-            <div className="mt-2 flex items-center justify-end space-x-2">
-  {tie.isLineupReady ? (
-          <Button
+            <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+              {tie.isLineupReady ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => {
+                      setCopyFeedback("idle")
+                      setIsInvitationDialogOpen(true)
+                    }}
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    {t("sendInvitations")}
+                  </Button>
+                  <Button
                     size="sm"
                     variant="ghost"
                     onClick={async () => {
@@ -261,31 +376,32 @@ export function LineupClient({
                   >
                     {t("unmarkLineupReady")}
                   </Button>
+                </>
               ) : (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={async () => {
-                      if (isTogglingReady) return
-                      if (lineupCount < maxPlayers) {
-                        alert(t("lineupIncomplete"))
-                        return
-                      }
-                      setIsTogglingReady(true)
-                      try {
-                        await markTieReadyAction(String(tie.id), true)
-                        router.refresh()
-                      } catch (err) {
-                        console.error("Failed to mark ready:", err)
-                        alert(err instanceof Error ? err.message : String(err))
-                      } finally {
-                        setIsTogglingReady(false)
-                      }
-                    }}
-                    disabled={isTogglingReady || lineupCount < maxPlayers}
-                  >
-                    {t("markLineupReady")}
-                  </Button>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={async () => {
+                    if (isTogglingReady) return
+                    if (lineupCount < maxPlayers) {
+                      alert(t("lineupIncomplete"))
+                      return
+                    }
+                    setIsTogglingReady(true)
+                    try {
+                      await markTieReadyAction(String(tie.id), true)
+                      router.refresh()
+                    } catch (err) {
+                      console.error("Failed to mark ready:", err)
+                      alert(err instanceof Error ? err.message : String(err))
+                    } finally {
+                      setIsTogglingReady(false)
+                    }
+                  }}
+                  disabled={isTogglingReady || lineupCount < maxPlayers}
+                >
+                  {t("markLineupReady")}
+                </Button>
               )}
             </div>
           </div>
@@ -361,21 +477,25 @@ export function LineupClient({
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Users className="w-5 h-5 text-green-600" />
-                <span>{t("availablePlayers")} ({availablePlayers.length})</span>
+                <span>{separateOthers ? t("availablePlayers") : t("allPlayers")} ({availableListItems.length})</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {availablePlayers.length > 0 ? (
-                availablePlayers
-                  .sort((a, b) => a.player.playerRank - b.player.playerRank)
-                  .map((participation) => (
-                    <PlayerCard 
-                      key={participation.id}
-                      participation={participation} 
-                      isInLineup={false}
-                      canToggle={!tie.isLineupReady}
-                    />
-                  ))
+              {availableListItems.length > 0 ? (
+                [...availableListItems]
+                  .sort((a, b) => a.rank - b.rank)
+                  .map((item) =>
+                    item.kind === "noResponse" ? (
+                      <NoResponsePlayerCard key={`nr-${item.player.id}`} player={item.player} />
+                    ) : (
+                      <PlayerCard
+                        key={item.participation.id}
+                        participation={item.participation}
+                        isInLineup={item.inLineup}
+                        canToggle={!item.inLineup && !tie.isLineupReady && item.participation.status === "confirmed"}
+                      />
+                    )
+                  )
               ) : (
                 <p className="text-gray-500 text-center py-8">
                   {t("noPlayersAvailable")}
@@ -385,16 +505,16 @@ export function LineupClient({
           </Card>
 
           {/* Other Participations (Maybe/Declined) */}
-          {otherParticipations.length > 0 && (
-            <Card className="mt-6">
+          {otherSections.map((section) => (
+            <Card key={section.key} className="mt-6">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Clock className="w-5 h-5 text-gray-600" />
-                  <span>{t("otherParticipations")} ({otherParticipations.length})</span>
+                  {section.icon}
+                  <span>{section.title} ({section.items.length})</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {otherParticipations
+                {[...section.items]
                   .sort((a, b) => a.player.playerRank - b.player.playerRank)
                   .map((participation) => (
                     <PlayerCard 
@@ -406,24 +526,26 @@ export function LineupClient({
                   ))}
               </CardContent>
             </Card>
-          )}
+          ))}
         </div>
       </div>
 
       {/* Players Without Response - Full Width Section */}
-      {playersWithoutParticipation.length > 0 && (
+      {separateOthers && playersWithoutParticipation.length > 0 && (
         <div className="mt-8">
           <Card>
             <CardContent className="p-0">
-              <AccordionItem 
-                value="no-response" 
-                open={isNoResponseOpen} 
+              <AccordionItem
+                value="no-response"
+                open={isNoResponseOpen}
                 onOpenChange={setIsNoResponseOpen}
               >
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <div className="flex items-center space-x-2">
                     <HelpCircle className="w-5 h-5 text-gray-600" />
-                    <span className="font-semibold">{t("playersWithoutResponse")} ({playersWithoutParticipation.length})</span>
+                    <span className="font-semibold">
+                      {t("playersWithoutResponse")} ({playersWithoutParticipation.length})
+                    </span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-6 pb-6" maxHeight="max-h-none">
@@ -506,6 +628,31 @@ export function LineupClient({
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isInvitationDialogOpen} onOpenChange={setIsInvitationDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t("invitationEmailTitle")}</DialogTitle>
+            <DialogDescription>{t("invitationEmailDescription")}</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            ref={textareaRef}
+            value={invitationEmailContent || t("invitationEmailUnavailable")}
+            readOnly
+            rows={6}
+            className="font-mono text-sm"
+          />
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsInvitationDialogOpen(false)}>
+              {t("close")}
+            </Button>
+            <Button onClick={handleCopyInvitation} disabled={!invitationEmailContent}>
+              <Copy className="mr-2 h-4 w-4" />
+              {copyFeedback === "copied" ? t("emailContentCopied") : t("copyEmailContent")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

@@ -3,10 +3,13 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { createSeasonAction, updateSeasonAction, deleteSeasonAction } from "@/app/actions/seasons"
 import { useTranslation } from "@/lib/i18n"
@@ -19,6 +22,7 @@ type Season = {
   endDate: Date
   accessCode: string
   isActive: boolean
+  isCurrent: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -34,6 +38,7 @@ function generateAccessCode(): string {
 
 export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) {
   const { t } = useTranslation()
+  const router = useRouter()
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
@@ -41,6 +46,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
     startDate: "",
     endDate: "",
     accessCode: "",
+    isCurrent: false,
   })
 
   const handleAddNew = () => {
@@ -50,6 +56,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
       startDate: "",
       endDate: "",
       accessCode: generateAccessCode(),
+      isCurrent: false,
     })
   }
 
@@ -65,6 +72,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
       startDate: formatDate(season.startDate),
       endDate: formatDate(season.endDate),
       accessCode: season.accessCode,
+      isCurrent: season.isCurrent,
     })
   }
 
@@ -75,6 +83,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
     formDataObj.append("start_date", formData.startDate)
     formDataObj.append("end_date", formData.endDate)
     formDataObj.append("access_code", formData.accessCode)
+    formDataObj.append("is_current", String(formData.isCurrent))
 
     if (editingId !== null) {
       await updateSeasonAction(String(editingId), formDataObj)
@@ -84,18 +93,20 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
       setIsAdding(false)
     }
 
-    setFormData({ name: "", startDate: "", endDate: "", accessCode: "" })
+    setFormData({ name: "", startDate: "", endDate: "", accessCode: "", isCurrent: false })
+    router.refresh()
   }
 
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
-    setFormData({ name: "", startDate: "", endDate: "", accessCode: "" })
+    setFormData({ name: "", startDate: "", endDate: "", accessCode: "", isCurrent: false })
   }
 
   const handleDelete = async (id: number) => {
     if (confirm(t("confirmDeleteSeason"))) {
       await deleteSeasonAction(String(id))
+      router.refresh()
     }
   }
 
@@ -164,6 +175,16 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                   />
                 </div>
               </div>
+              <div className="mt-4 flex items-center gap-2">
+                <Checkbox
+                  id="is_current"
+                  checked={formData.isCurrent}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isCurrent: !!checked })}
+                />
+                <Label htmlFor="is_current" className="cursor-pointer">
+                  {t("makeCurrent")}
+                </Label>
+              </div>
               <div className="mt-4 flex gap-2">
                 <Button type="submit">
                   <Check className="mr-2 h-4 w-4" />
@@ -185,14 +206,22 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold truncate">{season.name}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-lg font-semibold truncate">{season.name}</h3>
+                    {season.isCurrent && (
+                      <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white shrink-0">
+                        {t("current")}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-600">
-                    {new Date(season.startDate).toLocaleDateString()} - {new Date(season.endDate).toLocaleDateString()}
+                    {new Date(season.startDate).toLocaleDateString()} -{" "}
+                    {new Date(season.endDate).toLocaleDateString()}
                   </p>
                   <p className="mt-1 text-sm text-gray-600 truncate">
-                    {t("accessCode")}: {" "}
+                    {t("accessCode")}:{" "}
                     <Link
-                      href={'/ties/' + season.accessCode}
+                      href={"/ties/" + season.accessCode}
                       className="text-blue-600 underline hover:text-blue-800"
                     >
                       {season.accessCode}
@@ -204,7 +233,13 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                     <Edit className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("edit")}</span>
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(season.id)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDelete(season.id)}
+                    disabled={season.isCurrent}
+                    title={season.isCurrent ? t("cannotDeleteCurrentSeason") : t("delete")}
+                  >
                     <Trash2 className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("delete")}</span>
                   </Button>
@@ -217,3 +252,4 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
     </>
   )
 }
+

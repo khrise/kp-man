@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Calendar, Trophy, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { fetchDashboardStats } from "@/app/actions/dashboard"
+import { getCurrentSeasonAction } from "@/app/actions/seasons"
 import { useEffect, useState } from "react"
 import { useTranslation } from "@/lib/i18n"
+import type { Season } from "@/lib/types"
 
 interface DashboardStats {
   totalSeasons: number
@@ -25,33 +27,37 @@ export default function AdminDashboard() {
     upcomingTies: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [currentSeason, setCurrentSeason] = useState<Pick<Season, "id" | "name" | "accessCode"> | null>(null)
 
   useEffect(() => {
-    async function loadStats() {
+    async function loadData() {
       try {
-        const result = await fetchDashboardStats()
-        if (result.success && result.data) {
-          setStats(result.data)
+        const [statsResult, seasonResult] = await Promise.all([fetchDashboardStats(), getCurrentSeasonAction()])
+        if (statsResult.success && statsResult.data) {
+          setStats(statsResult.data)
+        }
+        if (seasonResult.success && seasonResult.data) {
+          setCurrentSeason(seasonResult.data as Pick<Season, "id" | "name" | "accessCode">)
         }
       } catch (error) {
-        console.error("Failed to load dashboard stats:", error)
+        console.error("Failed to load dashboard data:", error)
       } finally {
         setLoading(false)
       }
     }
-    loadStats()
+    loadData()
   }, [])
 
   const dashboardTiles = [
     {
-      title: t("seasons"),
-      description: t("activeAndArchived"),
-      count: stats.totalSeasons,
+      title: t("ties"),
+      description: t("upcomingTies"),
+      count: stats.upcomingTies,
       icon: Calendar,
-      href: "/admin/seasons",
-      color: "bg-blue-500 hover:bg-blue-600",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
+      href: "/admin/ties",
+      color: "bg-orange-500 hover:bg-orange-600",
+      iconBg: "bg-orange-100",
+      iconColor: "text-orange-600",
     },
     {
       title: t("teams"),
@@ -74,14 +80,14 @@ export default function AdminDashboard() {
       iconColor: "text-purple-600",
     },
     {
-      title: t("ties"),
-      description: t("upcomingTies"),
-      count: stats.upcomingTies,
+      title: t("seasons"),
+      description: t("activeAndArchived"),
+      count: stats.totalSeasons,
       icon: Calendar,
-      href: "/admin/ties",
-      color: "bg-orange-500 hover:bg-orange-600",
-      iconBg: "bg-orange-100",
-      iconColor: "text-orange-600",
+      href: "/admin/seasons",
+      color: "bg-blue-500 hover:bg-blue-600",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
     },
     {
       title: t("users"),
@@ -102,7 +108,21 @@ export default function AdminDashboard() {
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900">{t("dashboard")}</h2>
-            <p className="mt-2 text-gray-600">{t("manageSportsClub")}</p>
+            <p className="mt-2 text-gray-600">
+              {t("manageSportsClub")}
+              {currentSeason && (
+                <>
+                  {" "}
+                  {t("orViewPublicParticipationView")}{" "}
+                  <Link
+                    href={`/ties/${currentSeason.accessCode}`}
+                    className="text-blue-600 underline hover:text-blue-800"
+                  >
+                    {t("publicParticipationView")}
+                  </Link>
+                </>
+              )}
+            </p>
           </div>
 
           {/* Unified Dashboard Tiles */}
