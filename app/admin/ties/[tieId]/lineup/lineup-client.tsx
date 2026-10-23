@@ -47,6 +47,7 @@ export function LineupClient({
   const { t } = useTranslation()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [separateOthers, setSeparateOthers] = useState(true)
   const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
   const [isTogglingReady, setIsTogglingReady] = useState(false)
   const [isInvitationDialogOpen, setIsInvitationDialogOpen] = useState(false)
@@ -225,6 +226,17 @@ Aufstellung: ${playerNames}`
       </Card>
     )
   }
+
+  const maybeParticipations = otherParticipations.filter((p) => p.status === "maybe")
+  const declinedParticipations = otherParticipations.filter((p) => p.status !== "maybe")
+  const otherSections = (
+    separateOthers
+      ? [
+          { key: "maybe", title: t("maybe"), icon: <HelpCircle className="w-5 h-5 text-yellow-600" />, items: maybeParticipations },
+          { key: "declined", title: t("declined"), icon: <UserX className="w-5 h-5 text-red-600" />, items: declinedParticipations },
+        ]
+      : [{ key: "other", title: t("otherParticipations"), icon: <Clock className="w-5 h-5 text-gray-600" />, items: otherParticipations }]
+  ).filter((section) => section.items.length > 0)
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
@@ -420,15 +432,26 @@ Aufstellung: ${playerNames}`
 
           {/* Other Participations (Maybe/Declined) */}
           {otherParticipations.length > 0 && (
-            <Card className="mt-6">
+            <div className="mt-6 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSeparateOthers((v) => !v)}
+              >
+                {separateOthers ? t("showSingleList") : t("showSeparateLists")}
+              </Button>
+            </div>
+          )}
+          {otherSections.map((section) => (
+            <Card key={section.key} className="mt-6">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <Clock className="w-5 h-5 text-gray-600" />
-                  <span>{t("otherParticipations")} ({otherParticipations.length})</span>
+                  {section.icon}
+                  <span>{section.title} ({section.items.length})</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {otherParticipations
+                {[...section.items]
                   .sort((a, b) => a.player.playerRank - b.player.playerRank)
                   .map((participation) => (
                     <PlayerCard 
@@ -440,7 +463,7 @@ Aufstellung: ${playerNames}`
                   ))}
               </CardContent>
             </Card>
-          )}
+          ))}
         </div>
       </div>
 
