@@ -187,15 +187,6 @@ function createDatabase(): Kysely<Database> {
 function getDb(): Kysely<Database> {
   if (!globalForDb.db) {
     globalForDb.db = createDatabase()
-
-    // Initialize database in the background (don't await to avoid blocking)
-    // if (typeof window === "undefined") {
-    //   import("./db-init").then(({ ensureDatabaseInitialized }) => {
-    //     ensureDatabaseInitialized().catch((error) => {
-    //       console.error("[DB] Background initialization failed:", error)
-    //     })
-    //   })
-    // }
   }
   return globalForDb.db
 }

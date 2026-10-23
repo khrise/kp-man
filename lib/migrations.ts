@@ -28,54 +28,12 @@ function createMigrationDb(): Kysely<Database> {
   })
 }
 
-// Create migrations table if it doesn't exist
-export async function initMigrationsTable(): Promise<void> {
-  const db = createMigrationDb()
-  try {
-    await db.schema
-      .createTable("migrations")
-      .ifNotExists()
-      .addColumn("id", "varchar(255)", (col) => col.primaryKey())
-      .addColumn("filename", "varchar(255)", (col) => col.notNull())
-      .addColumn("executed_at", "timestamp", (col) => col.defaultTo(sql`now()`).notNull())
-      .execute()
-
-    console.log("[MIGRATIONS] Migrations table initialized")
-  } catch (error) {
-    console.error("[MIGRATIONS] Error creating migrations table:", error)
-    throw error
-  } finally {
-    await db.destroy()
-  }
-}
-
-// Get executed migrations from database
-export async function getExecutedMigrations(): Promise<Migration[]> {
-  const db = createMigrationDb()
-  try {
-    const result = await db.selectFrom("migrations").selectAll().orderBy("executedAt", "asc").execute()
-
-    return result.map((row) => ({
-      id: String(row.id),
-      filename: String(row.filename),
-      content: "",
-      executedAt: new Date(row.executedAt),
-    }))
-  } catch {
-    // If table doesn't exist, return empty array
-    return []
-  } finally {
-    await db.destroy()
-  }
-}
-
 // Read migration files from scripts directory
 export function getMigrationFiles(): Migration[] {
   const scriptsDir = path.join(process.cwd(), "scripts")
 
   if (!fs.existsSync(scriptsDir)) {
-    console.warn("[MIGRATIONS] Scripts directory not found:", scriptsDir)
-    return []
+    throw new Error(`Migrations directory not found: ${scriptsDir}`)
   }
 
   const files = fs
@@ -93,96 +51,55 @@ export function getMigrationFiles(): Migration[] {
   })
 }
 
-// Execute a single migration
-export async function executeMigration(migration: Migration): Promise<void> {
-  const db = createMigrationDb()
-  try {
-    console.log(`[MIGRATIONS] Executing ${migration.filename}...`)
+const MIGRATION_LOCK_ID = 727274001
 
-    // Clean the content: remove comments but preserve structure
-    const cleanedContent = migration.content
-      .split("\n")
-      .filter((line) => !line.trim().startsWith("--") && line.trim() !== "")
-      .join("\n")
-
-    // Split by semicolon and execute each statement
-    const statements = cleanedContent
-      .split(";")
-      .map((stmt) => stmt.trim())
-      .filter((stmt) => stmt.length > 0)
-
-    for (const statement of statements) {
-      if (statement.trim()) {
-        try {
-          await sql`${sql.raw(statement)}`.execute(db)
-        } catch (error: unknown) {
-          const dbError = error as { code?: string; message?: string }
-
-          // Only skip if it's specifically "already exists" errors
-          if (dbError.code === "42P07") {
-            // relation already exists
-            console.log(`[MIGRATIONS] ⚠️  Skipping statement (already exists)`)
-            continue
-          }
-
-          // For any other error, fail the migration
-          console.error(`[MIGRATIONS] Failed statement: ${statement}`)
-          throw error
-        }
-      }
-    }
-
-    // Record migration as executed
-    await sql`
-      INSERT INTO migrations (id, filename, executed_at) 
-      VALUES (${migration.id}, ${migration.filename}, NOW())
-      ON CONFLICT (id) DO NOTHING
-    `.execute(db)
-
-    console.log(`[MIGRATIONS] ✅ ${migration.filename} executed successfully`)
-  } catch (error) {
-    console.error(`[MIGRATIONS] ❌ Error executing ${migration.filename}:`, error)
-    throw error
-  } finally {
-    await db.destroy()
-  }
+// Execute a single migration file as one multi-statement query (handles $$ bodies)
+export async function executeMigration(migration: Migration, executor: Kysely<Database>): Promise<void> {
+  console.log(`[MIGRATIONS] Executing ${migration.filename}...`)
+  await sql.raw(migration.content).execute(executor)
+  await sql`
+    INSERT INTO migrations (id, filename, executed_at)
+    VALUES (${migration.id}, ${migration.filename}, NOW())
+    ON CONFLICT (id) DO NOTHING
+  `.execute(executor)
+  console.log(`[MIGRATIONS] ✅ ${migration.filename} executed successfully`)
 }
 
-// Run all pending migrations
+// Run all pending migrations in one transaction, serialized across instances by an advisory lock
 export async function runMigrations(): Promise<void> {
+  const db = createMigrationDb()
   try {
     console.log("[MIGRATIONS] Starting database migration check...")
 
-    // Initialize migrations table
-    await initMigrationsTable()
+    await db.transaction().execute(async (trx) => {
+      await sql`SELECT pg_advisory_xact_lock(${MIGRATION_LOCK_ID})`.execute(trx)
 
-    // Get migration files and executed migrations
-    const migrationFiles = getMigrationFiles()
-    const executedMigrations = await getExecutedMigrations()
-    const executedIds = new Set(executedMigrations.map((m) => m.id))
+      await trx.schema
+        .createTable("migrations")
+        .ifNotExists()
+        .addColumn("id", "varchar(255)", (col) => col.primaryKey())
+        .addColumn("filename", "varchar(255)", (col) => col.notNull())
+        .addColumn("executed_at", "timestamp", (col) => col.defaultTo(sql`now()`).notNull())
+        .execute()
 
-    console.log(`[MIGRATIONS] Found ${migrationFiles.length} migration files`)
-    console.log(`[MIGRATIONS] ${executedMigrations.length} migrations already executed`)
+      const migrationFiles = getMigrationFiles()
+      const executed = await trx.selectFrom("migrations").select("id").execute()
+      const executedIds = new Set(executed.map((m) => String(m.id)))
+      const pending = migrationFiles.filter((m) => !executedIds.has(m.id))
 
-    // Find pending migrations
-    const pendingMigrations = migrationFiles.filter((m) => !executedIds.has(m.id))
+      console.log(`[MIGRATIONS] Found ${migrationFiles.length} migration files, ${pending.length} pending`)
 
-    if (pendingMigrations.length === 0) {
-      console.log("[MIGRATIONS] ✅ All migrations are up to date")
-      return
-    }
+      for (const migration of pending) {
+        await executeMigration(migration, trx)
+      }
+    })
 
-    console.log(`[MIGRATIONS] Found ${pendingMigrations.length} pending migrations`)
-
-    // Execute pending migrations
-    for (const migration of pendingMigrations) {
-      await executeMigration(migration)
-    }
-
-    console.log("[MIGRATIONS] ✅ All migrations completed successfully")
+    console.log("[MIGRATIONS] ✅ Migrations up to date")
   } catch (error) {
     console.error("[MIGRATIONS] ❌ Migration failed:", error)
     throw error
+  } finally {
+    await db.destroy()
   }
 }
 
