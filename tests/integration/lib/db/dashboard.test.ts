@@ -1,6 +1,6 @@
 import { Pool } from "pg"
 import { setupTestDatabase, truncateAllTables, TestDatabaseContext } from "../../../helpers/db-test-harness"
-import { createSeason, createTeam, createPlayer, createTie, getDashboardStats } from "@/lib/db"
+import { createSeason, createTeam, createPlayer, createTie, getDashboardStats, setCurrentSeason } from "@/lib/db"
 
 let ctx: TestDatabaseContext
 
@@ -32,10 +32,13 @@ describe("getDashboardStats", () => {
     expect(Number(stats.totalSeasons)).toBe(2)
   })
 
-  it("counts teams correctly", async () => {
+  it("counts only teams in the current season", async () => {
     const season = await createSeason({ name: "S1", startDate: "2024-01-01", endDate: "2024-12-31", accessCode: "DST1", isActive: true })
+    await setCurrentSeason(season.id)
     await createTeam({ seasonId: season.id, name: "T1", league: null, teamSize: 6 })
     await createTeam({ seasonId: season.id, name: "T2", league: null, teamSize: 6 })
+    const otherSeason = await createSeason({ name: "S2", startDate: "2025-01-01", endDate: "2025-12-31", accessCode: "DST2", isActive: true })
+    await createTeam({ seasonId: otherSeason.id, name: "Other season team", league: null, teamSize: 6 })
     const stats = await getDashboardStats()
     expect(Number(stats.totalTeams)).toBe(2)
   })

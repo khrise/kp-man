@@ -79,10 +79,10 @@ describe("getPlayersAdminList", () => {
     expect(list[0].teams[0].name).toBe("Team A")
   })
 
-  it("does not include players without team associations", async () => {
-    await createPlayer({ firstName: "Solo", lastName: "Player" })
+  it("includes players without team associations with an empty teams list", async () => {
+    const player = await createPlayer({ firstName: "Solo", lastName: "Player" })
     const list = await getPlayersAdminList()
-    expect(list).toHaveLength(0)
+    expect(list).toEqual([{ id: player.id, firstName: "Solo", lastName: "Player", teams: [] }])
   })
 })
 
