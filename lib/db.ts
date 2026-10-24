@@ -691,7 +691,7 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
 
   // Insert audit row capturing previous and new values
   try {
-    await db.insertInto("participation_audit").values({
+    await insertParticipationAudit({
       participationId: previous?.id ?? inserted.id,
       playerId: Number(inserted.playerId),
       tieId: Number(inserted.tieId),
@@ -702,8 +702,7 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
       previousIsInLineup: previous?.isInLineup ?? null,
       newIsInLineup: inserted.isInLineup ?? null,
       changedBy: null,
-      createdAt: sql`now()`,
-    }).execute()
+    })
   } catch (err) {
     console.error("Failed to insert participation audit:", err)
   }
@@ -728,7 +727,7 @@ export async function updateParticipationLineup(id: number, isInLineup: boolean)
 
   if (updated) {
     try {
-      await db.insertInto("participation_audit").values({
+      await insertParticipationAudit({
         participationId: id,
         playerId: updated.playerId,
         tieId: updated.tieId,
@@ -739,8 +738,7 @@ export async function updateParticipationLineup(id: number, isInLineup: boolean)
         previousIsInLineup: previous?.isInLineup ?? null,
         newIsInLineup: updated.isInLineup ?? null,
         changedBy: null,
-        createdAt: sql`now()`,
-      }).execute()
+      })
     } catch (err) {
       console.error("Failed to insert participation audit:", err)
     }
