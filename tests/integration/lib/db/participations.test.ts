@@ -1,4 +1,6 @@
 import { Pool } from "pg"
+import { readFileSync } from "fs"
+import { join } from "path"
 import { setupTestDatabase, truncateAllTables, TestDatabaseContext } from "../../../helpers/db-test-harness"
 import {
   createSeason,
@@ -10,6 +12,7 @@ import {
   getParticipations,
   getParticipationsForPlayer,
   getParticipationById,
+  getParticipationAuditForTie,
   updateParticipationLineup,
   getLineupCount,
 } from "@/lib/db"
@@ -44,6 +47,8 @@ describe("upsertParticipation", () => {
     expect(participation.id).toBeDefined()
     expect(participation.status).toBe("confirmed")
     expect(participation.comment).toBeNull()
+    const audit = await getParticipationAuditForTie(tie.id)
+    expect(audit).toHaveLength(0)
   })
 
   it("updates status on second call (upsert behaviour)", async () => {
@@ -52,6 +57,22 @@ describe("upsertParticipation", () => {
     const updated = await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "declined", comment: "injured" })
     expect(updated.status).toBe("declined")
     expect(updated.comment).toBe("injured")
+    const audit = await getParticipationAuditForTie(tie.id)
+    expect(audit).toHaveLength(1)
+    expect(audit).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        participationId: updated.id,
+        playerId: player.id,
+        tieId: tie.id,
+        previousStatus: "confirmed",
+        newStatus: "declined",
+        previousComment: null,
+        newComment: "injured",
+        previousIsInLineup: null,
+        newIsInLineup: null,
+        createdAt: expect.any(Date),
+      }),
+    ]))
   })
 
   it("accepts all three status values", async () => {
@@ -144,6 +165,95 @@ describe("updateParticipationLineup", () => {
     await updateParticipationLineup(p.id, true)
     const reverted = await updateParticipationLineup(p.id, false)
     expect(reverted?.isInLineup).toBe(false)
+    const audit = await getParticipationAuditForTie(tie.id)
+    expect(audit).toHaveLength(2)
+    expect(audit).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        participationId: p.id,
+        previousStatus: null,
+        newStatus: null,
+        previousIsInLineup: false,
+        newIsInLineup: true,
+      }),
+      expect.objectContaining({
+        participationId: p.id,
+        previousStatus: null,
+        newStatus: null,
+        previousIsInLineup: true,
+        newIsInLineup: false,
+      }),
+    ]))
+  })
+})
+
+describe("participation audit changes", () => {
+  it("does not audit identical responses or lineup updates", async () => {
+    const { player, tie } = await createTestFixture()
+    const data = { tieId: tie.id, playerId: player.id, status: "confirmed" as const, comment: "Available" }
+    const participation = await upsertParticipation(data)
+    await upsertParticipation(data)
+    await updateParticipationLineup(participation.id, false)
+    expect(await getParticipationAuditForTie(tie.id)).toEqual([])
+  })
+
+  it("stores only status changes when the comment stays the same", async () => {
+    const { player, tie } = await createTestFixture()
+    await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: "Available" })
+    await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "maybe", comment: "Available" })
+    expect(await getParticipationAuditForTie(tie.id)).toEqual([
+      expect.objectContaining({
+        previousStatus: "confirmed", newStatus: "maybe",
+        previousComment: null, newComment: null,
+        previousIsInLineup: null, newIsInLineup: null,
+      }),
+    ])
+  })
+
+  it("records comment-only changes including clearing a comment and empty strings", async () => {
+    const { player, tie } = await createTestFixture()
+    await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: "Available" })
+    await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: null })
+    await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: "" })
+    const audit = await getParticipationAuditForTie(tie.id)
+    expect(audit).toHaveLength(2)
+    expect(audit).toEqual(expect.arrayContaining([
+      expect.objectContaining({ previousStatus: null, newStatus: null, previousComment: "Available", newComment: null }),
+      expect.objectContaining({ previousStatus: null, newStatus: null, previousComment: null, newComment: "" }),
+    ]))
+  })
+
+  it("cleans historical snapshots without losing changed fields and is repeatable", async () => {
+    const { player, tie } = await createTestFixture()
+    await ctx.pool.query(`
+      INSERT INTO participation_audit
+        (player_id, tie_id, previous_status, new_status, previous_comment, new_comment,
+         previous_is_in_lineup, new_is_in_lineup)
+      VALUES
+        ($1, $2, NULL, 'confirmed', NULL, 'Initial', NULL, false),
+        ($1, $2, 'confirmed', 'confirmed', 'Same', 'Same', false, false),
+        ($1, $2, 'confirmed', 'confirmed', 'Same', 'Same', false, true),
+        ($1, $2, 'confirmed', 'maybe', 'Same', 'Same', false, false),
+        ($1, $2, 'confirmed', 'confirmed', 'Old', NULL, true, true)
+    `, [player.id, tie.id])
+    const migration = readFileSync(join(process.cwd(), "scripts/14-participation-audit-changes-only.sql"), "utf8")
+    await ctx.pool.query(migration)
+    await ctx.pool.query(migration)
+    const audit = await getParticipationAuditForTie(tie.id)
+    expect(audit).toHaveLength(3)
+    expect(audit).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        previousStatus: null, newStatus: null, previousComment: null, newComment: null,
+        previousIsInLineup: false, newIsInLineup: true,
+      }),
+      expect.objectContaining({
+        previousStatus: "confirmed", newStatus: "maybe", previousComment: null, newComment: null,
+        previousIsInLineup: null, newIsInLineup: null,
+      }),
+      expect.objectContaining({
+        previousStatus: null, newStatus: null, previousComment: "Old", newComment: null,
+        previousIsInLineup: null, newIsInLineup: null,
+      }),
+    ]))
   })
 })
 
