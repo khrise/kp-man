@@ -107,7 +107,7 @@ interface ParticipationAuditTable {
   playerId: number
   tieId: number
   previousStatus: string | null
-  newStatus: string
+  newStatus: string | null
   previousComment: string | null
   newComment: string | null
   previousIsInLineup: ColumnType<boolean | null, boolean | null | undefined, boolean | null | undefined>
@@ -690,21 +690,23 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
   }
 
   // Insert audit row capturing previous and new values
-  try {
-    await insertParticipationAudit({
-      participationId: previous?.id ?? inserted.id,
-      playerId: Number(inserted.playerId),
-      tieId: Number(inserted.tieId),
-      previousStatus: previous?.status ?? null,
-      newStatus: inserted.status,
-      previousComment: previous?.comment ?? null,
-      newComment: inserted.comment ?? null,
-      previousIsInLineup: previous?.isInLineup ?? null,
-      newIsInLineup: inserted.isInLineup ?? null,
-      changedBy: null,
-    })
-  } catch (err) {
-    console.error("Failed to insert participation audit:", err)
+  if (previous) {
+    try {
+      await insertParticipationAudit({
+        participationId: inserted.id,
+        playerId: Number(inserted.playerId),
+        tieId: Number(inserted.tieId),
+        previousStatus: previous.status,
+        newStatus: inserted.status,
+        previousComment: previous.comment,
+        newComment: inserted.comment,
+        previousIsInLineup: previous.isInLineup,
+        newIsInLineup: inserted.isInLineup,
+        changedBy: null,
+      })
+    } catch (err) {
+      console.error("Failed to insert participation audit:", err)
+    }
   }
 
   return inserted
@@ -725,7 +727,7 @@ export async function updateParticipationLineup(id: number, isInLineup: boolean)
     .returningAll()
     .executeTakeFirst()
 
-  if (updated) {
+  if (previous && updated) {
     try {
       await insertParticipationAudit({
         participationId: id,
@@ -759,16 +761,21 @@ export async function insertParticipationAudit(entry: {
   newIsInLineup?: boolean | null
   changedBy?: string | null
 }) {
+  const statusChanged = (entry.previousStatus ?? null) !== entry.newStatus
+  const commentChanged = (entry.previousComment ?? null) !== (entry.newComment ?? null)
+  const lineupChanged = (entry.previousIsInLineup ?? null) !== (entry.newIsInLineup ?? null)
+  if (!statusChanged && !commentChanged && !lineupChanged) return
+
   return db.insertInto("participation_audit").values({
     participationId: entry.participationId ?? null,
     playerId: entry.playerId,
     tieId: entry.tieId,
-    previousStatus: entry.previousStatus ?? null,
-    newStatus: entry.newStatus,
-    previousComment: entry.previousComment ?? null,
-    newComment: entry.newComment ?? null,
-    previousIsInLineup: entry.previousIsInLineup ?? null,
-    newIsInLineup: entry.newIsInLineup ?? null,
+    previousStatus: statusChanged ? entry.previousStatus ?? null : null,
+    newStatus: statusChanged ? entry.newStatus : null,
+    previousComment: commentChanged ? entry.previousComment ?? null : null,
+    newComment: commentChanged ? entry.newComment ?? null : null,
+    previousIsInLineup: lineupChanged ? entry.previousIsInLineup ?? null : null,
+    newIsInLineup: lineupChanged ? entry.newIsInLineup ?? null : null,
     changedBy: entry.changedBy ?? null,
     createdAt: sql`now()`,
   }).execute()

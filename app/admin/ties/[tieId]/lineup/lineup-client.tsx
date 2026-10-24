@@ -41,7 +41,7 @@ type AuditEntry = {
   playerId: number
   tieId: number
   previousStatus: string | null
-  newStatus: string
+  newStatus: string | null
   previousComment: string | null
   newComment: string | null
   previousIsInLineup: boolean | null
@@ -574,7 +574,7 @@ Aufstellung: ${playerNames}`
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {(!auditEntries || auditEntries.length === 0) && (
+              {groupedAudit.length === 0 && (
                 <p className="text-sm text-gray-500">No audit entries</p>
               )}
 
@@ -595,12 +595,14 @@ Aufstellung: ${playerNames}`
                               <div className="ml-4 text-right">{new Date(e.createdAt).toLocaleString()}</div>
                             </div>
 
-                            <div className="text-xs">
-                              <span className="text-gray-400 mr-1">{t("statusLabel")}:</span>
-                              <span className="font-medium">{e.previousStatus ?? "—"}</span>
-                              <span className="mx-2">→</span>
-                              <span className="font-medium">{e.newStatus}</span>
-                            </div>
+                            {e.previousStatus !== e.newStatus && (
+                              <div className="text-xs">
+                                <span className="text-gray-400 mr-1">{t("statusLabel")}:</span>
+                                <span className="font-medium">{e.previousStatus ?? "—"}</span>
+                                <span className="mx-2">→</span>
+                                <span className="font-medium">{e.newStatus ?? "—"}</span>
+                              </div>
+                            )}
 
                             {e.previousIsInLineup !== e.newIsInLineup && (
                               <div className="text-xs mt-1">
@@ -611,11 +613,11 @@ Aufstellung: ${playerNames}`
                               </div>
                             )}
 
-                            {(e.previousComment || e.newComment) && (
+                            {e.previousComment !== e.newComment && (
                               <div className="text-xs mt-1">
-                                  <span className="text-gray-400 mr-1">{t("commentChange")}</span>
-                                  <span className="ml-1">{`"${e.previousComment ?? ""}" → "${e.newComment ?? ""}"`}</span>
-                                </div>
+                                <span className="text-gray-400 mr-1">{t("commentChange")}</span>
+                                <span className="ml-1">{`"${e.previousComment ?? ""}" → "${e.newComment ?? ""}"`}</span>
+                              </div>
                             )}
                           </li>
                         ))}
