@@ -88,6 +88,8 @@ export const translations = {
     comment: "Kommentar",
     commentChange: "Kommentar:",
     participationResponses: "Antworten",
+    loadMoreAuditEntries: "{count} weitere laden",
+    loadMoreAuditEntriesFailed: "Weitere Einträge konnten nicht geladen werden",
 
     // Audit labels
     statusLabel: "Status",
@@ -404,6 +406,8 @@ export const translations = {
     comment: "Comment",
     commentChange: "Comment:",
     participationResponses: "Responses",
+    loadMoreAuditEntries: "Load {count} more",
+    loadMoreAuditEntriesFailed: "Failed to load more entries",
 
     // Audit labels
     statusLabel: "Status",

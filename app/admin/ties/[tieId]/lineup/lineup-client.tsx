@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { Users, UserCheck, UserX, Clock, HelpCircle, Mail, Copy } from "lucide-react"
-import { toggleLineupAction, markTieReadyAction } from "@/app/actions/lineup"
+import { toggleLineupAction, markTieReadyAction, loadMoreAuditEntriesAction } from "@/app/actions/lineup"
 import { useTranslation } from "@/lib/i18n"
 import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
 import type { TeamPlayerWithDetails } from "@/lib/db"
@@ -33,6 +33,8 @@ type LineupClientProps = {
   lineupCount: number
   maxPlayers: number
   auditEntries?: AuditEntry[]
+  auditHasMore?: boolean
+  auditPageSize?: number
 }
  
 type AuditEntry = {
@@ -61,9 +63,11 @@ export function LineupClient({
   playersWithoutParticipation,
   lineupCount,
   maxPlayers,
-  auditEntries
+  auditEntries,
+  auditHasMore = false,
+  auditPageSize = 100,
 }: LineupClientProps) {
-  const { t } = useTranslation()
+  const { t, tWithParams } = useTranslation()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [separateOthers, setSeparateOthers] = useState(true)
@@ -72,6 +76,36 @@ export function LineupClient({
   const [isInvitationDialogOpen, setIsInvitationDialogOpen] = useState(false)
   const [copyFeedback, setCopyFeedback] = useState<"idle" | "copied">("idle")
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [olderAuditEntries, setOlderAuditEntries] = useState<AuditEntry[]>([])
+  const [olderAuditHasMore, setOlderAuditHasMore] = useState<boolean | null>(null)
+  const [isLoadingMoreAudit, setIsLoadingMoreAudit] = useState(false)
+  const [auditLoadError, setAuditLoadError] = useState<string | null>(null)
+
+  // New entries since the first page can shift offsets, so skip ids already shown.
+  const allAuditEntries = useMemo(() => {
+    const firstPage = auditEntries ?? []
+    const shownIds = new Set(firstPage.map((e) => e.id))
+    return [...firstPage, ...olderAuditEntries.filter((e) => !shownIds.has(e.id))]
+  }, [auditEntries, olderAuditEntries])
+
+  const hasMoreAudit = olderAuditHasMore ?? auditHasMore
+
+  const handleLoadMoreAudit = async () => {
+    if (isLoadingMoreAudit) return
+
+    setIsLoadingMoreAudit(true)
+    setAuditLoadError(null)
+    try {
+      const offset = (auditEntries?.length ?? 0) + olderAuditEntries.length
+      const result = await loadMoreAuditEntriesAction(String(tie.id), offset)
+      setOlderAuditEntries((prev) => [...prev, ...result.entries])
+      setOlderAuditHasMore(result.hasMore)
+    } catch (error) {
+      setAuditLoadError((error as Error)?.message ?? t("loadMoreAuditEntriesFailed"))
+    } finally {
+      setIsLoadingMoreAudit(false)
+    }
+  }
 
   const tieDate = useMemo(() => {
     const parsed = tie.tieDate instanceof Date ? tie.tieDate : new Date(tie.tieDate)
@@ -147,7 +181,7 @@ Aufstellung: ${playerNames}`
 
   // Group audit entries by player for display
   const groupedAudit = useMemo(() => {
-    if (!auditEntries || auditEntries.length === 0) return [] as Array<{
+    if (allAuditEntries.length === 0) return [] as Array<{
       playerId: number
       playerFirstName?: string | null
       playerLastName?: string | null
@@ -155,7 +189,7 @@ Aufstellung: ${playerNames}`
     }>
 
     const map = new Map<number, AuditEntry[]>()
-    for (const e of auditEntries) {
+    for (const e of allAuditEntries) {
       const list = map.get(e.playerId) ?? []
       list.push(e)
       map.set(e.playerId, list)
@@ -167,7 +201,7 @@ Aufstellung: ${playerNames}`
       playerLastName: entries[0]?.playerLastName ?? null,
       entries: entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     }))
-  }, [auditEntries])
+  }, [allAuditEntries])
 
   const handleToggleLineup = async (participationId: number, isCurrentlyInLineup: boolean) => {
     if (isLoading) return
@@ -624,6 +658,22 @@ Aufstellung: ${playerNames}`
                       </ul>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {hasMoreAudit && (
+                <div className="flex flex-col items-center pt-2">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={handleLoadMoreAudit}
+                    disabled={isLoadingMoreAudit}
+                  >
+                    {isLoadingMoreAudit
+                      ? t("loading")
+                      : tWithParams("loadMoreAuditEntries", { count: auditPageSize })}
+                  </Button>
+                  {auditLoadError && <p className="text-xs text-red-600">{auditLoadError}</p>}
                 </div>
               )}
             </div>

@@ -1,16 +1,24 @@
 import React from "react"
-import { render, screen, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { LineupClient } from "@/app/admin/ties/[tieId]/lineup/lineup-client"
+import { loadMoreAuditEntriesAction } from "@/app/actions/lineup"
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }))
 jest.mock("@/app/actions/lineup", () => ({
   toggleLineupAction: jest.fn(),
   markTieReadyAction: jest.fn(),
+  loadMoreAuditEntriesAction: jest.fn(),
 }))
-jest.mock("@/lib/i18n", () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+jest.mock("@/lib/i18n", () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+    tWithParams: (key: string, params: Record<string, unknown>) => `${key}:${JSON.stringify(params)}`,
+  }),
+}))
 
 type Props = React.ComponentProps<typeof LineupClient>
 type AuditEntry = NonNullable<Props["auditEntries"]>[number]
+type ServerAuditEntry = Awaited<ReturnType<typeof loadMoreAuditEntriesAction>>["entries"][number]
 
 const date = new Date("2026-06-01T12:00:00Z")
 const props: Props = {
@@ -69,5 +77,44 @@ describe("lineup participation audit", () => {
     expect(screen.getByText("No audit entries")).toBeInTheDocument()
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument()
     expect(screen.queryByText("Anna Smith")).not.toBeInTheDocument()
+  })
+})
+
+describe("lineup audit pagination", () => {
+  const loadMore = loadMoreAuditEntriesAction as jest.MockedFunction<typeof loadMoreAuditEntriesAction>
+  const linkText = 'loadMoreAuditEntries:{"count":100}'
+  const older = (id: number, playerId: number, lastName: string): ServerAuditEntry => ({
+    ...entry, id, playerId, playerFirstName: "Anna", playerLastName: lastName,
+    previousStatus: "confirmed", newStatus: "declined",
+  })
+
+  beforeEach(() => loadMore.mockReset())
+
+  it("hides the load-more link when there are no older entries", () => {
+    render(<LineupClient {...props} auditEntries={[entry]} auditHasMore={false} auditPageSize={100} />)
+    expect(screen.queryByText(linkText)).not.toBeInTheDocument()
+  })
+
+  it("loads older entries by offset and appends them", async () => {
+    loadMore.mockResolvedValueOnce({ entries: [older(5, 2, "Older")], hasMore: true })
+    loadMore.mockResolvedValueOnce({ entries: [older(3, 3, "Oldest")], hasMore: false })
+    render(<LineupClient {...props} auditEntries={[{ ...entry, id: 10 }]} auditHasMore auditPageSize={100} />)
+
+    fireEvent.click(screen.getByText(linkText))
+    expect(await screen.findByText("Anna Older")).toBeInTheDocument()
+    expect(loadMore).toHaveBeenLastCalledWith("1", 1)
+
+    fireEvent.click(screen.getByText(linkText))
+    expect(await screen.findByText("Anna Oldest")).toBeInTheDocument()
+    expect(loadMore).toHaveBeenLastCalledWith("1", 2)
+    await waitFor(() => expect(screen.queryByText(linkText)).not.toBeInTheDocument())
+    expect(screen.getByText("Anna Smith")).toBeInTheDocument()
+  })
+
+  it("shows an error when loading fails", async () => {
+    loadMore.mockRejectedValueOnce(new Error("boom"))
+    render(<LineupClient {...props} auditEntries={[entry]} auditHasMore auditPageSize={100} />)
+    fireEvent.click(screen.getByText(linkText))
+    expect(await screen.findByText("boom")).toBeInTheDocument()
   })
 })

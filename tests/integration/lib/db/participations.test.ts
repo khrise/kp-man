@@ -255,6 +255,28 @@ describe("participation audit changes", () => {
       }),
     ]))
   })
+
+  it("paginates with limit and offset without gaps or duplicates", async () => {
+    const { player, tie } = await createTestFixture()
+    await ctx.pool.query(`
+      INSERT INTO participation_audit (player_id, tie_id, previous_status, new_status)
+      SELECT $1, $2, 'confirmed', 'declined' FROM generate_series(1, 250)
+    `, [player.id, tie.id])
+
+    const pages = await Promise.all([0, 100, 200].map((offset) => getParticipationAuditForTie(tie.id, 100, offset)))
+
+    expect(pages.map((p) => p.length)).toEqual([100, 100, 50])
+    expect(new Set(pages.flat().map((e) => e.id)).size).toBe(250)
+  })
+
+  it("defaults to the 100 most recent entries", async () => {
+    const { player, tie } = await createTestFixture()
+    await ctx.pool.query(`
+      INSERT INTO participation_audit (player_id, tie_id, previous_status, new_status)
+      SELECT $1, $2, 'confirmed', 'declined' FROM generate_series(1, 120)
+    `, [player.id, tie.id])
+    expect(await getParticipationAuditForTie(tie.id)).toHaveLength(100)
+  })
 })
 
 describe("getLineupCount", () => {

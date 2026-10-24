@@ -781,7 +781,7 @@ export async function insertParticipationAudit(entry: {
   }).execute()
 }
 
-export async function getParticipationAuditForTie(tieId: number, limit = 50) {
+export async function getParticipationAuditForTie(tieId: number, limit = 100, offset = 0) {
   return db
     .selectFrom("participation_audit as a")
     .leftJoin("players as p", "p.id", "a.playerId")
@@ -803,7 +803,10 @@ export async function getParticipationAuditForTie(tieId: number, limit = 50) {
     ])
     .where("a.tieId", "=", tieId)
     .orderBy("a.createdAt", "desc")
+    // Tie-breaker keeps the order stable across pages
+    .orderBy("a.id", "desc")
     .limit(limit)
+    .offset(offset)
     .execute()
 }
 
