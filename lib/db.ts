@@ -76,6 +76,11 @@ interface TeamPlayersTable {
   updatedAt: TimestampColumn
 }
 
+interface TeamCaptainsTable {
+  teamId: number
+  userId: number
+}
+
 interface TiesTable {
   id: Generated<number>
   teamId: number
@@ -138,6 +143,7 @@ export interface Database {
   teams: TeamsTable
   players: PlayersTable
   teamPlayers: TeamPlayersTable
+  teamCaptains: TeamCaptainsTable
   ties: TiesTable
   participations: ParticipationsTable
   participation_audit: ParticipationAuditTable
@@ -229,8 +235,10 @@ export type NewParticipationAudit = Insertable<ParticipationAuditTable>
 export type Migration = Selectable<MigrationsTable>
 export type NewMigration = Insertable<MigrationsTable>
 
-export async function getSeasons(): Promise<Season[]> {
-  const result = await db.selectFrom("seasons").selectAll().orderBy("startDate", "desc").execute()
+export async function getSeasons(teamIds?: number[]): Promise<Season[]> {
+  let query = db.selectFrom("seasons").selectAll()
+  if (teamIds) query = query.where("id", "in", db.selectFrom("teams").select("seasonId").where("id", "in", teamIds.length ? teamIds : [-1]))
+  const result = await query.orderBy("startDate", "desc").execute()
   return result
 }
 
@@ -273,8 +281,10 @@ export async function deleteSeason(id: number) {
   await db.deleteFrom("seasons").where("id", "=", id).execute()
 }
 
-export async function getTeams(): Promise<Team[]> {
-  const result = await db.selectFrom("teams").selectAll().orderBy("name").execute()
+export async function getTeams(teamIds?: number[]): Promise<Team[]> {
+  let query = db.selectFrom("teams").selectAll()
+  if (teamIds) query = query.where("id", "in", teamIds.length ? teamIds : [-1])
+  const result = await query.orderBy("name").execute()
   return result
 }
 
@@ -343,13 +353,15 @@ export async function setTeamPlayers(teamId: number, playerIds: number[]) {
   })
 }
 
-export async function getPlayers(): Promise<Player[]> {
-  return db.selectFrom("players").selectAll().orderBy("firstName").orderBy("lastName").execute()
+export async function getPlayers(teamIds?: number[]): Promise<Player[]> {
+  let query = db.selectFrom("players").selectAll()
+  if (teamIds) query = query.where("id", "in", db.selectFrom("teamPlayers").select("playerId").where("teamId", "in", teamIds.length ? teamIds : [-1]))
+  return query.orderBy("firstName").orderBy("lastName").execute()
 }
 
-export async function getPlayersAdminList(): Promise<PlayerAdminListItem[]> {
+export async function getPlayersAdminList(teamIds?: number[]): Promise<PlayerAdminListItem[]> {
   try {
-    return db
+    let query = db
       .selectFrom("players")
       .leftJoin("teamPlayers", "teamPlayers.playerId", "players.id")
       .leftJoin("teams", "teams.id", "teamPlayers.teamId")
@@ -378,6 +390,8 @@ export async function getPlayersAdminList(): Promise<PlayerAdminListItem[]> {
           .as("teams"),
       ])
       .groupBy(["players.id", "players.firstName", "players.lastName"])
+    if (teamIds) query = query.where("teams.id", "in", teamIds.length ? teamIds : [-1])
+    return query
       .orderBy("players.firstName")
       .orderBy("players.lastName")
       .execute() as unknown as PlayerAdminListItem[]
@@ -424,8 +438,8 @@ export type TieWithLineupInfo = TieWithSeasonAndTeam & {
   problematicCount: number
 }
 
-export async function getTies(): Promise<TieWithSeasonAndTeam[]> {
-  return db
+export async function getTies(teamIds?: number[]): Promise<TieWithSeasonAndTeam[]> {
+  let query = db
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .innerJoin("seasons as s", "s.id", "tm.seasonId")
@@ -436,12 +450,13 @@ export async function getTies(): Promise<TieWithSeasonAndTeam[]> {
       eb.ref("tm.seasonId").as("seasonId"),
       eb.ref("t.isLineupReady").as("isLineupReady"),
     ])
-    .orderBy("t.tieDate", "desc")
+  if (teamIds) query = query.where("t.teamId", "in", teamIds.length ? teamIds : [-1])
+  return query.orderBy("t.tieDate", "desc")
     .execute()
 }
 
-export async function getTiesWithLineupInfo(): Promise<TieWithLineupInfo[]> {
-  const ties = await getTies()
+export async function getTiesWithLineupInfo(teamIds?: number[]): Promise<TieWithLineupInfo[]> {
+  const ties = await getTies(teamIds)
 
   const tiesWithLineup = await Promise.all(
     ties.map(async (tie) => {
@@ -974,7 +989,21 @@ export interface DashboardStats {
   upcomingTies: number
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(teamIds?: number[]): Promise<DashboardStats> {
+  if (teamIds) {
+    const [seasons, teams, players, upcoming] = await Promise.all([
+      getSeasons(teamIds), getTeams(teamIds), getPlayers(teamIds),
+      db.selectFrom("ties").select((eb) => eb.fn.countAll<number>().as("count"))
+        .where("teamId", "in", teamIds.length ? teamIds : [-1])
+        .where("tieDate", ">=", new Date()).executeTakeFirstOrThrow(),
+    ])
+    return {
+      totalSeasons: seasons.length,
+      totalTeams: teams.filter((team) => seasons.some((season) => season.id === team.seasonId && season.isCurrent)).length,
+      totalPlayers: players.length,
+      upcomingTies: Number(upcoming.count),
+    }
+  }
   const [seasonsResult, teamsResult, playersResult, upcomingTiesResult] = await Promise.all([
     db
       .selectFrom("seasons")

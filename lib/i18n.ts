@@ -14,6 +14,12 @@ export const translations = {
     exit: "Beenden",
 
     // Auth
+    teamCaptains: "Mannschaftsführer",
+    noTeamCaptains: "Keine zugewiesen",
+    manageCaptains: "Mannschaftsführer verwalten",
+    noEligibleCaptains: "Keine Benutzer mit der Rolle Mannschaftsführer vorhanden.",
+    captainAssignmentFailed: "Mannschaftsführer konnten nicht gespeichert werden.",
+    selectTeamForImport: "Bitte wählen Sie ein Team für den Import aus.",
     login: "Anmelden",
     username: "Benutzername",
     password: "Passwort",
@@ -320,6 +326,12 @@ export const translations = {
     advancedFilters: "Erweiterte Filter",
   },
   en: {
+    teamCaptains: "Team captains",
+    noTeamCaptains: "None assigned",
+    manageCaptains: "Manage captains",
+    noEligibleCaptains: "No users with the team captain role are available.",
+    captainAssignmentFailed: "Failed to save team captains.",
+    selectTeamForImport: "Please select a team for the import.",
     // Common
     save: "Save",
     cancel: "Cancel",

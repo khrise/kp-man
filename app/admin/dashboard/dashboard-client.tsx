@@ -10,6 +10,8 @@ import { getCurrentSeasonAction } from "@/app/actions/seasons"
 import { useEffect, useState } from "react"
 import { useTranslation } from "@/lib/i18n"
 import type { Season } from "@/lib/types"
+import { usePermission } from "@/components/management-provider"
+import { Permission } from "@/lib/permissions"
 
 interface DashboardStats {
   totalSeasons: number
@@ -20,6 +22,7 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const { t } = useTranslation()
+  const canManageUsers = usePermission(Permission.UsersManage)
   const [stats, setStats] = useState<DashboardStats>({
     totalSeasons: 0,
     totalTeams: 0,
@@ -127,7 +130,7 @@ export default function AdminDashboard() {
 
           {/* Unified Dashboard Tiles */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {dashboardTiles.map((tile) => {
+            {dashboardTiles.filter((tile) => tile.href !== "/admin/users" || canManageUsers).map((tile) => {
               const Icon = tile.icon
               return (
                 <Link key={tile.href} href={tile.href}>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { AuthGuard } from "@/components/auth-guard"
 import { AdminHeader } from "@/components/admin-header"
 import { Button } from "@/components/ui/button"
@@ -12,10 +12,17 @@ import { Plus, Edit, Trash2, Check, X, Upload } from "lucide-react"
 import type { PlayerAdminListItem } from "@/lib/types"
 import { getPlayersAdminList, createPlayerAction, updatePlayerAction, deletePlayerAction } from "@/app/actions/players"
 import { useTranslation } from "@/lib/i18n"
+import { usePermission } from "@/components/management-provider"
+import { Permission } from "@/lib/permissions"
 
-export default function PlayersPage() {
+export default function PlayersPage({ teams, initialPlayers }: {
+  teams: { id: number; name: string }[]
+  initialPlayers: (PlayerAdminListItem & { canEdit: boolean })[]
+}) {
   const { t } = useTranslation()
-  const [players, setPlayers] = useState<PlayerAdminListItem[]>([])
+  const canDelete = usePermission(Permission.PlayersDelete)
+  const [teamId, setTeamId] = useState(teams[0] ? String(teams[0].id) : "")
+  const [players, setPlayers] = useState(initialPlayers)
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isBatchAdding, setIsBatchAdding] = useState(false)
@@ -25,10 +32,6 @@ export default function PlayersPage() {
     firstName: "",
     lastName: "",
   })
-
-  useEffect(() => {
-    loadPlayers()
-  }, [])
 
   const loadPlayers = async () => {
     const data = await getPlayersAdminList()
@@ -73,6 +76,7 @@ export default function PlayersPage() {
     formDataObj.append("first_name", formData.firstName)
     formDataObj.append("last_name", formData.lastName)
 
+    if (!canDelete) formDataObj.append("team_id", teamId)
     await createPlayerAction(formDataObj)
     await loadPlayers()
     setIsAdding(false)
@@ -135,6 +139,7 @@ export default function PlayersPage() {
       const formDataObj = new FormData()
       formDataObj.append("first_name", player.firstName)
       formDataObj.append("last_name", player.lastName)
+      if (!canDelete) formDataObj.append("team_id", teamId)
 
       try {
         await createPlayerAction(formDataObj)
@@ -185,12 +190,12 @@ export default function PlayersPage() {
               </p>
             </div>
             <div className="flex gap-2 sm:flex-shrink-0">
-              <Button variant="outline" onClick={() => setIsBatchAdding(true)}>
+              <Button disabled={!canDelete && teams.length === 0} variant="outline" onClick={() => setIsBatchAdding(true)}>
                 <Upload className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">{t("batchAdd")}</span>
                 <span className="sm:hidden">{t("batchAdd")}</span>
               </Button>
-              <Button onClick={() => setIsAdding(true)}>
+              <Button disabled={!canDelete && teams.length === 0} onClick={() => setIsAdding(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">{t("addPlayer")}</span>
                 <span className="sm:hidden">{t("add")}</span>
@@ -198,6 +203,14 @@ export default function PlayersPage() {
             </div>
           </div>
 
+          {!canDelete && (isAdding || isBatchAdding) && (
+            <div className="mb-4 space-y-2">
+              <Label htmlFor="player-team">{t("team")}</Label>
+              <select id="player-team" value={teamId} onChange={(event) => setTeamId(event.target.value)} className="rounded border p-2">
+                {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+              </select>
+            </div>
+          )}
           {/* Search Field */}
           <div className="mb-6">
             <div className="relative max-w-md">
@@ -312,14 +325,14 @@ export default function PlayersPage() {
                       </div>
 
                       <div className="flex gap-2 sm:flex-shrink-0">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
+                        {player.canEdit && <Button variant="outline" size="sm" onClick={() => handleEdit(player)}>
                           <Edit className="h-4 w-4" />
                           <span className="ml-1 hidden sm:inline">{t("edit")}</span>
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDelete(String(player.id))}>
+                        </Button>}
+                        {canDelete && <Button variant="outline" size="sm" onClick={() => handleDelete(String(player.id))}>
                           <Trash2 className="h-4 w-4" />
                           <span className="ml-1 hidden sm:inline">{t("delete")}</span>
-                        </Button>
+                        </Button>}
                       </div>
                     </div>
 

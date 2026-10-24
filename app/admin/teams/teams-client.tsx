@@ -10,7 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X, ChevronUp, ChevronDown, UserMinus } from "lucide-react"
-import { createTeamAction, updateTeamAction, deleteTeamAction } from "@/app/actions/teams"
+import { createTeamAction, updateTeamAction, deleteTeamAction, updateTeamCaptainsAction } from "@/app/actions/teams"
+import { usePermission } from "@/components/management-provider"
+import { Permission } from "@/lib/permissions"
+import type { CaptainOption } from "@/lib/types"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useTranslation } from "@/lib/i18n"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 
@@ -30,6 +34,7 @@ type Team = {
   league: string | null
   teamSize: number
   players?: TeamPlayer[]
+  captains: CaptainOption[]
 }
 
 type Season = {
@@ -48,14 +53,23 @@ export function TeamsClient({
   seasons,
   players,
   currentSeasonId,
+  captainOptions,
 }: {
   initialTeams: Team[]
   seasons: Season[]
   players: Player[]
   currentSeasonId: number | null
+  captainOptions: CaptainOption[]
 }) {
   const { t } = useTranslation()
   const router = useRouter()
+  const canCreate = usePermission(Permission.TeamsCreate)
+  const canDelete = usePermission(Permission.TeamsDelete)
+  const canAssignCaptains = usePermission(Permission.CaptainsManage)
+  const [assignmentTeamId, setAssignmentTeamId] = useState<number | null>(null)
+  const [captainIds, setCaptainIds] = useState<number[]>([])
+  const [assignmentError, setAssignmentError] = useState("")
+  const [savingCaptains, setSavingCaptains] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [enableRankInput, setEnableRankInput] = useState(false)
@@ -178,11 +192,11 @@ export function TeamsClient({
           <p className="mt-2 text-gray-600">{t("manageTeamsDesc")}</p>
         </div>
         <div className="flex gap-2 sm:flex-shrink-0">
-          <Button onClick={() => setIsAdding(true)}>
+          {canCreate && <Button onClick={() => setIsAdding(true)}>
             <Plus className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">{t("addTeam")}</span>
             <span className="sm:hidden">{t("add")}</span>
-          </Button>
+          </Button>}
         </div>
       </div>
 
@@ -250,6 +264,7 @@ export function TeamsClient({
                 <div className="space-y-2">
                   <Label htmlFor="season">{t("season")}</Label>
                   <Select
+                    disabled={!canCreate}
                     value={formData.seasonId}
                     onValueChange={(value) => setFormData({ ...formData, seasonId: value })}
                   >
@@ -477,6 +492,9 @@ export function TeamsClient({
                   <p className="text-xs text-gray-500">
                     {t("teamSize")}: {team.teamSize} {t("playersCount")}
                   </p>
+                  <p className="mt-2 text-sm text-gray-600">
+                    {t("teamCaptains")}: {team.captains.map((captain) => captain.username).join(", ") || t("noTeamCaptains")}
+                  </p>
                   {team.players && team.players.length > 0 && (
                     <div className="mt-4">
                         <AccordionItem 
@@ -512,11 +530,50 @@ export function TeamsClient({
                     <Edit className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("edit")}</span>
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(team.id)}>
+                  {canAssignCaptains && <Button variant="outline" size="sm" onClick={() => {
+                    setAssignmentTeamId(team.id)
+                    setCaptainIds(team.captains.map((captain) => captain.id))
+                    setAssignmentError("")
+                  }}>{t("manageCaptains")}</Button>}
+                  {canDelete && <Button variant="outline" size="sm" onClick={() => handleDelete(team.id)}>
                     <Trash2 className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("delete")}</span>
-                  </Button>
+                  </Button>}
                 </div>
+                {canAssignCaptains && assignmentTeamId === team.id && (
+                  <div className="mt-4 space-y-3">
+                    <Label>{t("teamCaptains")}</Label>
+                    {captainOptions.map((captain) => (
+                      <label key={captain.id} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={captainIds.includes(captain.id)}
+                          onCheckedChange={(checked) => setCaptainIds((ids) => checked
+                            ? [...ids, captain.id] : ids.filter((id) => id !== captain.id))}
+                        />
+                        {captain.username}
+                      </label>
+                    ))}
+                    {captainOptions.length === 0 && <p>{t("noEligibleCaptains")}</p>}
+                    {assignmentError && <p role="alert" className="text-red-600">{assignmentError}</p>}
+                    <div className="flex gap-2">
+                      <Button disabled={savingCaptains} onClick={async () => {
+                        setSavingCaptains(true)
+                        setAssignmentError("")
+                        try {
+                          await updateTeamCaptainsAction(team.id, captainIds)
+                          setAssignmentTeamId(null)
+                          router.refresh()
+                        } catch (error) {
+                          console.error("Failed to save team captains:", error)
+                          setAssignmentError(error instanceof Error ? error.message : t("captainAssignmentFailed"))
+                        } finally {
+                          setSavingCaptains(false)
+                        }
+                      }}>{t("save")}</Button>
+                      <Button variant="outline" disabled={savingCaptains} onClick={() => setAssignmentTeamId(null)}>{t("cancel")}</Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

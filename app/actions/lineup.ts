@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
-import { requireAdmin } from "@/lib/server/auth"
+import { requirePermission, requireTeamPermission } from "@/lib/server/auth"
+import { Permission } from "@/lib/permissions"
 
 export async function toggleLineupAction(participationId: string, tieId: string) {
-  await requireAdmin()
+  await requirePermission(Permission.LineupManage)
   const participationIdNum = Number(participationId)
   const tieIdNum = Number(tieId)
 
@@ -13,26 +14,25 @@ export async function toggleLineupAction(participationId: string, tieId: string)
     throw new Error("Invalid participation or tie ID")
   }
 
+  const tie = await db.getTieById(tieIdNum)
+  if (!tie) throw new Error("Tie not found")
+  await requireTeamPermission(tie.teamId, Permission.LineupManage)
+
   // Get current participation
   const participation = await db.getParticipationById(participationIdNum)
   if (!participation) {
     throw new Error("Participation not found")
   }
+  if (participation.tieId !== tieIdNum) throw new Error("Participation does not belong to tie")
 
   // Only confirmed players can be in lineup
   if (participation.status !== "confirmed") {
     throw new Error("Only confirmed players can be added to lineup")
   }
 
-  // Get team info for the tie to check team size limit
-  const tie = await db.getTieById(tieIdNum)
-  if (!tie) {
-    throw new Error("Tie not found")
-  }
-
   // If the lineup is finalized, do not allow toggling lineup membership
   if (tie.isLineupReady) {
-    throw new Error("Cannot modify lineup: lineup has been finalized by admin")
+    throw new Error("Cannot modify lineup: lineup has been finalized")
   }
 
   const team = await db.getTeamById(tie.teamId)
@@ -56,7 +56,7 @@ export async function toggleLineupAction(participationId: string, tieId: string)
 }
 
 export async function markTieReadyAction(tieId: string, ready: boolean) {
-  await requireAdmin()
+  await requirePermission(ready ? Permission.LineupManage : Permission.LineupReopen)
   const tieIdNum = Number(tieId)
   if (Number.isNaN(tieIdNum)) {
     throw new Error("Invalid tie ID")
@@ -64,6 +64,7 @@ export async function markTieReadyAction(tieId: string, ready: boolean) {
 
   const tie = await db.getTieById(tieIdNum)
   if (!tie) throw new Error("Tie not found")
+  await requireTeamPermission(tie.teamId, ready ? Permission.LineupManage : Permission.LineupReopen)
 
   const team = await db.getTeamById(tie.teamId)
   if (!team) throw new Error("Team not found")
@@ -83,12 +84,15 @@ export async function markTieReadyAction(tieId: string, ready: boolean) {
 }
 
 export async function getLineupData(tieId: string) {
-  await requireAdmin()
+  await requirePermission(Permission.LineupManage)
   const tieIdNum = Number(tieId)
   if (Number.isNaN(tieIdNum)) {
     throw new Error("Invalid tie ID")
   }
 
+  const authorizedTie = await db.getTieById(tieIdNum)
+  if (!authorizedTie) throw new Error("Tie not found")
+  await requireTeamPermission(authorizedTie.teamId, Permission.LineupManage)
   const tie = await db.getTieWithParticipations(tieIdNum)
   if (!tie) {
     throw new Error("Tie not found")

@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
-import { AuthorizationError, requireAdmin } from "@/lib/server/auth"
+import { AuthorizationError, requirePermission, requireTeamPermission } from "@/lib/server/auth"
+import { Permission } from "@/lib/permissions"
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin()
-    const { url } = await request.json()
+    const user = await requirePermission(Permission.TiesManage)
+    const { url, teamId } = await request.json()
+    if (user.role !== "admin") {
+      if (!Number.isSafeInteger(teamId) || teamId <= 0) {
+        return NextResponse.json({ error: "A valid team ID is required" }, { status: 400 })
+      }
+      await requireTeamPermission(teamId, Permission.TiesManage)
+    }
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ error: "Invalid URL provided" }, { status: 400 })

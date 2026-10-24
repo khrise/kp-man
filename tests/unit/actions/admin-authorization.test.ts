@@ -19,9 +19,15 @@ import * as db from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import type { User } from "@/lib/db"
 import type { Session } from "next-auth"
+import { setTeamCaptains } from "@/lib/team-captains"
 
 jest.mock("server-only", () => ({}), { virtual: true })
 jest.mock("@/lib/next-auth", () => ({ auth: jest.fn() }))
+jest.mock("@/lib/team-captains", () => ({
+  getCaptainTeamIds: jest.fn().mockResolvedValue([]),
+  getPlayerTeamIds: jest.fn().mockResolvedValue([]),
+  setTeamCaptains: jest.fn(),
+}))
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }))
 jest.mock("@/lib/config-service", () => ({
   refreshConfig: jest.fn(),
@@ -34,7 +40,7 @@ jest.mock("@/lib/db", () => ({
   updateUser: jest.fn(),
   updateUserPassword: jest.fn(),
   deleteUser: jest.fn(),
-  getPlayersAdminList: jest.fn(),
+  getPlayersAdminList: jest.fn().mockResolvedValue([]),
   getPlayers: jest.fn(),
   createPlayer: jest.fn(),
   updatePlayer: jest.fn(),
@@ -93,7 +99,7 @@ function form() {
   return data
 }
 
-const protectedActions: Array<{ name: string; run: () => Promise<unknown>; query: keyof typeof db }> = [
+const protectedActions: Array<{ name: string; run: () => Promise<unknown>; query: keyof typeof db | "setTeamCaptains" }> = [
   { name: "getUsers", run: () => users.getUsers(), query: "getUsersWithPlayerInfo" },
   { name: "createUserAction", run: () => users.createUserAction(form()), query: "createUser" },
   { name: "updateUserAction", run: () => users.updateUserAction("1", form()), query: "updateUser" },
@@ -111,6 +117,7 @@ const protectedActions: Array<{ name: string; run: () => Promise<unknown>; query
   { name: "createTeamAction", run: () => teams.createTeamAction(form()), query: "createTeam" },
   { name: "updateTeamAction", run: () => teams.updateTeamAction("1", form()), query: "updateTeam" },
   { name: "deleteTeamAction", run: () => teams.deleteTeamAction("1"), query: "deleteTeam" },
+  { name: "updateTeamCaptainsAction", run: () => teams.updateTeamCaptainsAction(1, []), query: "setTeamCaptains" },
   { name: "createTieAction", run: () => ties.createTieAction(form()), query: "createTie" },
   { name: "updateTieAction", run: () => ties.updateTieAction("1", form()), query: "updateTie" },
   { name: "deleteTieAction", run: () => ties.deleteTieAction("1"), query: "deleteTie" },
@@ -133,7 +140,6 @@ beforeEach(() => {
 describe.each([
   { label: "anonymous", role: null },
   { label: "player", role: "player" },
-  { label: "team captain", role: "team_captain" },
   { label: "regular user", role: "user" },
   { label: "deleted user", role: "deleted" },
 ] as const)("$label cannot access admin actions", ({ role }) => {
@@ -146,6 +152,7 @@ describe.each([
       if (name !== "getUserById" && jest.isMockFunction(fn)) expect(fn).not.toHaveBeenCalled()
     }
     expect(revalidatePath).not.toHaveBeenCalled()
+    expect(setTeamCaptains).not.toHaveBeenCalled()
   })
 })
 
@@ -176,11 +183,11 @@ it.each(protectedActions)("allows an admin to execute $name", async ({ run, quer
   mockDb.getLineupCount.mockResolvedValue(0)
   await run()
   expect(mockDb.getUserById).toHaveBeenCalledWith(1)
-  expect(mockDb[query]).toHaveBeenCalled()
+  expect(query === "setTeamCaptains" ? setTeamCaptains : mockDb[query]).toHaveBeenCalled()
 })
 
 describe("admin-only match import endpoint", () => {
-  it.each([null, "player", "team_captain", "user"] as const)("denies %s before fetching", async (role) => {
+  it.each([null, "player", "user"] as const)("denies %s before fetching", async (role) => {
     if (role === null) mockAuth.mockResolvedValue(null)
     else mockDb.getUserById.mockResolvedValue({ ...admin, role })
     const fetchMock = jest.spyOn(global, "fetch")
@@ -190,7 +197,7 @@ describe("admin-only match import endpoint", () => {
       }))
       expect(response.status).toBe(role === null ? 401 : 403)
       expect(await response.json()).toEqual({
-        error: role === null ? "Authentication required" : "Admin access required",
+        error: role === null ? "Authentication required" : "Access denied",
       })
       expect(fetchMock).not.toHaveBeenCalled()
     } finally {

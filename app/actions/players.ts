@@ -2,36 +2,50 @@
 
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
-import { requireAdmin } from "@/lib/server/auth"
+import { requireManagement, requirePermission, requirePlayerPermission, requireTeamPermission } from "@/lib/server/auth"
+import { createPlayerForTeam, getPlayerTeamIds } from "@/lib/team-captains"
+import { Permission } from "@/lib/permissions"
 
 export async function getPlayersAdminList() {
-  await requireAdmin()
-  return await db.getPlayersAdminList()
+  const { user, teamIds } = await requireManagement(Permission.PlayersManage)
+  const players = await db.getPlayersAdminList(teamIds)
+  return Promise.all(players.map(async (player) => {
+    if (user.role === "admin") return { ...player, canEdit: true }
+    const memberships = await getPlayerTeamIds(player.id)
+    return { ...player, canEdit: memberships.length > 0 && memberships.every((id) => teamIds?.includes(id)) }
+  }))
 }
 
 export async function getPlayers() {
-  await requireAdmin()
-  return await db.getPlayers()
+  const { teamIds } = await requireManagement(Permission.PlayersManage)
+  return await db.getPlayers(teamIds)
 }
 
 export async function createPlayerAction(formData: FormData) {
-  await requireAdmin()
+  const { user } = await requireManagement(Permission.PlayersManage)
   const data = {
     firstName: formData.get("first_name") as string,
     lastName: formData.get("last_name") as string,
   }
 
-  await db.createPlayer(data)
+  if (user.role === "admin") {
+    await db.createPlayer(data)
+  } else {
+    const teamId = Number(formData.get("team_id"))
+    await requireTeamPermission(teamId, Permission.PlayersManage)
+    await createPlayerForTeam(teamId, data.firstName, data.lastName)
+  }
   revalidatePath("/admin/players")
   return { success: true }
 }
 
 export async function updatePlayerAction(id: string, formData: FormData) {
-  await requireAdmin()
+  await requirePermission(Permission.PlayersManage)
   const playerId = Number(id)
   if (Number.isNaN(playerId)) {
     throw new Error("Invalid player id")
   }
+  await requirePlayerPermission(playerId)
 
   const data = {
     firstName: formData.get("first_name") as string,
@@ -44,7 +58,7 @@ export async function updatePlayerAction(id: string, formData: FormData) {
 }
 
 export async function deletePlayerAction(id: string) {
-  await requireAdmin()
+  await requirePermission(Permission.PlayersDelete)
   const playerId = Number(id)
   if (Number.isNaN(playerId)) {
     throw new Error("Invalid player id")

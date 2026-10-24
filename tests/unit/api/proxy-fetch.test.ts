@@ -5,7 +5,7 @@ import { POST } from "@/app/api/proxy-fetch/route"
 import { NextRequest } from "next/server"
 
 jest.mock("@/lib/server/auth", () => ({
-  requireAdmin: jest.fn().mockResolvedValue({ role: "admin" }),
+  requirePermission: jest.fn().mockResolvedValue({ role: "admin" }),
   AuthorizationError: class extends Error {},
 }))
 

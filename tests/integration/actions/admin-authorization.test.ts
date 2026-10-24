@@ -63,7 +63,7 @@ async function seedTie() {
 }
 
 describe("database-backed admin authorization", () => {
-  it.each(["user", "player", "team_captain"] as const)("denies %s reads and writes without modifying data", async (role) => {
+  it.each(["user", "player"] as const)("denies %s reads and writes without modifying data", async (role) => {
     const user = await createUser(role)
     const target = await createUser("admin")
     const { tie, participation } = await seedTie()

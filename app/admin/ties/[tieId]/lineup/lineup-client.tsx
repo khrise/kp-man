@@ -13,6 +13,8 @@ import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
 import type { TeamPlayerWithDetails } from "@/lib/db"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { usePermission } from "@/components/management-provider"
+import { Permission } from "@/lib/permissions"
 
 type TieWithDetails = Tie & {
   opponent: string
@@ -69,6 +71,7 @@ export function LineupClient({
 }: LineupClientProps) {
   const { t, tWithParams } = useTranslation()
   const router = useRouter()
+  const canReopen = usePermission(Permission.LineupReopen)
   const [isLoading, setIsLoading] = useState(false)
   const [separateOthers, setSeparateOthers] = useState(true)
   const [isNoResponseOpen, setIsNoResponseOpen] = useState(false)
@@ -389,7 +392,7 @@ Aufstellung: ${playerNames}`
                     <Mail className="mr-2 h-4 w-4" />
                     {t("sendInvitations")}
                   </Button>
-                  <Button
+                  {canReopen && <Button
                     size="sm"
                     variant="ghost"
                     onClick={async () => {
@@ -409,7 +412,7 @@ Aufstellung: ${playerNames}`
                     disabled={isTogglingReady}
                   >
                     {t("unmarkLineupReady")}
-                  </Button>
+                  </Button>}
                 </>
               ) : (
                 <Button

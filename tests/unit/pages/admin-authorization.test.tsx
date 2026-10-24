@@ -14,6 +14,11 @@ import * as db from "@/lib/db"
 import { getLineupData } from "@/app/actions/lineup"
 
 jest.mock("@/lib/server/auth", () => ({ requireAdminPage: jest.fn() }))
+jest.mock("@/lib/team-captains", () => ({
+  getCaptainOptions: jest.fn().mockResolvedValue([]),
+  getCaptainTeamIds: jest.fn().mockResolvedValue([]),
+  getTeamCaptains: jest.fn().mockResolvedValue([]),
+}))
 jest.mock("@/lib/db", () => ({
   getSeasons: jest.fn().mockResolvedValue([]),
   getTeams: jest.fn().mockResolvedValue([]),
@@ -22,6 +27,7 @@ jest.mock("@/lib/db", () => ({
   getTiesWithLineupInfo: jest.fn().mockResolvedValue([]),
 }))
 jest.mock("@/app/actions/lineup", () => ({ getLineupData: jest.fn().mockResolvedValue({}) }))
+jest.mock("@/app/actions/players", () => ({ getPlayersAdminList: jest.fn().mockResolvedValue([]) }))
 jest.mock("@/components/auth-guard", () => ({ AuthGuard: () => null }))
 jest.mock("@/components/admin-header", () => ({ AdminHeader: () => null }))
 jest.mock("@/app/admin/dashboard/dashboard-client", () => () => null)

@@ -4,12 +4,18 @@
 import { createTeamAction, updateTeamAction, deleteTeamAction } from "@/app/actions/teams"
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }))
-jest.mock("@/lib/server/auth", () => ({ requireAdmin: jest.fn().mockResolvedValue({ role: "admin" }) }))
+jest.mock("server-only", () => ({}), { virtual: true })
+jest.mock("@/lib/server/auth", () => ({
+  requireAdmin: jest.fn().mockResolvedValue({ role: "admin" }),
+  requirePermission: jest.fn().mockResolvedValue({ role: "admin" }),
+  requireTeamPermission: jest.fn().mockResolvedValue({ role: "admin" }),
+}))
 jest.mock("@/lib/db", () => ({
   createTeam: jest.fn(),
   updateTeam: jest.fn(),
   deleteTeam: jest.fn(),
   setTeamPlayers: jest.fn(),
+  getTeamById: jest.fn().mockResolvedValue({ id: 1, seasonId: 1 }),
 }))
 
 import * as db from "@/lib/db"

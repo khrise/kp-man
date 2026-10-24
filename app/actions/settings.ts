@@ -3,15 +3,16 @@
 import { revalidatePath } from "next/cache"
 import { getAllAppSettings, getAppSetting, setAppSetting, deleteAppSetting, type AppSetting } from "@/lib/db"
 import { refreshConfig } from "@/lib/config-service"
-import { requireAdmin } from "@/lib/server/auth"
+import { requirePermission } from "@/lib/server/auth"
+import { Permission } from "@/lib/permissions"
 
 export async function getSettings(): Promise<AppSetting[]> {
-  await requireAdmin()
+  await requirePermission(Permission.SettingsManage)
   return getAllAppSettings()
 }
 
 export async function getSetting(key: string): Promise<AppSetting | null> {
-  await requireAdmin()
+  await requirePermission(Permission.SettingsManage)
   const setting = await getAppSetting(key)
   return setting || null
 }
@@ -22,7 +23,7 @@ export async function updateSetting(
   type: AppSetting["type"] = "string",
   description?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAdmin()
+  await requirePermission(Permission.SettingsManage)
   try {
     await setAppSetting(key, value, type, description)
 
@@ -43,7 +44,7 @@ export async function updateSetting(
 }
 
 export async function removeSetting(key: string): Promise<{ success: boolean; error?: string }> {
-  await requireAdmin()
+  await requirePermission(Permission.SettingsManage)
   try {
     await deleteAppSetting(key)
 

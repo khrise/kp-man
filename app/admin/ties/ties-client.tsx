@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X, ArrowUpDown, Users, Calendar, MapPin } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
+import { fetchMatchImportPage } from "@/lib/api/match-import"
 import { useTranslation } from "@/lib/i18n"
 
 type Tie = {
@@ -461,19 +462,11 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                       setImportResult(null)
                       setParsedTies([])
                       try {
-                        // Fetch the remote page via our proxy to avoid CORS
-                        const res = await fetch("/api/proxy-fetch", {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({ url: importUrl }),
-                        })
-                        if (!res.ok) {
-                          const errorData = await res.json().catch(() => ({}))
-                          throw new Error(errorData.error || `${res.status} ${res.statusText}`)
-                        }
-                        const { html: text } = await res.json()
+                        const [teamName, seasonName] = importTeamSeason.split("|")
+                        const season = seasons.find((item) => item.name === seasonName)
+                        const team = teams.find((item) => item.name === teamName && item.seasonId === season?.id)
+                        if (!team) throw new Error(t("selectTeamForImport"))
+                        const text = await fetchMatchImportPage(importUrl, team.id)
                         // Parse HTML in the client
                         const parser = new DOMParser()
                         const doc = parser.parseFromString(text, "text/html")

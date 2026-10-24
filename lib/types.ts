@@ -8,6 +8,9 @@ export interface User {
   updatedAt: Date
 }
 
+export type UserRole = User["role"]
+export type CaptainOption = Pick<User, "id" | "username">
+
 export interface Season {
   id: number
   name: string

@@ -1,7 +1,9 @@
 /**
  * @jest-environment node
  */
-import { AuthorizationError, requireAdmin, requireAdminPage } from "@/lib/server/auth"
+import { AuthorizationError, requireAdmin, requireAdminPage, requireTeamPermission } from "@/lib/server/auth"
+import { getCaptainTeamIds } from "@/lib/team-captains"
+import { Permission } from "@/lib/permissions"
 import { auth } from "@/lib/next-auth"
 import { getUserById } from "@/lib/db"
 import { notFound, redirect } from "next/navigation"
@@ -11,6 +13,9 @@ import type { Session } from "next-auth"
 jest.mock("server-only", () => ({}), { virtual: true })
 jest.mock("@/lib/next-auth", () => ({ auth: jest.fn() }))
 jest.mock("@/lib/db", () => ({ getUserById: jest.fn() }))
+jest.mock("@/lib/team-captains", () => ({
+  getCaptainTeamIds: jest.fn().mockResolvedValue([1]),
+}))
 jest.mock("next/navigation", () => ({
   redirect: jest.fn(() => { throw new Error("REDIRECT") }),
   notFound: jest.fn(() => { throw new Error("NOT_FOUND") }),
@@ -102,4 +107,17 @@ describe("requireAdminPage", () => {
     expect(notFound).not.toHaveBeenCalled()
     expect(redirect).not.toHaveBeenCalled()
   })
+
+  it("allows captain management navigation but not global administration", async () => {
+    mockGetUser.mockResolvedValue({ ...admin, role: "team_captain" })
+    await expect(requireAdminPage(Permission.ManagementAccess)).resolves.toMatchObject({ role: "team_captain" })
+    await expect(requireAdminPage(Permission.UsersManage)).rejects.toThrow("NOT_FOUND")
+  })
+})
+
+it("rechecks captain assignments for the same session", async () => {
+  mockGetUser.mockResolvedValue({ ...admin, role: "team_captain" })
+  jest.mocked(getCaptainTeamIds).mockResolvedValueOnce([1]).mockResolvedValueOnce([])
+  await expect(requireTeamPermission(1, Permission.AuditRead)).resolves.toMatchObject({ role: "team_captain" })
+  await expect(requireTeamPermission(1, Permission.AuditRead)).rejects.toMatchObject({ status: 403 })
 })
