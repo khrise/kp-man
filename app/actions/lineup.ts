@@ -56,6 +56,10 @@ export async function toggleLineupAction(participationId: string, tieId: string)
 }
 
 export async function markTieReadyAction(tieId: string, ready: boolean) {
+  // Server Actions accept arbitrary client input; a truthy string like "false" must not select the weaker permission
+  if (typeof ready !== "boolean") {
+    throw new Error("Invalid ready flag")
+  }
   await requirePermission(ready ? Permission.LineupManage : Permission.LineupReopen)
   const tieIdNum = Number(tieId)
   if (Number.isNaN(tieIdNum)) {

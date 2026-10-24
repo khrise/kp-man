@@ -171,6 +171,18 @@ describe("operational permissions", () => {
     expect((await db.getTieById(f.tieA.id))?.isLineupReady).toBe(false)
   })
 
+  it.each(["false", "true", 0, 1, null, undefined, {}])(
+    "rejects malformed ready flag %p without changing a finalized lineup",
+    async (malformed) => {
+      const f = await fixtures()
+      await toggleLineupAction(String(f.participationA.id), String(f.tieA.id))
+      await markTieReadyAction(String(f.tieA.id), true)
+      await expect(markTieReadyAction(String(f.tieA.id), malformed as unknown as boolean))
+        .rejects.toThrow("Invalid ready flag")
+      expect((await db.getTieById(f.tieA.id))?.isLineupReady).toBe(true)
+    },
+  )
+
   it("rejects cross-team lineup IDs and mismatched participation IDs", async () => {
     const f = await fixtures()
     await expect(toggleLineupAction(String(f.participationB.id), String(f.tieA.id))).rejects.toThrow("does not belong")
