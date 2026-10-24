@@ -42,6 +42,16 @@ export async function getPlayerTeamIds(playerId: number): Promise<number[]> {
   return rows.map((row) => row.teamId)
 }
 
+export async function getTeamIdsByPlayer(playerIds: number[]): Promise<Map<number, number[]>> {
+  const result = new Map<number, number[]>()
+  if (playerIds.length === 0) return result
+  const rows = await db.selectFrom("teamPlayers").select(["playerId", "teamId"]).where("playerId", "in", playerIds).execute()
+  for (const row of rows) {
+    result.set(row.playerId, [...(result.get(row.playerId) ?? []), row.teamId])
+  }
+  return result
+}
+
 export async function createPlayerForTeam(teamId: number, firstName: string, lastName: string) {
   return db.transaction().execute(async (trx) => {
     await trx.selectFrom("teams").select("id").where("id", "=", teamId).forUpdate().executeTakeFirstOrThrow()

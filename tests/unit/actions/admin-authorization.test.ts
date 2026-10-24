@@ -26,6 +26,7 @@ jest.mock("@/lib/next-auth", () => ({ auth: jest.fn() }))
 jest.mock("@/lib/team-captains", () => ({
   getCaptainTeamIds: jest.fn().mockResolvedValue([]),
   getPlayerTeamIds: jest.fn().mockResolvedValue([]),
+  getTeamIdsByPlayer: jest.fn().mockResolvedValue(new Map()),
   setTeamCaptains: jest.fn(),
 }))
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }))

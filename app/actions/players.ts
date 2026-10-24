@@ -3,17 +3,20 @@
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
 import { requireManagement, requirePermission, requirePlayerPermission, requireTeamPermission } from "@/lib/server/auth"
-import { createPlayerForTeam, getPlayerTeamIds } from "@/lib/team-captains"
+import { createPlayerForTeam, getTeamIdsByPlayer } from "@/lib/team-captains"
 import { Permission } from "@/lib/permissions"
 
 export async function getPlayersAdminList() {
   const { user, teamIds } = await requireManagement(Permission.PlayersManage)
   const players = await db.getPlayersAdminList(teamIds)
-  return Promise.all(players.map(async (player) => {
-    if (user.role === "admin") return { ...player, canEdit: true }
-    const memberships = await getPlayerTeamIds(player.id)
+  if (user.role === "admin") return players.map((player) => ({ ...player, canEdit: true }))
+
+  // Load all memberships (including teams outside the captain's scope) in one query
+  const membershipsByPlayer = await getTeamIdsByPlayer(players.map((player) => player.id))
+  return players.map((player) => {
+    const memberships = membershipsByPlayer.get(player.id) ?? []
     return { ...player, canEdit: memberships.length > 0 && memberships.every((id) => teamIds?.includes(id)) }
-  }))
+  })
 }
 
 export async function getPlayers() {

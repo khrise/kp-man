@@ -3,7 +3,7 @@ import * as db from "@/lib/db"
 import { auth } from "@/lib/next-auth"
 import { requirePermission } from "@/lib/server/auth"
 import { Permission } from "@/lib/permissions"
-import { getCaptainOptions, getCaptainTeamIds, getTeamCaptains, setTeamCaptains } from "@/lib/team-captains"
+import { getCaptainOptions, getCaptainTeamIds, getTeamCaptains, getTeamIdsByPlayer, setTeamCaptains } from "@/lib/team-captains"
 import { updateTeamAction, updateTeamCaptainsAction, createTeamAction, deleteTeamAction } from "@/app/actions/teams"
 import { getPlayersAdminList, createPlayerAction, updatePlayerAction, deletePlayerAction } from "@/app/actions/players"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
@@ -234,6 +234,26 @@ describe("shared player policy", () => {
     await setTeamCaptains(f.b.id, [f.captain.id])
     await updatePlayerAction(String(f.playerA.id), form({ first_name: "AllAssigned", last_name: "Player" }))
     expect((await db.getPlayerById(f.playerA.id))?.firstName).toBe("AllAssigned")
+  })
+
+  it("computes canEdit from batch-loaded memberships, including teams outside the captain's scope", async () => {
+    const f = await fixtures()
+    const shared = await db.createPlayer({ firstName: "Shared", lastName: "Player" })
+    const unassigned = await db.createPlayer({ firstName: "No", lastName: "Team" })
+    await db.setTeamPlayers(f.a.id, [f.playerA.id, shared.id])
+    await db.setTeamPlayers(f.b.id, [f.playerB.id, shared.id])
+
+    const memberships = await getTeamIdsByPlayer([f.playerA.id, shared.id, unassigned.id])
+    expect(memberships.get(f.playerA.id)).toEqual([f.a.id])
+    expect([...(memberships.get(shared.id) ?? [])].sort()).toEqual([f.a.id, f.b.id].sort())
+    expect(memberships.has(unassigned.id)).toBe(false)
+    expect((await getTeamIdsByPlayer([])).size).toBe(0)
+
+    const canEdit = Object.fromEntries((await getPlayersAdminList()).map((p) => [p.id, p.canEdit]))
+    expect(canEdit).toEqual({ [f.playerA.id]: true, [shared.id]: false })
+
+    signIn(f.admin)
+    expect((await getPlayersAdminList()).every((p) => p.canEdit)).toBe(true)
   })
 })
 
