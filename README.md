@@ -42,6 +42,30 @@ removes historical initial-response and no-op entries and clears unchanged
 fields in retained entries. Back up the database before applying this cleanup
 if the original snapshots must be retained.
 
+## Admin authorization
+
+Admin pages and server actions require a signed-in user whose **current database
+role** is `admin`. The shared server-only helpers in
+[`lib/server/auth.ts`](./lib/server/auth.ts) resolve the session user by ID on every
+check, so deleting a user or demoting an admin revokes access even for existing
+sessions. Login itself still accepts valid credentials for non-admin roles.
+
+- Call `requireAdmin()` before any admin-only server action reads or writes data.
+  Actions must authorize independently of the page that calls them.
+- Call `requireAdminPage()` before loading data in each admin page. Anonymous
+  visitors are redirected to `/admin/login`; signed-in non-admins and deleted users
+  receive a 404. Client-rendered screens use a guarded server page wrapper.
+- The match-import endpoint `/api/proxy-fetch` also requires admin access and
+  returns 401 or 403 for unauthorized requests.
+- Middleware and `AuthGuard` are navigation conveniences, not role enforcement.
+  The login page stays accessible to signed-in users so they can use another account.
+- Public season access, match views, club-name configuration, and availability
+  submissions remain public; do not apply the admin guard to these actions.
+
+Run authorization unit tests with `npm test -- --runInBand` and database-backed
+integration tests with `npm run test:integration` (requires a Docker-compatible
+container runtime).
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

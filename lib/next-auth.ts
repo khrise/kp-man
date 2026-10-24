@@ -12,7 +12,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const isOnAdmin = nextUrl.pathname.startsWith("/admin")
+      const isOnAdmin = nextUrl.pathname.startsWith("/admin") && nextUrl.pathname !== "/admin/login"
 
       if (isOnAdmin) {
         if (isLoggedIn) return true
@@ -30,9 +30,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (token) {
-        // @ts-expect-error - suppress type issues for now
+        if (typeof token.id !== "string" || typeof token.username !== "string") {
+          throw new Error("Invalid session token")
+        }
         session.user.id = token.id
-        // @ts-expect-error - suppress type issues for now
         session.user.username = token.username
       }
       return session

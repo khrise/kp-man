@@ -2,16 +2,20 @@
 
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
+import { requireAdmin } from "@/lib/server/auth"
 
 export async function getPlayersAdminList() {
+  await requireAdmin()
   return await db.getPlayersAdminList()
 }
 
 export async function getPlayers() {
+  await requireAdmin()
   return await db.getPlayers()
 }
 
 export async function createPlayerAction(formData: FormData) {
+  await requireAdmin()
   const data = {
     firstName: formData.get("first_name") as string,
     lastName: formData.get("last_name") as string,
@@ -23,6 +27,7 @@ export async function createPlayerAction(formData: FormData) {
 }
 
 export async function updatePlayerAction(id: string, formData: FormData) {
+  await requireAdmin()
   const playerId = Number(id)
   if (Number.isNaN(playerId)) {
     throw new Error("Invalid player id")
@@ -39,6 +44,7 @@ export async function updatePlayerAction(id: string, formData: FormData) {
 }
 
 export async function deletePlayerAction(id: string) {
+  await requireAdmin()
   const playerId = Number(id)
   if (Number.isNaN(playerId)) {
     throw new Error("Invalid player id")

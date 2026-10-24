@@ -2,13 +2,16 @@
 
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
+import { requireAdmin } from "@/lib/server/auth"
 
 export async function getCurrentSeasonAction() {
+  await requireAdmin()
   const season = await db.getCurrentSeason()
   return { success: true, data: season ?? null }
 }
 
 export async function createSeasonAction(formData: FormData) {
+  await requireAdmin()
   const isCurrent = formData.get("is_current") === "true"
 
   const data = {
@@ -29,6 +32,7 @@ export async function createSeasonAction(formData: FormData) {
 }
 
 export async function updateSeasonAction(id: string, formData: FormData) {
+  await requireAdmin()
   const seasonId = Number(id)
   if (Number.isNaN(seasonId)) {
     throw new Error("Invalid season id")
@@ -54,6 +58,7 @@ export async function updateSeasonAction(id: string, formData: FormData) {
 }
 
 export async function deleteSeasonAction(id: string) {
+  await requireAdmin()
   const seasonId = Number(id)
   if (Number.isNaN(seasonId)) {
     throw new Error("Invalid season id")

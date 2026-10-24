@@ -2,11 +2,13 @@ import { AuthGuard } from "@/components/auth-guard"
 import { AdminHeader } from "@/components/admin-header"
 import * as db from "@/lib/db"
 import { TiesClient } from "./ties-client"
+import { requireAdminPage } from "@/lib/server/auth"
 
 // Force dynamic rendering for admin pages
 export const dynamic = 'force-dynamic'
 
 export default async function TiesPage() {
+    await requireAdminPage()
     const [ties, teams, seasons, currentSeason] = await Promise.all([
       db.getTiesWithLineupInfo(),
       db.getTeams(),

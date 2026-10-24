@@ -4,6 +4,7 @@
 import { createSeasonAction, updateSeasonAction, deleteSeasonAction } from "@/app/actions/seasons"
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }))
+jest.mock("@/lib/server/auth", () => ({ requireAdmin: jest.fn().mockResolvedValue({ role: "admin" }) }))
 jest.mock("@/lib/db", () => ({
   createSeason: jest.fn(),
   updateSeason: jest.fn(),

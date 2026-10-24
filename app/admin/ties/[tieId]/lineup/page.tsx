@@ -3,6 +3,7 @@ import { getLineupData } from "@/app/actions/lineup"
 import { LineupClient } from "./lineup-client"
 import { AuthGuard } from "@/components/auth-guard"
 import { AdminHeader } from "@/components/admin-header"
+import { requireAdminPage } from "@/lib/server/auth"
 
 interface LineupPageProps {
   params: Promise<{
@@ -11,6 +12,7 @@ interface LineupPageProps {
 }
 
 export default async function LineupPage({ params }: LineupPageProps) {
+  await requireAdminPage()
   const { tieId } = await params
   
   try {

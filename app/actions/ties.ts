@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
+import { requireAdmin } from "@/lib/server/auth"
 
 function parseTieDate(value: FormDataEntryValue | null): string {
   if (typeof value !== "string" || value.trim() === "") {
@@ -17,6 +18,7 @@ function parseTieDate(value: FormDataEntryValue | null): string {
 }
 
 export async function createTieAction(formData: FormData) {
+  await requireAdmin()
   const teamId = Number(formData.get("team_id"))
   if (Number.isNaN(teamId)) {
     throw new Error("Invalid team id")
@@ -41,6 +43,7 @@ export async function createTieAction(formData: FormData) {
 }
 
 export async function updateTieAction(id: string, formData: FormData) {
+  await requireAdmin()
   const tieId = Number(id)
   if (Number.isNaN(tieId)) {
     throw new Error("Invalid tie id")
@@ -70,6 +73,7 @@ export async function updateTieAction(id: string, formData: FormData) {
 }
 
 export async function deleteTieAction(id: string) {
+  await requireAdmin()
   const tieId = Number(id)
   if (Number.isNaN(tieId)) {
     throw new Error("Invalid tie id")

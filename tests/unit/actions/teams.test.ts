@@ -4,6 +4,7 @@
 import { createTeamAction, updateTeamAction, deleteTeamAction } from "@/app/actions/teams"
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }))
+jest.mock("@/lib/server/auth", () => ({ requireAdmin: jest.fn().mockResolvedValue({ role: "admin" }) }))
 jest.mock("@/lib/db", () => ({
   createTeam: jest.fn(),
   updateTeam: jest.fn(),

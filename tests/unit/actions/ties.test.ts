@@ -4,6 +4,7 @@
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }))
+jest.mock("@/lib/server/auth", () => ({ requireAdmin: jest.fn().mockResolvedValue({ role: "admin" }) }))
 jest.mock("@/lib/db", () => ({
   createTie: jest.fn(),
   updateTie: jest.fn(),

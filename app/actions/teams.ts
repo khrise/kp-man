@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
+import { requireAdmin } from "@/lib/server/auth"
 
 export async function createTeamAction(formData: FormData) {
+  await requireAdmin()
   const seasonId = Number(formData.get("season_id"))
   if (Number.isNaN(seasonId)) {
     throw new Error("Invalid season id")
@@ -42,6 +44,7 @@ export async function createTeamAction(formData: FormData) {
 }
 
 export async function updateTeamAction(id: string, formData: FormData) {
+  await requireAdmin()
   const teamId = Number(id)
   if (Number.isNaN(teamId)) {
     throw new Error("Invalid team id")
@@ -85,6 +88,7 @@ export async function updateTeamAction(id: string, formData: FormData) {
 }
 
 export async function deleteTeamAction(id: string) {
+  await requireAdmin()
   const teamId = Number(id)
   if (Number.isNaN(teamId)) {
     throw new Error("Invalid team id")

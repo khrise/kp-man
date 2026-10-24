@@ -29,7 +29,7 @@ export default auth((req) => {
     return NextResponse.redirect(requestUrl("/admin/dashboard", req, nextUrl))
   }
 
-  // Protect admin routes
+  // Authentication is an early filter; server pages and actions enforce the current admin role.
   if (isAdminRoute && !isLoggedIn && !isAdminLoginPage) {
     return NextResponse.redirect(requestUrl("/admin/login", req, nextUrl))
   }

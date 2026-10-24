@@ -2,11 +2,13 @@ import { AuthGuard } from "@/components/auth-guard"
 import { AdminHeader } from "@/components/admin-header"
 import { TeamsClient } from "./teams-client"
 import * as db from "@/lib/db"
+import { requireAdminPage } from "@/lib/server/auth"
 
 // Force dynamic rendering for admin pages
 export const dynamic = 'force-dynamic'
 
 export default async function TeamsPage() {
+  await requireAdminPage()
   const [teams, seasons, players, currentSeason] = await Promise.all([
     db.getTeams(),
     db.getSeasons(),
@@ -45,4 +47,3 @@ export default async function TeamsPage() {
     </AuthGuard>
   )
 }
-

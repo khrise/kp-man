@@ -1,8 +1,10 @@
 "use server"
 
 import { getDashboardStats } from "@/lib/db"
+import { requireAdmin } from "@/lib/server/auth"
 
 export async function fetchDashboardStats() {
+  await requireAdmin()
   try {
     const stats = await getDashboardStats()
     return { success: true, data: stats }

@@ -2,10 +2,12 @@ import { AuthGuard } from "@/components/auth-guard"
 import { AdminHeader } from "@/components/admin-header"
 import { SeasonsClient } from "./seasons-client"
 import * as db from "@/lib/db"
+import { requireAdminPage } from "@/lib/server/auth"
 
 export const dynamic = "force-dynamic"
 
 export default async function SeasonsPage() {
+  await requireAdminPage()
   const seasons = await db.getSeasons()
 
   return (

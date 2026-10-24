@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
+import { requireAdmin } from "@/lib/server/auth"
 
 export async function toggleLineupAction(participationId: string, tieId: string) {
+  await requireAdmin()
   const participationIdNum = Number(participationId)
   const tieIdNum = Number(tieId)
 
@@ -54,6 +56,7 @@ export async function toggleLineupAction(participationId: string, tieId: string)
 }
 
 export async function markTieReadyAction(tieId: string, ready: boolean) {
+  await requireAdmin()
   const tieIdNum = Number(tieId)
   if (Number.isNaN(tieIdNum)) {
     throw new Error("Invalid tie ID")
@@ -80,6 +83,7 @@ export async function markTieReadyAction(tieId: string, ready: boolean) {
 }
 
 export async function getLineupData(tieId: string) {
+  await requireAdmin()
   const tieIdNum = Number(tieId)
   if (Number.isNaN(tieIdNum)) {
     throw new Error("Invalid tie ID")
