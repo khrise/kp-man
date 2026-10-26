@@ -726,35 +726,38 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
 type UpsertParticipationInput = Pick<Insertable<ParticipationsTable>, "tieId" | "playerId" | "status" | "comment">
 
 export async function upsertParticipation(data: UpsertParticipationInput): Promise<Participation> {
-  // Read previous participation (if any) to record audit
-  const previous = await db
-    .selectFrom("participations")
-    .selectAll()
-    .where("tieId", "=", data.tieId)
-    .where("playerId", "=", data.playerId)
-    .executeTakeFirst()
+  return db.transaction().execute(async (trx) => {
+    // Use the same lock order as captain edits, including first responses.
+    const tie = await trx.selectFrom("ties").select("id")
+      .where("id", "=", data.tieId).forUpdate().executeTakeFirst()
+    if (!tie) throw new Error("Tie not found")
 
-  const inserted = await db
-    .insertInto("participations")
-    .values({
-      ...data,
-    })
-    .onConflict((oc) =>
-      oc.columns(["tieId", "playerId"]).doUpdateSet({
-        status: data.status,
-        comment: data.comment ?? null,
-        updatedAt: sql`now()`,
-      }),
-    )
-    .returningAll()
-    .executeTakeFirst()
+    const previous = await trx
+      .selectFrom("participations")
+      .selectAll()
+      .where("tieId", "=", data.tieId)
+      .where("playerId", "=", data.playerId)
+      .executeTakeFirst()
 
-  if (!inserted) {
-    throw new Error("Failed to upsert participation")
-  }
+    const inserted = await trx
+      .insertInto("participations")
+      .values({
+        ...data,
+      })
+      .onConflict((oc) =>
+        oc.columns(["tieId", "playerId"]).doUpdateSet({
+          status: data.status,
+          comment: data.comment ?? null,
+          updatedAt: sql`now()`,
+        }),
+      )
+      .returningAll()
+      .executeTakeFirst()
 
-  // Insert audit row capturing previous and new values, including the first response
-  try {
+    if (!inserted) {
+      throw new Error("Failed to upsert participation")
+    }
+
     await insertParticipationAudit({
       participationId: inserted.id,
       playerId: Number(inserted.playerId),
@@ -766,12 +769,10 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
       previousIsInLineup: previous?.isInLineup ?? null,
       newIsInLineup: previous ? inserted.isInLineup : null,
       changedBy: null,
-    })
-  } catch (err) {
-    console.error("Failed to insert participation audit:", err)
-  }
+    }, trx)
 
-  return inserted
+    return inserted
+  })
 }
 
 export async function getParticipationById(id: number): Promise<Participation | undefined> {
@@ -824,14 +825,14 @@ export async function insertParticipationAudit(entry: {
   previousIsInLineup?: boolean | null
   newIsInLineup?: boolean | null
   changedBy?: string | null
-}) {
+}, transaction?: Transaction<Database>) {
   const statusChanged = (entry.previousStatus ?? null) !== entry.newStatus
   const commentChanged = (entry.previousComment ?? null) !== (entry.newComment ?? null)
   const captainCommentChanged = (entry.previousCaptainComment ?? null) !== (entry.newCaptainComment ?? null)
   const lineupChanged = (entry.previousIsInLineup ?? null) !== (entry.newIsInLineup ?? null)
   if (!statusChanged && !commentChanged && !captainCommentChanged && !lineupChanged) return
 
-  return db.insertInto("participation_audit").values({
+  return (transaction ?? db).insertInto("participation_audit").values({
     participationId: entry.participationId ?? null,
     playerId: entry.playerId,
     tieId: entry.tieId,

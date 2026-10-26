@@ -38,6 +38,8 @@ directly in the lineup view, including for players who have not submitted an
 RSVP. A single Save button stores status and comment edits atomically.
 Changes from the same Save are recorded in one audit entry, including lineup
 membership only when it actually changes. Creating an RSVP does not select the player.
+Public RSVP writes and captain saves acquire the same tie lock before writing,
+keeping concurrent responses and their audit history transactional.
 The speech-bubble button toggles the comment editor; hiding it preserves drafts.
 Saved comments and their attribution remain visible without opening the editor.
 Selecting No response and saving only a comment does not create an RSVP, change availability, or select

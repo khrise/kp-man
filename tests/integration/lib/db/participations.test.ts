@@ -311,6 +311,38 @@ describe("participation audit changes", () => {
 })
 
 describe("captain-managed lineup data", () => {
+  it.each(["public", "captain"])("serializes concurrent first RSVPs starting with %s and preserves both comments", async (first) => {
+    const { player, tie } = await createTestFixture()
+    const captain = await createUser({
+      username: "captain-user", email: "captain@example.com",
+      passwordHash: "not-used", role: "team_captain", playerId: null,
+    })
+    const publicSave = () => upsertParticipation({
+      tieId: tie.id, playerId: player.id, status: "maybe", comment: "Player note",
+    })
+    const captainSave = () => updateParticipationCaptainComment(
+      tie.id, player.id, "Captain note", captain.id, captain.username, "confirmed",
+    )
+    await Promise.all(first === "public" ? [publicSave(), captainSave()] : [captainSave(), publicSave()])
+
+    const participations = await getParticipations(tie.id)
+    expect(participations).toHaveLength(1)
+    expect(participations[0]).toEqual(expect.objectContaining({
+      comment: "Player note", captainComment: "Captain note", isInLineup: false,
+    }))
+    const audit = (await getParticipationAuditForTie(tie.id)).reverse()
+    expect(audit).toHaveLength(2)
+    expect(audit[0].previousStatus).toBeNull()
+    expect(audit[1].previousStatus).toBe(audit[0].newStatus)
+    expect(participations[0].status).toBe(audit[1].newStatus)
+    expect(audit.find((entry) => entry.changedBy === null)).toEqual(expect.objectContaining({
+      previousComment: null, newComment: "Player note",
+    }))
+    expect(audit.find((entry) => entry.changedBy === captain.username)).toEqual(expect.objectContaining({
+      previousCaptainComment: null, newCaptainComment: "Captain note",
+    }))
+  })
+
   it("saves status and captain comment atomically and rolls both back on failure", async () => {
     const { player, tie } = await createTestFixture()
     const captain = await createUser({
