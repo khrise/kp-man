@@ -165,6 +165,45 @@ describe("captain RSVP controls", () => {
 
   beforeEach(() => saveStatus.mockReset())
 
+  it.each([false, true])("preserves both player editor drafts while audit entries load in single-list mode: %p", async (singleList) => {
+    jest.mocked(loadMoreAuditEntriesAction).mockResolvedValue({ entries: [], hasMore: false })
+    const participation: Props["availablePlayers"][number] = {
+      id: 4, tieId: 1, playerId: 2, status: "confirmed", isInLineup: false,
+      comment: null, captainComment: null, captainCommentBy: null, captainCommentAuthor: null,
+      respondedAt: date, createdAt: date, updatedAt: date,
+      player: { id: 2, firstName: "Anna", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+    }
+    render(<LineupClient
+      {...props}
+      availablePlayers={[participation]}
+      playersWithoutParticipation={[{
+        id: 9, playerId: 9, teamId: 1, firstName: "No", lastName: "Response",
+        captainComment: null, captainCommentAuthor: null, createdAt: date, playerRank: 3,
+      }]}
+      auditEntries={[entry]}
+      auditHasMore
+    />)
+    if (singleList) fireEvent.click(screen.getByText("showSingleList"))
+    else fireEvent.click(screen.getByRole("button", { name: /playersWithoutResponse/ }))
+
+    const selectors = screen.getAllByRole("combobox", { name: "manageRsvp" })
+    selectors.forEach((selector) => fireEvent.change(selector, { target: { value: "maybe" } }))
+    screen.getAllByRole("button", { name: "captainsComment" }).forEach((toggle) => fireEvent.click(toggle))
+    const editors = screen.getAllByRole("textbox", { name: "captainsComment" })
+    editors.forEach((editor, index) => fireEvent.change(editor, { target: { value: `Draft ${index}` } }))
+
+    fireEvent.click(screen.getByRole("button", { name: /loadMoreAuditEntries/ }))
+    await waitFor(() => expect(screen.queryByRole("button", { name: /loadMoreAuditEntries/ })).not.toBeInTheDocument())
+
+    selectors.forEach((selector, index) => {
+      expect(screen.getAllByRole("combobox", { name: "manageRsvp" })[index]).toBe(selector)
+      expect(selector).toHaveValue("maybe")
+      expect(screen.getAllByRole("textbox", { name: "captainsComment" })[index]).toBe(editors[index])
+      expect(editors[index]).toHaveValue(`Draft ${index}`)
+      expect(screen.getAllByRole("button", { name: "captainsComment" })[index]).toHaveAttribute("aria-expanded", "true")
+    })
+  })
+
   it("uses unique label and comment-panel associations for duplicate player editors", () => {
     const participation: Props["lineupPlayers"][number] = {
       id: 4, tieId: 1, playerId: 2, status: "confirmed", isInLineup: true,

@@ -224,6 +224,122 @@ function TieCaptainCommentEditor({
   )
 }
 
+type PlayerCardProps = {
+  participation: ParticipationWithPlayer
+  isInLineup: boolean
+  canToggle: boolean
+  tieId: number
+  isFinalized: boolean
+  isLoading: boolean
+  onToggleLineup: (participationId: number) => void
+  onSaved: () => void
+}
+
+function PlayerCard({
+  participation, isInLineup, canToggle, tieId, isFinalized, isLoading, onToggleLineup, onSaved,
+}: PlayerCardProps) {
+  const { t } = useTranslation()
+  const isProblematic = isInLineup && participation.status !== "confirmed"
+
+  return (
+    <Card className={`${isInLineup ? 'ring-2 ring-blue-500 bg-blue-50' : ''} ${isProblematic ? 'ring-red-500 bg-red-50' : ''}`}>
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm mb-2">
+              #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
+            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={
+                participation.status === "confirmed" ? "default" :
+                participation.status === "maybe" ? "secondary" : "destructive"
+              }>
+                {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
+                {participation.status === "maybe" && <Scale className="w-3 h-3 mr-1" />}
+                {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
+                {t(participation.status)}
+              </Badge>
+              {isInLineup && <Badge variant="outline" className="bg-blue-100">{t("inLineup")}</Badge>}
+              {isProblematic && (
+                <Badge variant="destructive" className="bg-red-500 text-white">
+                  ⚠️ {t("needsAttention")}
+                </Badge>
+              )}
+            </div>
+          </div>
+          {canToggle && (
+            <Button
+              size="sm"
+              variant={isInLineup ? "outline" : "default"}
+              onClick={() => onToggleLineup(participation.id)}
+              disabled={isLoading || isFinalized}
+              className="w-full sm:w-auto mt-2 sm:mt-0"
+            >
+              {isInLineup ? t("remove") : t("add")}
+            </Button>
+          )}
+        </div>
+        {participation.comment && (
+          <div className="mt-3 text-sm text-gray-700">
+            <p className="font-medium">{t("participationComment")}</p>
+            <p className="whitespace-pre-wrap break-words">{participation.comment}</p>
+          </div>
+        )}
+        <RsvpManagementControls
+          tieId={tieId}
+          playerId={participation.playerId}
+          status={participation.status}
+          captainComment={participation.captainComment}
+          captainCommentAuthor={participation.captainCommentAuthor}
+          isFinalized={isFinalized}
+          onSaved={onSaved}
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
+function NoResponsePlayerCard({
+  player, tieId, isFinalized, onSaved,
+}: {
+  player: PlayerWithoutParticipation
+  tieId: number
+  isFinalized: boolean
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <Card className="bg-gray-50 border-gray-200">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm">
+                #{player.playerRank} {player.firstName} {player.lastName}
+              </h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="outline" className="bg-gray-100 text-gray-600">
+                  <HelpCircle className="w-3 h-3 mr-1" />
+                  {t("noResponsePlayers")}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+        <RsvpManagementControls
+          tieId={tieId}
+          playerId={player.playerId}
+          status={null}
+          captainComment={player.captainComment}
+          captainCommentAuthor={player.captainCommentAuthor}
+          isFinalized={isFinalized}
+          onSaved={onSaved}
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
 export function LineupClient({
   tie,
   team,
@@ -389,109 +505,12 @@ Aufstellung: ${playerNames}`
     }
   }
 
-  const PlayerCard = ({ participation, isInLineup, canToggle }: { 
-    participation: ParticipationWithPlayer, 
-    isInLineup: boolean,
-    canToggle: boolean
-  }) => {
-    // Check if this is a problematic lineup situation
-    const isProblematic = isInLineup && participation.status !== "confirmed"
-    
-    return (
-      <Card className={`${isInLineup ? 'ring-2 ring-blue-500 bg-blue-50' : ''} ${isProblematic ? 'ring-red-500 bg-red-50' : ''}`}>
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm mb-2">
-                #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
-              </h3>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={
-                  participation.status === "confirmed" ? "default" : 
-                  participation.status === "maybe" ? "secondary" : "destructive"
-                }>
-                  {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
-                  {participation.status === "maybe" && <Scale className="w-3 h-3 mr-1" />}
-                  {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
-                  {t(participation.status)}
-                </Badge>
-                {isInLineup && (
-                  <Badge variant="outline" className="bg-blue-100">
-                    {t("inLineup")}
-                  </Badge>
-                )}
-                {isProblematic && (
-                  <Badge variant="destructive" className="bg-red-500 text-white">
-                    ⚠️ {t("needsAttention")}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            
-            {canToggle && (
-              <Button
-                size="sm"
-                variant={isInLineup ? "outline" : "default"}
-                onClick={() => handleToggleLineup(participation.id)}
-                disabled={isLoading || tie.isLineupReady}
-                className="w-full sm:w-auto mt-2 sm:mt-0"
-              >
-                {isInLineup ? t("remove") : t("add")}
-              </Button>
-            )}
-          </div>
-          {participation.comment && (
-            <div className="mt-3 text-sm text-gray-700">
-              <p className="font-medium">{t("participationComment")}</p>
-              <p className="whitespace-pre-wrap break-words">{participation.comment}</p>
-            </div>
-          )}
-          <RsvpManagementControls
-            tieId={tie.id}
-            playerId={participation.playerId}
-            status={participation.status}
-            captainComment={participation.captainComment}
-            captainCommentAuthor={participation.captainCommentAuthor}
-            isFinalized={tie.isLineupReady}
-            onSaved={() => router.refresh()}
-          />
-        </CardContent>
-      </Card>
-    )
+  const sharedCardProps = {
+    tieId: tie.id,
+    isFinalized: tie.isLineupReady,
+    onSaved: () => router.refresh(),
   }
-
-  const NoResponsePlayerCard = ({ player }: { player: PlayerWithoutParticipation }) => {
-    return (
-      <Card className="bg-gray-50 border-gray-200">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm">
-                  #{player.playerRank} {player.firstName} {player.lastName}
-                </h3>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Badge variant="outline" className="bg-gray-100 text-gray-600">
-                    <HelpCircle className="w-3 h-3 mr-1" />
-                    {t("noResponsePlayers")}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </div>
-          <RsvpManagementControls
-            tieId={tie.id}
-            playerId={player.playerId}
-            status={null}
-            captainComment={player.captainComment}
-            captainCommentAuthor={player.captainCommentAuthor}
-            isFinalized={tie.isLineupReady}
-            onSaved={() => router.refresh()}
-          />
-        </CardContent>
-      </Card>
-    )
-  }
+  const playerCardProps = { ...sharedCardProps, isLoading, onToggleLineup: handleToggleLineup }
 
   const maybeParticipations = otherParticipations.filter((p) => p.status === "maybe")
   const declinedParticipations = otherParticipations.filter((p) => p.status !== "maybe")
@@ -682,6 +701,7 @@ Aufstellung: ${playerNames}`
                         {index + 1}
                       </div>
                       <PlayerCard 
+                        {...playerCardProps}
                         participation={participation} 
                         isInLineup={true}
                         canToggle={!tie.isLineupReady}
@@ -714,9 +734,10 @@ Aufstellung: ${playerNames}`
                   .sort((a, b) => a.rank - b.rank)
                   .map((item) =>
                     item.kind === "noResponse" ? (
-                      <NoResponsePlayerCard key={`nr-${item.player.id}`} player={item.player} />
+                      <NoResponsePlayerCard {...sharedCardProps} key={`nr-${item.player.id}`} player={item.player} />
                     ) : (
                       <PlayerCard
+                        {...playerCardProps}
                         key={item.participation.id}
                         participation={item.participation}
                         isInLineup={item.inLineup}
@@ -746,6 +767,7 @@ Aufstellung: ${playerNames}`
                   .sort((a, b) => a.player.playerRank - b.player.playerRank)
                   .map((participation) => (
                     <PlayerCard 
+                      {...playerCardProps}
                       key={participation.id}
                       participation={participation} 
                       isInLineup={false}
@@ -781,7 +803,7 @@ Aufstellung: ${playerNames}`
                     {playersWithoutParticipation
                       .sort((a, b) => a.playerRank - b.playerRank)
                       .map((player) => (
-                        <NoResponsePlayerCard key={player.id} player={player} />
+                        <NoResponsePlayerCard {...sharedCardProps} key={player.id} player={player} />
                       ))}
                   </div>
                 </AccordionContent>
