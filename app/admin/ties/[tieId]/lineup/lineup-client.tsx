@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -84,6 +84,9 @@ function RsvpManagementControls({
   onSaved,
 }: RsvpManagementControlsProps) {
   const { t } = useTranslation()
+  const instanceId = useId()
+  const statusId = `rsvp-status-${instanceId}`
+  const commentPanelId = `captain-comment-${instanceId}`
   const [selectedStatus, setSelectedStatus] = useState<Participation["status"] | "">(status ?? "")
   const [comment, setComment] = useState(captainComment ?? "")
   const [isSaving, setIsSaving] = useState(false)
@@ -118,9 +121,9 @@ function RsvpManagementControls({
   return (
     <div className="mt-3 space-y-2 border-t pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs font-medium" htmlFor={`rsvp-status-${tieId}-${playerId}`}>{t("manageRsvp")}</label>
+        <label className="text-xs font-medium" htmlFor={statusId}>{t("manageRsvp")}</label>
         <select
-          id={`rsvp-status-${tieId}-${playerId}`}
+          id={statusId}
           className="h-9 rounded-md border bg-white px-2 text-sm"
           value={selectedStatus}
           onChange={(event) => {
@@ -142,7 +145,7 @@ function RsvpManagementControls({
           aria-label={t("captainsComment")}
           title={t("captainsComment")}
           aria-expanded={isCommentOpen}
-          aria-controls={`captain-comment-${tieId}-${playerId}`}
+          aria-controls={commentPanelId}
           onClick={() => setIsCommentOpen((open) => !open)}
           disabled={isSaving}
         >
@@ -151,7 +154,7 @@ function RsvpManagementControls({
         {isFinalized && <span className="text-xs text-gray-500">{t("statusLockedUntilUnfinalized")}</span>}
       </div>
       {isCommentOpen ? (
-        <div id={`captain-comment-${tieId}-${playerId}`} className="space-y-2">
+        <div id={commentPanelId} className="space-y-2">
           <Textarea
             aria-label={t("captainsComment")}
             className="text-xs md:text-xs"

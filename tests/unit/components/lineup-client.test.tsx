@@ -165,6 +165,47 @@ describe("captain RSVP controls", () => {
 
   beforeEach(() => saveStatus.mockReset())
 
+  it("uses unique label and comment-panel associations for duplicate player editors", () => {
+    const participation: Props["lineupPlayers"][number] = {
+      id: 4, tieId: 1, playerId: 2, status: "confirmed", isInLineup: true,
+      comment: null, captainComment: null, captainCommentBy: null, captainCommentAuthor: null,
+      respondedAt: date, createdAt: date, updatedAt: date,
+      player: { id: 2, firstName: "Anna", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+    }
+    render(<LineupClient
+      {...props}
+      lineupPlayers={[participation]}
+      lineupCount={1}
+      playersWithoutParticipation={[{
+        id: 9, playerId: 9, teamId: 1, firstName: "No", lastName: "Response",
+        captainComment: null, captainCommentAuthor: null, createdAt: date, playerRank: 3,
+      }]}
+    />)
+    fireEvent.click(screen.getByText("showSingleList"))
+
+    const selectors = screen.getAllByRole("combobox", { name: "manageRsvp" })
+    const toggles = screen.getAllByRole("button", { name: "captainsComment" })
+    expect(selectors).toHaveLength(3)
+    expect(toggles).toHaveLength(3)
+    expect(new Set(selectors.map((selector) => selector.id)).size).toBe(3)
+    expect(new Set(toggles.map((toggle) => toggle.getAttribute("aria-controls"))).size).toBe(3)
+
+    selectors.forEach((selector, index) => {
+      const label = screen.getAllByText("manageRsvp")[index]
+      expect(label).toHaveAttribute("for", selector.id)
+      expect(document.getElementById(label.getAttribute("for")!)).toBe(selector)
+
+      const toggle = toggles[index]
+      fireEvent.click(toggle)
+      const panelId = toggle.getAttribute("aria-controls")
+      expect(panelId).not.toBeNull()
+      const panel = document.getElementById(panelId!)
+      expect(panel).not.toBeNull()
+      expect(toggle.parentElement?.parentElement).toContainElement(panel)
+      expect(within(panel!).getByRole("textbox", { name: "captainsComment" })).toBeInTheDocument()
+    })
+  })
+
   it.each([false, true])("saves comments without creating an RSVP in single-list layout: %p", async (singleList) => {
     const saveComment = jest.mocked(saveParticipationCaptainCommentAction)
     saveComment.mockReset().mockResolvedValue({ success: true })
