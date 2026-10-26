@@ -10,7 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X, ChevronUp, ChevronDown, UserMinus } from "lucide-react"
-import { createTeamAction, updateTeamAction, deleteTeamAction } from "@/app/actions/teams"
+import { createTeamAction, updateTeamAction, deleteTeamAction, updateTeamCaptainsAction } from "@/app/actions/teams"
+import { usePermission } from "@/components/management-provider"
+import { Permission } from "@/lib/permissions"
+import type { CaptainOption } from "@/lib/types"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useTranslation } from "@/lib/i18n"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 
@@ -30,6 +34,7 @@ type Team = {
   league: string | null
   teamSize: number
   players?: TeamPlayer[]
+  captains: CaptainOption[]
 }
 
 type Season = {
@@ -48,14 +53,22 @@ export function TeamsClient({
   seasons,
   players,
   currentSeasonId,
+  captainOptions,
 }: {
   initialTeams: Team[]
   seasons: Season[]
   players: Player[]
   currentSeasonId: number | null
+  captainOptions: CaptainOption[]
 }) {
   const { t } = useTranslation()
   const router = useRouter()
+  const canCreate = usePermission(Permission.TeamsCreate)
+  const canDelete = usePermission(Permission.TeamsDelete)
+  const canAssignCaptains = usePermission(Permission.CaptainsManage)
+  const [captainIds, setCaptainIds] = useState<number[]>([])
+  const [formError, setFormError] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [enableRankInput, setEnableRankInput] = useState(false)
@@ -87,6 +100,8 @@ export function TeamsClient({
 
   const handleEdit = (team: Team) => {
     setEditingId(team.id)
+    setCaptainIds(team.captains.map((captain) => captain.id))
+    setFormError("")
     setFormData({
       name: team.name,
       league: team.league || "",
@@ -98,6 +113,9 @@ export function TeamsClient({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSaving) return
+    setIsSaving(true)
+    setFormError("")
     const formDataObj = new FormData()
     formDataObj.append("name", formData.name)
     formDataObj.append("league", formData.league)
@@ -105,23 +123,36 @@ export function TeamsClient({
     formDataObj.append("season_id", formData.seasonId)
     formDataObj.append("player_ids", JSON.stringify(formData.playerIds))
 
-    if (editingId !== null) {
-      await updateTeamAction(String(editingId), formDataObj)
-      setEditingId(null)
-    } else {
-      await createTeamAction(formDataObj)
-      setIsAdding(false)
-    }
+    try {
+      if (editingId !== null) {
+        await updateTeamAction(String(editingId), formDataObj)
+        if (canAssignCaptains) {
+          await updateTeamCaptainsAction(editingId, captainIds)
+        }
+        setEditingId(null)
+      } else {
+        await createTeamAction(formDataObj)
+        setIsAdding(false)
+      }
 
-    setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
-    setEnableRankInput(false) // Reset toggle state
-    setShowAvailablePlayers(false) // Reset available players visibility
-    router.refresh()
+      setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
+      setCaptainIds([])
+      setEnableRankInput(false) // Reset toggle state
+      setShowAvailablePlayers(false) // Reset available players visibility
+      router.refresh()
+    } catch (error) {
+      console.error("Failed to save team:", error)
+      setFormError(error instanceof Error ? error.message : t("teamSaveFailed"))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
+    setCaptainIds([])
+    setFormError("")
     setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
     setEnableRankInput(false) // Reset toggle state
     setShowAvailablePlayers(false) // Reset available players visibility
@@ -178,11 +209,11 @@ export function TeamsClient({
           <p className="mt-2 text-gray-600">{t("manageTeamsDesc")}</p>
         </div>
         <div className="flex gap-2 sm:flex-shrink-0">
-          <Button onClick={() => setIsAdding(true)}>
+          {canCreate && <Button onClick={() => setIsAdding(true)}>
             <Plus className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">{t("addTeam")}</span>
             <span className="sm:hidden">{t("add")}</span>
-          </Button>
+          </Button>}
         </div>
       </div>
 
@@ -250,6 +281,7 @@ export function TeamsClient({
                 <div className="space-y-2">
                   <Label htmlFor="season">{t("season")}</Label>
                   <Select
+                    disabled={!canCreate}
                     value={formData.seasonId}
                     onValueChange={(value) => setFormData({ ...formData, seasonId: value })}
                   >
@@ -266,6 +298,23 @@ export function TeamsClient({
                   </Select>
                 </div>
               </div>
+
+              {editingId !== null && canAssignCaptains && (
+                <fieldset className="mt-6 space-y-3">
+                  <legend className="text-sm font-medium">{t("teamCaptains")}</legend>
+                  {captainOptions.map((captain) => (
+                    <label key={captain.id} className="flex items-center gap-2">
+                      <Checkbox
+                        checked={captainIds.includes(captain.id)}
+                        onCheckedChange={(checked) => setCaptainIds((ids) => checked
+                          ? [...ids, captain.id] : ids.filter((id) => id !== captain.id))}
+                      />
+                      {captain.username}
+                    </label>
+                  ))}
+                  {captainOptions.length === 0 && <p>{t("noEligibleCaptains")}</p>}
+                </fieldset>
+              )}
 
               <div className="mt-6 space-y-4">
                 <div className="space-y-3">
@@ -447,15 +496,16 @@ export function TeamsClient({
               </div>
 
               <div className="mt-4 flex gap-2">
-                <Button type="submit">
+                <Button type="submit" disabled={isSaving}>
                   <Check className="mr-2 h-4 w-4" />
                   {t("save")}
                 </Button>
-                <Button type="button" variant="outline" onClick={handleCancel}>
+                <Button type="button" variant="outline" onClick={handleCancel} disabled={isSaving}>
                   <X className="mr-2 h-4 w-4" />
                   {t("cancel")}
                 </Button>
               </div>
+              {formError && <p role="alert" className="mt-3 text-sm text-red-600">{formError}</p>}
             </form>
           </CardContent>
         </Card>
@@ -476,6 +526,9 @@ export function TeamsClient({
                   </p>
                   <p className="text-xs text-gray-500">
                     {t("teamSize")}: {team.teamSize} {t("playersCount")}
+                  </p>
+                  <p className="flex items-center gap-1 text-xs text-gray-500">
+                    <span>{t("teamCaptains")}: {team.captains.map((captain) => captain.username).join(", ") || t("noTeamCaptains")}</span>
                   </p>
                   {team.players && team.players.length > 0 && (
                     <div className="mt-4">
@@ -512,10 +565,10 @@ export function TeamsClient({
                     <Edit className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("edit")}</span>
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(team.id)}>
+                  {canDelete && <Button variant="outline" size="sm" onClick={() => handleDelete(team.id)}>
                     <Trash2 className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("delete")}</span>
-                  </Button>
+                  </Button>}
                 </div>
               </div>
             </CardContent>
