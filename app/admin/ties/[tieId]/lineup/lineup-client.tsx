@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Users, UserCheck, UserX, Clock, HelpCircle, Mail, Copy, MessageSquare } from "lucide-react"
+import { Users, UserCheck, UserX, HelpCircle, Scale, ListChecks, Mail, Copy, MessageSquare } from "lucide-react"
 import {
   toggleLineupAction,
   markTieReadyAction,
@@ -408,7 +408,7 @@ Aufstellung: ${playerNames}`
                   participation.status === "maybe" ? "secondary" : "destructive"
                 }>
                   {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
-                  {participation.status === "maybe" && <Clock className="w-3 h-3 mr-1" />}
+                  {participation.status === "maybe" && <Scale className="w-3 h-3 mr-1" />}
                   {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
                   {t(participation.status)}
                 </Badge>
@@ -511,7 +511,7 @@ Aufstellung: ${playerNames}`
   const otherSections = (
     separateOthers
       ? [
-          { key: "maybe", title: t("maybe"), icon: <HelpCircle className="w-5 h-5 text-yellow-600" />, items: maybeParticipations },
+          { key: "maybe", title: t("maybe"), icon: <Scale className="w-5 h-5 text-yellow-600" />, items: maybeParticipations },
           { key: "declined", title: t("declined"), icon: <UserX className="w-5 h-5 text-red-600" />, items: declinedParticipations },
         ]
       : []
@@ -665,7 +665,7 @@ Aufstellung: ${playerNames}`
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <UserCheck className="w-5 h-5 text-blue-600" />
+                <ListChecks className="w-5 h-5 text-blue-600" />
                 <span>{t("lineupPlayers")} ({lineupCount})</span>
               </CardTitle>
             </CardHeader>
@@ -699,7 +699,9 @@ Aufstellung: ${playerNames}`
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Users className="w-5 h-5 text-green-600" />
+                {separateOthers
+                  ? <UserCheck className="w-5 h-5 text-green-600" />
+                  : <Users className="w-5 h-5 text-green-600" />}
                 <span>{separateOthers ? t("availablePlayers") : t("allPlayers")} ({availableListItems.length})</span>
               </CardTitle>
             </CardHeader>
