@@ -41,14 +41,26 @@ async function createTestFixture() {
 }
 
 describe("upsertParticipation", () => {
-  it("creates a new participation record", async () => {
+  it("creates a new participation record and audits the first response", async () => {
     const { player, tie } = await createTestFixture()
     const participation = await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: null })
     expect(participation.id).toBeDefined()
     expect(participation.status).toBe("confirmed")
     expect(participation.comment).toBeNull()
     const audit = await getParticipationAuditForTie(tie.id)
-    expect(audit).toHaveLength(0)
+    expect(audit).toEqual([
+      expect.objectContaining({
+        participationId: participation.id,
+        playerId: player.id,
+        tieId: tie.id,
+        previousStatus: null,
+        newStatus: "confirmed",
+        previousComment: null,
+        newComment: null,
+        previousIsInLineup: null,
+        newIsInLineup: null,
+      }),
+    ])
   })
 
   it("updates status on second call (upsert behaviour)", async () => {
@@ -58,8 +70,13 @@ describe("upsertParticipation", () => {
     expect(updated.status).toBe("declined")
     expect(updated.comment).toBe("injured")
     const audit = await getParticipationAuditForTie(tie.id)
-    expect(audit).toHaveLength(1)
+    expect(audit).toHaveLength(2)
     expect(audit).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        participationId: updated.id,
+        previousStatus: null,
+        newStatus: "confirmed",
+      }),
       expect.objectContaining({
         participationId: updated.id,
         playerId: player.id,
@@ -166,7 +183,7 @@ describe("updateParticipationLineup", () => {
     const reverted = await updateParticipationLineup(p.id, false)
     expect(reverted?.isInLineup).toBe(false)
     const audit = await getParticipationAuditForTie(tie.id)
-    expect(audit).toHaveLength(2)
+    expect(audit).toHaveLength(3)
     expect(audit).toEqual(expect.arrayContaining([
       expect.objectContaining({
         participationId: p.id,
@@ -191,22 +208,28 @@ describe("participation audit changes", () => {
     const { player, tie } = await createTestFixture()
     const data = { tieId: tie.id, playerId: player.id, status: "confirmed" as const, comment: "Available" }
     const participation = await upsertParticipation(data)
+    const initialAudit = await getParticipationAuditForTie(tie.id)
     await upsertParticipation(data)
     await updateParticipationLineup(participation.id, false)
-    expect(await getParticipationAuditForTie(tie.id)).toEqual([])
+    expect(await getParticipationAuditForTie(tie.id)).toEqual(initialAudit)
   })
 
   it("stores only status changes when the comment stays the same", async () => {
     const { player, tie } = await createTestFixture()
     await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: "Available" })
     await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "maybe", comment: "Available" })
-    expect(await getParticipationAuditForTie(tie.id)).toEqual([
+    expect(await getParticipationAuditForTie(tie.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        previousStatus: null, newStatus: "confirmed",
+        previousComment: null, newComment: "Available",
+        previousIsInLineup: null, newIsInLineup: null,
+      }),
       expect.objectContaining({
         previousStatus: "confirmed", newStatus: "maybe",
         previousComment: null, newComment: null,
         previousIsInLineup: null, newIsInLineup: null,
       }),
-    ])
+    ]))
   })
 
   it("records comment-only changes including clearing a comment and empty strings", async () => {
@@ -215,8 +238,9 @@ describe("participation audit changes", () => {
     await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: null })
     await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: "" })
     const audit = await getParticipationAuditForTie(tie.id)
-    expect(audit).toHaveLength(2)
+    expect(audit).toHaveLength(3)
     expect(audit).toEqual(expect.arrayContaining([
+      expect.objectContaining({ previousStatus: null, newStatus: "confirmed", previousComment: null, newComment: "Available" }),
       expect.objectContaining({ previousStatus: null, newStatus: null, previousComment: "Available", newComment: null }),
       expect.objectContaining({ previousStatus: null, newStatus: null, previousComment: null, newComment: "" }),
     ]))
