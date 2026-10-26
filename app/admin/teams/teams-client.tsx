@@ -66,10 +66,9 @@ export function TeamsClient({
   const canCreate = usePermission(Permission.TeamsCreate)
   const canDelete = usePermission(Permission.TeamsDelete)
   const canAssignCaptains = usePermission(Permission.CaptainsManage)
-  const [assignmentTeamId, setAssignmentTeamId] = useState<number | null>(null)
   const [captainIds, setCaptainIds] = useState<number[]>([])
-  const [assignmentError, setAssignmentError] = useState("")
-  const [savingCaptains, setSavingCaptains] = useState(false)
+  const [formError, setFormError] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [enableRankInput, setEnableRankInput] = useState(false)
@@ -101,6 +100,8 @@ export function TeamsClient({
 
   const handleEdit = (team: Team) => {
     setEditingId(team.id)
+    setCaptainIds(team.captains.map((captain) => captain.id))
+    setFormError("")
     setFormData({
       name: team.name,
       league: team.league || "",
@@ -112,6 +113,9 @@ export function TeamsClient({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSaving) return
+    setIsSaving(true)
+    setFormError("")
     const formDataObj = new FormData()
     formDataObj.append("name", formData.name)
     formDataObj.append("league", formData.league)
@@ -119,23 +123,36 @@ export function TeamsClient({
     formDataObj.append("season_id", formData.seasonId)
     formDataObj.append("player_ids", JSON.stringify(formData.playerIds))
 
-    if (editingId !== null) {
-      await updateTeamAction(String(editingId), formDataObj)
-      setEditingId(null)
-    } else {
-      await createTeamAction(formDataObj)
-      setIsAdding(false)
-    }
+    try {
+      if (editingId !== null) {
+        await updateTeamAction(String(editingId), formDataObj)
+        if (canAssignCaptains) {
+          await updateTeamCaptainsAction(editingId, captainIds)
+        }
+        setEditingId(null)
+      } else {
+        await createTeamAction(formDataObj)
+        setIsAdding(false)
+      }
 
-    setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
-    setEnableRankInput(false) // Reset toggle state
-    setShowAvailablePlayers(false) // Reset available players visibility
-    router.refresh()
+      setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
+      setCaptainIds([])
+      setEnableRankInput(false) // Reset toggle state
+      setShowAvailablePlayers(false) // Reset available players visibility
+      router.refresh()
+    } catch (error) {
+      console.error("Failed to save team:", error)
+      setFormError(error instanceof Error ? error.message : t("teamSaveFailed"))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
+    setCaptainIds([])
+    setFormError("")
     setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
     setEnableRankInput(false) // Reset toggle state
     setShowAvailablePlayers(false) // Reset available players visibility
@@ -281,6 +298,23 @@ export function TeamsClient({
                   </Select>
                 </div>
               </div>
+
+              {editingId !== null && canAssignCaptains && (
+                <fieldset className="mt-6 space-y-3">
+                  <legend className="text-sm font-medium">{t("teamCaptains")}</legend>
+                  {captainOptions.map((captain) => (
+                    <label key={captain.id} className="flex items-center gap-2">
+                      <Checkbox
+                        checked={captainIds.includes(captain.id)}
+                        onCheckedChange={(checked) => setCaptainIds((ids) => checked
+                          ? [...ids, captain.id] : ids.filter((id) => id !== captain.id))}
+                      />
+                      {captain.username}
+                    </label>
+                  ))}
+                  {captainOptions.length === 0 && <p>{t("noEligibleCaptains")}</p>}
+                </fieldset>
+              )}
 
               <div className="mt-6 space-y-4">
                 <div className="space-y-3">
@@ -462,15 +496,16 @@ export function TeamsClient({
               </div>
 
               <div className="mt-4 flex gap-2">
-                <Button type="submit">
+                <Button type="submit" disabled={isSaving}>
                   <Check className="mr-2 h-4 w-4" />
                   {t("save")}
                 </Button>
-                <Button type="button" variant="outline" onClick={handleCancel}>
+                <Button type="button" variant="outline" onClick={handleCancel} disabled={isSaving}>
                   <X className="mr-2 h-4 w-4" />
                   {t("cancel")}
                 </Button>
               </div>
+              {formError && <p role="alert" className="mt-3 text-sm text-red-600">{formError}</p>}
             </form>
           </CardContent>
         </Card>
@@ -492,8 +527,8 @@ export function TeamsClient({
                   <p className="text-xs text-gray-500">
                     {t("teamSize")}: {team.teamSize} {t("playersCount")}
                   </p>
-                  <p className="mt-2 text-sm text-gray-600">
-                    {t("teamCaptains")}: {team.captains.map((captain) => captain.username).join(", ") || t("noTeamCaptains")}
+                  <p className="flex items-center gap-1 text-xs text-gray-500">
+                    <span>{t("teamCaptains")}: {team.captains.map((captain) => captain.username).join(", ") || t("noTeamCaptains")}</span>
                   </p>
                   {team.players && team.players.length > 0 && (
                     <div className="mt-4">
@@ -530,50 +565,11 @@ export function TeamsClient({
                     <Edit className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("edit")}</span>
                   </Button>
-                  {canAssignCaptains && <Button variant="outline" size="sm" onClick={() => {
-                    setAssignmentTeamId(team.id)
-                    setCaptainIds(team.captains.map((captain) => captain.id))
-                    setAssignmentError("")
-                  }}>{t("manageCaptains")}</Button>}
                   {canDelete && <Button variant="outline" size="sm" onClick={() => handleDelete(team.id)}>
                     <Trash2 className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("delete")}</span>
                   </Button>}
                 </div>
-                {canAssignCaptains && assignmentTeamId === team.id && (
-                  <div className="mt-4 space-y-3">
-                    <Label>{t("teamCaptains")}</Label>
-                    {captainOptions.map((captain) => (
-                      <label key={captain.id} className="flex items-center gap-2">
-                        <Checkbox
-                          checked={captainIds.includes(captain.id)}
-                          onCheckedChange={(checked) => setCaptainIds((ids) => checked
-                            ? [...ids, captain.id] : ids.filter((id) => id !== captain.id))}
-                        />
-                        {captain.username}
-                      </label>
-                    ))}
-                    {captainOptions.length === 0 && <p>{t("noEligibleCaptains")}</p>}
-                    {assignmentError && <p role="alert" className="text-red-600">{assignmentError}</p>}
-                    <div className="flex gap-2">
-                      <Button disabled={savingCaptains} onClick={async () => {
-                        setSavingCaptains(true)
-                        setAssignmentError("")
-                        try {
-                          await updateTeamCaptainsAction(team.id, captainIds)
-                          setAssignmentTeamId(null)
-                          router.refresh()
-                        } catch (error) {
-                          console.error("Failed to save team captains:", error)
-                          setAssignmentError(error instanceof Error ? error.message : t("captainAssignmentFailed"))
-                        } finally {
-                          setSavingCaptains(false)
-                        }
-                      }}>{t("save")}</Button>
-                      <Button variant="outline" disabled={savingCaptains} onClick={() => setAssignmentTeamId(null)}>{t("cancel")}</Button>
-                    </div>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>

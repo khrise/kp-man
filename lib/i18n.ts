@@ -19,6 +19,7 @@ export const translations = {
     manageCaptains: "Mannschaftsführer verwalten",
     noEligibleCaptains: "Keine Benutzer mit der Rolle Mannschaftsführer vorhanden.",
     captainAssignmentFailed: "Mannschaftsführer konnten nicht gespeichert werden.",
+    teamSaveFailed: "Team konnte nicht gespeichert werden.",
     selectTeamForImport: "Bitte wählen Sie ein Team für den Import aus.",
     login: "Anmelden",
     username: "Benutzername",
@@ -331,6 +332,7 @@ export const translations = {
     manageCaptains: "Manage captains",
     noEligibleCaptains: "No users with the team captain role are available.",
     captainAssignmentFailed: "Failed to save team captains.",
+    teamSaveFailed: "Failed to save team.",
     selectTeamForImport: "Please select a team for the import.",
     // Common
     save: "Save",

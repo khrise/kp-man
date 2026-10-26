@@ -44,13 +44,16 @@ it("hides global administration and assignments from captains but allows team ed
   expect(screen.queryByRole("button", { name: "delete" })).not.toBeInTheDocument()
   expect(screen.queryByRole("button", { name: "manageCaptains" })).not.toBeInTheDocument()
   expect(screen.getByRole("button", { name: "edit" })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole("button", { name: "edit" }))
+  expect(screen.getByText("editTeam")).toBeInTheDocument()
   expect(screen.getByText(/captain-one/)).toBeInTheDocument()
 })
 
 it("lets an admin replace a team's captain assignments", async () => {
   jest.mocked(updateTeamCaptainsAction).mockResolvedValue({ success: true })
   renderTeams("admin")
-  fireEvent.click(screen.getByRole("button", { name: "manageCaptains" }))
+  fireEvent.click(screen.getByRole("button", { name: "edit" }))
+  expect(screen.getByText("editTeam")).toBeInTheDocument()
   expect(screen.getByRole("checkbox", { name: "captain-one" })).toBeChecked()
   fireEvent.click(screen.getByRole("checkbox", { name: "captain-two" }))
   fireEvent.click(screen.getByRole("button", { name: "save" }))
@@ -63,7 +66,7 @@ it("shows assignment errors and keeps the editor open", async () => {
   const errorLog = jest.spyOn(console, "error").mockImplementation(() => {})
   try {
     renderTeams("admin")
-    fireEvent.click(screen.getByRole("button", { name: "manageCaptains" }))
+    fireEvent.click(screen.getByRole("button", { name: "edit" }))
     fireEvent.click(screen.getByRole("button", { name: "save" }))
     expect(await screen.findByRole("alert")).toHaveTextContent("Assignment denied")
     expect(screen.getByRole("checkbox", { name: "captain-one" })).toBeInTheDocument()
