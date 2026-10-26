@@ -86,6 +86,15 @@ export const translations = {
     commentLabel: "Kommentar (optional)",
     commentPlaceholder: "Geben Sie hier Ihren Kommentar ein...",
     comment: "Kommentar",
+    commentChange: "Kommentar:",
+    participationResponses: "Antworten",
+    loadMoreAuditEntries: "{count} weitere laden",
+    loadMoreAuditEntriesFailed: "Weitere Einträge konnten nicht geladen werden",
+
+    // Audit labels
+    statusLabel: "Status",
+    newLabel: "Neu",
+    lineupLabel: "Aufstellung",
 
     // Tie Details
     notes: "Notizen",
@@ -395,6 +404,15 @@ export const translations = {
     commentLabel: "Comment (optional)",
     commentPlaceholder: "Enter your comment here...",
     comment: "Comment",
+    commentChange: "Comment:",
+    participationResponses: "Responses",
+    loadMoreAuditEntries: "Load {count} more",
+    loadMoreAuditEntriesFailed: "Failed to load more entries",
+
+    // Audit labels
+    statusLabel: "Status",
+    newLabel: "New",
+    lineupLabel: "Lineup",
 
     // Tie Details
     notes: "Notes",

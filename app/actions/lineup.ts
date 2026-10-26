@@ -106,6 +106,10 @@ export async function getLineupData(tieId: string) {
   const availablePlayers = nonLineupParticipations.filter((p) => p.status === "confirmed")
   const otherParticipations = nonLineupParticipations.filter((p) => p.status !== "confirmed")
 
+  // Load the first page of RSVP audit entries server-side; older pages are
+  // fetched on demand via loadMoreAuditEntriesAction.
+  const { entries: auditEntries, hasMore: auditHasMore } = await loadAuditPage(tieIdNum)
+
   return {
     tie,
     team,
@@ -115,5 +119,32 @@ export async function getLineupData(tieId: string) {
     playersWithoutParticipation,
     lineupCount: lineupPlayers.length,
     maxPlayers: team.teamSize,
+    auditEntries,
+    auditHasMore,
+    auditPageSize: AUDIT_PAGE_SIZE,
   }
+}
+
+export async function loadMoreAuditEntriesAction(tieId: string, offset: number) {
+  const tieIdNum = Number(tieId)
+  if (Number.isNaN(tieIdNum) || !Number.isInteger(offset) || offset < 0) {
+    throw new Error("Invalid tie ID or offset")
+  }
+
+  return loadAuditPage(tieIdNum, offset)
+}
+
+const AUDIT_PAGE_SIZE = 100
+
+async function loadAuditPage(tieId: number, offset = 0) {
+  // Fetch one extra row to determine whether older entries exist.
+  const rows = await db.getParticipationAuditForTie(tieId, AUDIT_PAGE_SIZE + 1, offset)
+  const hasMore = rows.length > AUDIT_PAGE_SIZE
+  const entries = rows.slice(0, AUDIT_PAGE_SIZE).map((r) => ({
+    ...r,
+    // Ensure createdAt is serializable for client components
+    createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  }))
+
+  return { entries, hasMore }
 }
