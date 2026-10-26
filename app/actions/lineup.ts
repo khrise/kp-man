@@ -138,10 +138,15 @@ export async function getLineupData(tieId: string) {
 }
 
 export async function loadMoreAuditEntriesAction(tieId: string, offset: number) {
+  await requirePermission(Permission.AuditRead)
   const tieIdNum = Number(tieId)
   if (Number.isNaN(tieIdNum) || !Number.isInteger(offset) || offset < 0) {
     throw new Error("Invalid tie ID or offset")
   }
+
+  const tie = await db.getTieById(tieIdNum)
+  if (!tie) throw new Error("Tie not found")
+  await requireTeamPermission(tie.teamId, Permission.AuditRead)
 
   return loadAuditPage(tieIdNum, offset)
 }
