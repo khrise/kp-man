@@ -689,24 +689,22 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
     throw new Error("Failed to upsert participation")
   }
 
-  // Insert audit row capturing previous and new values
-  if (previous) {
-    try {
-      await insertParticipationAudit({
-        participationId: inserted.id,
-        playerId: Number(inserted.playerId),
-        tieId: Number(inserted.tieId),
-        previousStatus: previous.status,
-        newStatus: inserted.status,
-        previousComment: previous.comment,
-        newComment: inserted.comment,
-        previousIsInLineup: previous.isInLineup,
-        newIsInLineup: inserted.isInLineup,
-        changedBy: null,
-      })
-    } catch (err) {
-      console.error("Failed to insert participation audit:", err)
-    }
+  // Insert audit row capturing previous and new values, including the first response
+  try {
+    await insertParticipationAudit({
+      participationId: inserted.id,
+      playerId: Number(inserted.playerId),
+      tieId: Number(inserted.tieId),
+      previousStatus: previous?.status ?? null,
+      newStatus: inserted.status,
+      previousComment: previous?.comment ?? null,
+      newComment: inserted.comment,
+      previousIsInLineup: previous?.isInLineup ?? null,
+      newIsInLineup: previous ? inserted.isInLineup : null,
+      changedBy: null,
+    })
+  } catch (err) {
+    console.error("Failed to insert participation audit:", err)
   }
 
   return inserted
