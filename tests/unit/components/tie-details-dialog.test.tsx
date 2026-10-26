@@ -6,9 +6,10 @@ import type { ParticipationWithPlayer } from "@/lib/db"
 
 jest.mock("@/app/actions/public", () => ({
   getParticipationsForTie: jest.fn(),
+  getCaptainCommentsWithoutRsvp: jest.fn().mockResolvedValue([]),
 }))
 
-import { getParticipationsForTie } from "@/app/actions/public"
+import { getCaptainCommentsWithoutRsvp, getParticipationsForTie } from "@/app/actions/public"
 
 const mockGetParticipationsForTie = getParticipationsForTie as jest.Mock
 
@@ -24,6 +25,9 @@ const baseTie: TieWithDetails = {
   maybeCount: 1,
   declinedCount: 1,
   isLineupReady: false,
+  captainComment: null,
+  captainCommentBy: null,
+  captainCommentAuthor: null,
 }
 
 function makeParticipation(overrides: Partial<ParticipationWithPlayer>): ParticipationWithPlayer {
@@ -33,6 +37,10 @@ function makeParticipation(overrides: Partial<ParticipationWithPlayer>): Partici
     playerId: Math.random(),
     status: "confirmed",
     comment: null,
+    captainComment: null,
+    captainCommentBy: null,
+    captainCommentAuthorUsername: null,
+    captainCommentAuthor: null,
     isInLineup: false,
     respondedAt: new Date(),
     createdAt: new Date(),
@@ -74,6 +82,31 @@ describe("TieDetailsDialog", () => {
       expect(screen.getByText(/Bob Schmidt/)).toBeInTheDocument()
       expect(screen.getByText(/Carol Braun/)).toBeInTheDocument()
     })
+  })
+
+  it("shows captain comments with the attributed author", async () => {
+    const tie = { ...baseTie, captainComment: "Singles only", captainCommentAuthor: "Captain Player" }
+    const participation = makeParticipation({
+      captainComment: "Doubles only",
+      captainCommentAuthor: "Captain Player",
+    })
+    mockGetParticipationsForTie.mockResolvedValueOnce([participation])
+    render(<TieDetailsDialog tie={tie} open={true} onOpenChange={jest.fn()} />)
+
+    expect(screen.getByText("Singles only")).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText(/Doubles only — Captain Player/)).toBeInTheDocument())
+  })
+
+  it("shows attributed captain comments for players without an RSVP", async () => {
+    mockGetParticipationsForTie.mockResolvedValueOnce([])
+    jest.mocked(getCaptainCommentsWithoutRsvp).mockResolvedValueOnce([{
+      playerId: 9, firstName: "No", lastName: "Response",
+      captainComment: "Please contact the captain", captainCommentAuthor: "Captain Player",
+    }])
+    render(<TieDetailsDialog tie={baseTie} open={true} onOpenChange={jest.fn()} />)
+
+    expect(await screen.findByText("No Response")).toBeInTheDocument()
+    expect(screen.getByText(/Please contact the captain — Captain Player/)).toBeInTheDocument()
   })
 
   it("sorts confirmed players by playerRank ascending", async () => {

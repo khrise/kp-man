@@ -896,8 +896,6 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                               <span className="h-2 w-2 rounded-full bg-gray-400" title={t("noLineup")}></span>
                             ) : tie.problematicCount > 0 ? (
                               <span className="h-2 w-2 rounded-full bg-red-500" title={t("lineupIssues")}></span>
-                            ) : tie.lineupCount < tie.teamSize ? (
-                              <span className="h-2 w-2 rounded-full bg-yellow-500" title={t("lineupIncomplete")}></span>
                             ) : (
                               <span className="h-2 w-2 rounded-full bg-green-500" title={t("lineupComplete")}></span>
                             )}

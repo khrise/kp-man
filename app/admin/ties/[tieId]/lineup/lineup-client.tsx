@@ -1,16 +1,22 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Users, UserCheck, UserX, Clock, HelpCircle, Mail, Copy } from "lucide-react"
-import { toggleLineupAction, markTieReadyAction, loadMoreAuditEntriesAction } from "@/app/actions/lineup"
+import { Users, UserCheck, UserX, Clock, HelpCircle, Mail, Copy, MessageSquare } from "lucide-react"
+import {
+  toggleLineupAction,
+  markTieReadyAction,
+  loadMoreAuditEntriesAction,
+  saveParticipationCaptainCommentAction,
+  saveTieCaptainCommentAction,
+} from "@/app/actions/lineup"
 import { useTranslation } from "@/lib/i18n"
 import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
-import type { TeamPlayerWithDetails } from "@/lib/db"
+import type { PlayerWithoutParticipation } from "@/lib/db"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { usePermission } from "@/components/management-provider"
@@ -31,9 +37,9 @@ type LineupClientProps = {
   lineupPlayers: ParticipationWithPlayer[]
   availablePlayers: ParticipationWithPlayer[]
   otherParticipations: ParticipationWithPlayer[]
-  playersWithoutParticipation: TeamPlayerWithDetails[]
+  playersWithoutParticipation: PlayerWithoutParticipation[]
   lineupCount: number
-  maxPlayers: number
+  teamSize: number
   auditEntries?: AuditEntry[]
   auditHasMore?: boolean
   auditPageSize?: number
@@ -48,12 +54,171 @@ type AuditEntry = {
   newStatus: string | null
   previousComment: string | null
   newComment: string | null
+  previousCaptainComment: string | null
+  newCaptainComment: string | null
   previousIsInLineup: boolean | null
   newIsInLineup: boolean | null
   changedBy: string | null
   createdAt: string
   playerFirstName?: string | null
   playerLastName?: string | null
+}
+
+type RsvpManagementControlsProps = {
+  tieId: number
+  playerId: number
+  status: Participation["status"] | null
+  captainComment: string | null
+  captainCommentAuthor: string | null
+  isFinalized: boolean
+  onSaved: () => void
+}
+
+function RsvpManagementControls({
+  tieId,
+  playerId,
+  status,
+  captainComment,
+  captainCommentAuthor,
+  isFinalized,
+  onSaved,
+}: RsvpManagementControlsProps) {
+  const { t } = useTranslation()
+  const [selectedStatus, setSelectedStatus] = useState<Participation["status"] | "">(status ?? "")
+  const [comment, setComment] = useState(captainComment ?? "")
+  const [isSaving, setIsSaving] = useState(false)
+  const [isCommentOpen, setIsCommentOpen] = useState(false)
+
+  useEffect(() => {
+    setSelectedStatus(status ?? "")
+    setComment(captainComment ?? "")
+  }, [status, captainComment])
+
+  const statusChanged = !isFinalized && selectedStatus !== "" && selectedStatus !== status
+  const hasChanges = statusChanged || comment !== (captainComment ?? "")
+
+  const save = async () => {
+    if (isSaving || !hasChanges) return
+    setIsSaving(true)
+    try {
+      await saveParticipationCaptainCommentAction(
+        String(tieId),
+        String(playerId),
+        comment,
+        statusChanged ? selectedStatus : null,
+      )
+      onSaved()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : String(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-3 space-y-2 border-t pt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs font-medium" htmlFor={`rsvp-status-${tieId}-${playerId}`}>{t("manageRsvp")}</label>
+        <select
+          id={`rsvp-status-${tieId}-${playerId}`}
+          className="h-9 rounded-md border bg-white px-2 text-sm"
+          value={selectedStatus}
+          onChange={(event) => {
+            const value = event.target.value
+            if (value === "" || value === "confirmed" || value === "maybe" || value === "declined") {
+              setSelectedStatus(value)
+            }
+          }}
+          disabled={isFinalized || isSaving}
+        >
+          {status === null && <option value="">{t("noResponsePlayers")}</option>}
+          {(["confirmed", "maybe", "declined"] as const).map((value) => (
+            <option key={value} value={value}>{t(value)}</option>
+          ))}
+        </select>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={t("captainsComment")}
+          title={t("captainsComment")}
+          aria-expanded={isCommentOpen}
+          aria-controls={`captain-comment-${tieId}-${playerId}`}
+          onClick={() => setIsCommentOpen((open) => !open)}
+          disabled={isSaving}
+        >
+          <MessageSquare className="h-4 w-4" />
+        </Button>
+        {isFinalized && <span className="text-xs text-gray-500">{t("statusLockedUntilUnfinalized")}</span>}
+      </div>
+      {isCommentOpen ? (
+        <div id={`captain-comment-${tieId}-${playerId}`} className="space-y-2">
+          <Textarea
+            aria-label={t("captainsComment")}
+            className="text-xs md:text-xs"
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder={t("captainCommentPlaceholder")}
+            maxLength={1000}
+            rows={2}
+            disabled={isSaving}
+          />
+        </div>
+      ) : comment ? (
+        <p className="whitespace-pre-wrap break-words text-xs text-gray-700">{comment}</p>
+      ) : null}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-gray-500">
+          {captainCommentAuthor ? `${t("commentBy")} ${captainCommentAuthor}` : ""}
+        </span>
+        <Button size="sm" variant="outline" onClick={save} disabled={isSaving || !hasChanges}>
+          {t("save")}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function TieCaptainCommentEditor({
+  tieId,
+  comment: initialComment,
+  author,
+  onSaved,
+}: {
+  tieId: number
+  comment: string | null
+  author: string | null
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const [comment, setComment] = useState(initialComment ?? "")
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => setComment(initialComment ?? ""), [initialComment])
+
+  const save = async () => {
+    setIsSaving(true)
+    try {
+      await saveTieCaptainCommentAction(String(tieId), comment)
+      onSaved()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : String(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <Card className="mb-6">
+      <CardHeader><CardTitle className="text-sm">{t("captainsComment")}</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        <Textarea className="text-xs md:text-xs" value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} rows={2} placeholder={t("captainCommentPlaceholder")} />
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-gray-500">{author ? `${t("commentBy")} ${author}` : ""}</span>
+          <Button size="sm" onClick={save} disabled={isSaving || comment === (initialComment ?? "")}>{t("saveComment")}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function LineupClient({
@@ -64,7 +229,7 @@ export function LineupClient({
   otherParticipations,
   playersWithoutParticipation,
   lineupCount,
-  maxPlayers,
+  teamSize,
   auditEntries,
   auditHasMore = false,
   auditPageSize = 100,
@@ -206,14 +371,8 @@ Aufstellung: ${playerNames}`
     }))
   }, [allAuditEntries])
 
-  const handleToggleLineup = async (participationId: number, isCurrentlyInLineup: boolean) => {
+  const handleToggleLineup = async (participationId: number) => {
     if (isLoading) return
-    
-    // Check if we're trying to add a player but already at max capacity
-    if (!isCurrentlyInLineup && lineupCount >= maxPlayers) {
-      alert(t("maxPlayersReached"))
-      return
-    }
 
     setIsLoading(true)
     try {
@@ -270,20 +429,35 @@ Aufstellung: ${playerNames}`
               <Button
                 size="sm"
                 variant={isInLineup ? "outline" : "default"}
-                onClick={() => handleToggleLineup(participation.id, isInLineup)}
-                disabled={isLoading || tie.isLineupReady || (!isInLineup && lineupCount >= maxPlayers)}
+                onClick={() => handleToggleLineup(participation.id)}
+                disabled={isLoading || tie.isLineupReady}
                 className="w-full sm:w-auto mt-2 sm:mt-0"
               >
                 {isInLineup ? t("remove") : t("add")}
               </Button>
             )}
           </div>
+          {participation.comment && (
+            <div className="mt-3 text-sm text-gray-700">
+              <p className="font-medium">{t("participationComment")}</p>
+              <p className="whitespace-pre-wrap break-words">{participation.comment}</p>
+            </div>
+          )}
+          <RsvpManagementControls
+            tieId={tie.id}
+            playerId={participation.playerId}
+            status={participation.status}
+            captainComment={participation.captainComment}
+            captainCommentAuthor={participation.captainCommentAuthor}
+            isFinalized={tie.isLineupReady}
+            onSaved={() => router.refresh()}
+          />
         </CardContent>
       </Card>
     )
   }
 
-  const NoResponsePlayerCard = ({ player }: { player: TeamPlayerWithDetails }) => {
+  const NoResponsePlayerCard = ({ player }: { player: PlayerWithoutParticipation }) => {
     return (
       <Card className="bg-gray-50 border-gray-200">
         <CardContent className="p-4">
@@ -302,6 +476,15 @@ Aufstellung: ${playerNames}`
               </div>
             </div>
           </div>
+          <RsvpManagementControls
+            tieId={tie.id}
+            playerId={player.playerId}
+            status={null}
+            captainComment={player.captainComment}
+            captainCommentAuthor={player.captainCommentAuthor}
+            isFinalized={tie.isLineupReady}
+            onSaved={() => router.refresh()}
+          />
         </CardContent>
       </Card>
     )
@@ -311,7 +494,7 @@ Aufstellung: ${playerNames}`
   const declinedParticipations = otherParticipations.filter((p) => p.status !== "maybe")
   const availableListItems: Array<
     | { rank: number; kind: "participation"; participation: ParticipationWithPlayer; inLineup: boolean }
-    | { rank: number; kind: "noResponse"; player: TeamPlayerWithDetails }
+    | { rank: number; kind: "noResponse"; player: PlayerWithoutParticipation }
   > = [
     ...(separateOthers ? availablePlayers : [...lineupPlayers, ...availablePlayers, ...otherParticipations]).map(
       (participation) => ({
@@ -374,7 +557,7 @@ Aufstellung: ${playerNames}`
             <div className="flex items-center space-x-2">
               <Users className="w-5 h-5" />
               <span className="text-lg font-semibold">
-                {lineupCount}/{maxPlayers}
+                {lineupCount}/{teamSize}
               </span>
             </div>
 
@@ -420,10 +603,6 @@ Aufstellung: ${playerNames}`
                   variant="default"
                   onClick={async () => {
                     if (isTogglingReady) return
-                    if (lineupCount < maxPlayers) {
-                      alert(t("lineupIncomplete"))
-                      return
-                    }
                     setIsTogglingReady(true)
                     try {
                       await markTieReadyAction(String(tie.id), true)
@@ -435,7 +614,7 @@ Aufstellung: ${playerNames}`
                       setIsTogglingReady(false)
                     }
                   }}
-                  disabled={isTogglingReady || lineupCount < maxPlayers}
+                  disabled={isTogglingReady}
                 >
                   {t("markLineupReady")}
                 </Button>
@@ -444,6 +623,13 @@ Aufstellung: ${playerNames}`
           </div>
         </div>
       </div>
+
+      <TieCaptainCommentEditor
+        tieId={tie.id}
+        comment={tie.captainComment}
+        author={tie.captainCommentAuthor}
+        onSaved={() => router.refresh()}
+      />
 
       {/* Warning banner for problematic players */}
       {hasProblematicPlayers && (
@@ -641,7 +827,7 @@ Aufstellung: ${playerNames}`
                               </div>
                             )}
 
-                            {e.previousIsInLineup !== e.newIsInLineup && (
+                            {(e.previousIsInLineup ?? false) !== (e.newIsInLineup ?? false) && (
                               <div className="text-xs mt-1">
                                 <span className="text-gray-400 mr-1">{t("lineupLabel")}:</span>
                                 <span className="font-medium ml-1">{e.previousIsInLineup ? t("inLineup") : t("notInLineup")}</span>
@@ -654,6 +840,13 @@ Aufstellung: ${playerNames}`
                               <div className="text-xs mt-1">
                                 <span className="text-gray-400 mr-1">{t("commentChange")}</span>
                                 <span className="ml-1">{`"${e.previousComment ?? ""}" → "${e.newComment ?? ""}"`}</span>
+                              </div>
+                            )}
+
+                            {e.previousCaptainComment !== e.newCaptainComment && (
+                              <div className="text-xs mt-1">
+                                <span className="text-gray-400 mr-1">{t("captainsComment")}:</span>
+                                <span className="ml-1">{`"${e.previousCaptainComment ?? ""}" → "${e.newCaptainComment ?? ""}"`}</span>
                               </div>
                             )}
                           </li>

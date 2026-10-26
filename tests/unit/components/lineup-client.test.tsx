@@ -1,13 +1,20 @@
 import React from "react"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { LineupClient } from "@/app/admin/ties/[tieId]/lineup/lineup-client"
-import { loadMoreAuditEntriesAction } from "@/app/actions/lineup"
+import {
+  loadMoreAuditEntriesAction,
+  saveParticipationCaptainCommentAction,
+  setManagedParticipationStatusAction,
+} from "@/app/actions/lineup"
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }))
 jest.mock("@/app/actions/lineup", () => ({
   toggleLineupAction: jest.fn(),
   markTieReadyAction: jest.fn(),
   loadMoreAuditEntriesAction: jest.fn(),
+  saveParticipationCaptainCommentAction: jest.fn(),
+  saveTieCaptainCommentAction: jest.fn(),
+  setManagedParticipationStatusAction: jest.fn(),
 }))
 jest.mock("@/lib/i18n", () => ({
   useTranslation: () => ({
@@ -24,16 +31,18 @@ const date = new Date("2026-06-01T12:00:00Z")
 const props: Props = {
   tie: {
     id: 1, teamId: 1, opponent: "Rivals", tieDate: date, location: null,
-    isHome: true, isLineupReady: false, notes: null, createdAt: date, updatedAt: date,
+    isHome: true, isLineupReady: false, notes: null, captainComment: null, captainCommentBy: null,
+    captainCommentAuthor: null, createdAt: date, updatedAt: date,
   },
   team: { id: 1, seasonId: 1, name: "Team", league: null, teamSize: 6, createdAt: date, updatedAt: date },
   lineupPlayers: [], availablePlayers: [], otherParticipations: [], playersWithoutParticipation: [],
-  lineupCount: 0, maxPlayers: 6,
+  lineupCount: 0, teamSize: 6,
 }
 
 const entry: AuditEntry = {
   id: 1, participationId: 1, playerId: 1, tieId: 1,
   previousStatus: null, newStatus: null, previousComment: null, newComment: null,
+  previousCaptainComment: null, newCaptainComment: null,
   previousIsInLineup: null, newIsInLineup: null, changedBy: null,
   createdAt: date.toISOString(), playerFirstName: "Anna", playerLastName: "Smith",
 }
@@ -62,6 +71,26 @@ describe("lineup participation audit", () => {
     expect(audit.queryByText("commentChange")).not.toBeInTheDocument()
   })
 
+  it("shows combined status and captain comment changes in one entry", () => {
+    const audit = renderAudit({
+      previousStatus: "maybe", newStatus: "confirmed",
+      previousCaptainComment: "Old note", newCaptainComment: "New note",
+    })
+    expect(screen.getAllByRole("listitem")).toHaveLength(1)
+    expect(audit.getByText("statusLabel:")).toBeInTheDocument()
+    expect(audit.getByText("captainsComment:")).toBeInTheDocument()
+    expect(audit.queryByText("lineupLabel:")).not.toBeInTheDocument()
+  })
+
+  it("does not show a lineup change for historical no-response to confirmed entries", () => {
+    const audit = renderAudit({
+      previousStatus: null, newStatus: "confirmed",
+      previousIsInLineup: null, newIsInLineup: false,
+    })
+    expect(audit.getByText("statusLabel:")).toBeInTheDocument()
+    expect(audit.queryByText("lineupLabel:")).not.toBeInTheDocument()
+  })
+
   it.each([
     { previousComment: "Old", newComment: null },
     { previousComment: null, newComment: "" },
@@ -77,6 +106,141 @@ describe("lineup participation audit", () => {
     expect(screen.getByText("No audit entries")).toBeInTheDocument()
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument()
     expect(screen.queryByText("Anna Smith")).not.toBeInTheDocument()
+  })
+})
+
+describe("player RSVP comments", () => {
+  it.each([
+    { status: "confirmed" as const, isInLineup: true },
+    { status: "confirmed" as const, isInLineup: false },
+    { status: "maybe" as const, isInLineup: false },
+    { status: "declined" as const, isInLineup: false },
+  ])("shows player comments in both layouts for %o, including finalized ties", ({ status, isInLineup }) => {
+    const participation: Props["lineupPlayers"][number] = {
+      id: 4, tieId: 1, playerId: 2, status, isInLineup,
+      comment: "I can arrive at 14:00.\nPlease arrange transport.",
+      captainComment: "Plays doubles only", captainCommentBy: 8, captainCommentAuthor: "Captain",
+      respondedAt: date, createdAt: date, updatedAt: date,
+      player: { id: 2, firstName: "Anna", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+    }
+    render(<LineupClient
+      {...props}
+      tie={{ ...props.tie, isLineupReady: true }}
+      lineupPlayers={isInLineup ? [participation] : []}
+      availablePlayers={!isInLineup && status === "confirmed" ? [participation] : []}
+      otherParticipations={status !== "confirmed" ? [participation] : []}
+      lineupCount={isInLineup ? 1 : 0}
+      playersWithoutParticipation={[{
+        id: 9, playerId: 9, teamId: 1, firstName: "No", lastName: "Response",
+        captainComment: null, captainCommentAuthor: null,
+        createdAt: date, playerRank: 3,
+      }]}
+    />)
+
+    expect(screen.getByText("participationComment")).toBeInTheDocument()
+    expect(screen.getByText(/I can arrive at 14:00/)).toHaveClass("whitespace-pre-wrap", "break-words")
+    expect(screen.getByText("Plays doubles only")).toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name: "captainsComment" })).not.toBeInTheDocument()
+    expect(screen.queryByDisplayValue("I can arrive at 14:00.\nPlease arrange transport.")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText("showSingleList"))
+    expect(screen.getAllByText(/I can arrive at 14:00/).length).toBeGreaterThan(0)
+  })
+
+  it.each([null, ""])("omits the player comment section when the comment is %p", (comment) => {
+    const participation: Props["availablePlayers"][number] = {
+      id: 4, tieId: 1, playerId: 2, status: "confirmed", isInLineup: false, comment,
+      captainComment: null, captainCommentBy: null, captainCommentAuthor: null,
+      respondedAt: date, createdAt: date, updatedAt: date,
+      player: { id: 2, firstName: "Anna", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+    }
+    render(<LineupClient {...props} availablePlayers={[participation]} />)
+
+    expect(screen.queryByText("participationComment")).not.toBeInTheDocument()
+  })
+})
+
+describe("captain RSVP controls", () => {
+  const saveStatus = setManagedParticipationStatusAction as jest.MockedFunction<typeof setManagedParticipationStatusAction>
+
+  beforeEach(() => saveStatus.mockReset())
+
+  it.each([false, true])("saves comments without creating an RSVP in single-list layout: %p", async (singleList) => {
+    const saveComment = jest.mocked(saveParticipationCaptainCommentAction)
+    saveComment.mockReset().mockResolvedValue({ success: true })
+    render(<LineupClient
+      {...props}
+      playersWithoutParticipation={[{
+        id: 9, playerId: 9, teamId: 1, firstName: "No", lastName: "Response",
+        captainComment: null, captainCommentAuthor: null, createdAt: date, playerRank: 3,
+      }]}
+    />)
+    if (singleList) {
+      fireEvent.click(screen.getByText("showSingleList"))
+    } else {
+      fireEvent.click(screen.getByText(/playersWithoutResponse/))
+    }
+    const toggle = screen.getByRole("button", { name: "captainsComment" })
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("textbox", { name: "captainsComment" })).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    const editor = screen.getByRole("textbox", { name: "captainsComment" })
+    expect(editor).toHaveClass("text-xs", "md:text-xs")
+    expect(screen.getByLabelText("manageRsvp")).toHaveValue("")
+    expect(screen.getByRole("button", { name: "save" })).toBeDisabled()
+    fireEvent.change(editor, { target: { value: "Will speak to the player tomorrow" } })
+    const card = editor.parentElement?.parentElement
+    if (!card) throw new Error("Missing comment editor container")
+    expect(within(card).getAllByRole("button", { name: "save" })).toHaveLength(1)
+    fireEvent.click(toggle)
+    expect(screen.queryByRole("textbox", { name: "captainsComment" })).not.toBeInTheDocument()
+    expect(screen.getByText("Will speak to the player tomorrow")).toBeInTheDocument()
+    fireEvent.click(within(card).getByRole("button", { name: "save" }))
+
+    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "9", "Will speak to the player tomorrow", null))
+    expect(saveStatus).not.toHaveBeenCalled()
+  })
+
+  it("saves an RSVP and captain comment together for a player with no response", async () => {
+    const saveComment = jest.mocked(saveParticipationCaptainCommentAction)
+    saveComment.mockReset().mockResolvedValue({ success: true })
+    render(<LineupClient
+      {...props}
+      playersWithoutParticipation={[{
+        id: 9, playerId: 9, teamId: 1, firstName: "No", lastName: "Response",
+        captainComment: null, captainCommentAuthor: null,
+        createdAt: date, playerRank: 3,
+      }]}
+    />)
+
+    fireEvent.click(screen.getByText("showSingleList"))
+    const selector = screen.getByLabelText("manageRsvp")
+    expect(selector).toHaveDisplayValue("noResponsePlayers")
+    expect(screen.getByRole("button", { name: "save" })).toBeDisabled()
+    fireEvent.change(selector, { target: { value: "confirmed" } })
+    fireEvent.click(screen.getByRole("button", { name: "captainsComment" }))
+    fireEvent.change(screen.getByRole("textbox", { name: "captainsComment" }), { target: { value: "Doubles only" } })
+    fireEvent.click(screen.getByRole("button", { name: "save" }))
+
+    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "9", "Doubles only", "confirmed"))
+    expect(saveStatus).not.toHaveBeenCalled()
+  })
+
+  it("locks RSVP status controls while the lineup is finalized", () => {
+    const participation = {
+      id: 4, tieId: 1, playerId: 2, status: "maybe" as const, comment: null,
+      captainComment: null, captainCommentBy: null, captainCommentAuthor: null,
+      isInLineup: false, respondedAt: date, createdAt: date, updatedAt: date,
+      player: { id: 2, firstName: "Maybe", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+    }
+    render(<LineupClient
+      {...props}
+      tie={{ ...props.tie, isLineupReady: true }}
+      otherParticipations={[participation]}
+    />)
+
+    expect(screen.getByLabelText("manageRsvp")).toBeDisabled()
   })
 })
 

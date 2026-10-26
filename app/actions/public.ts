@@ -82,6 +82,19 @@ export async function getParticipationsForTie(tieId: string) {
   return await db.getParticipations(numericTieId)
 }
 
+export async function getCaptainCommentsWithoutRsvp(tieId: string) {
+  const numericTieId = Number(tieId)
+  if (!Number.isSafeInteger(numericTieId) || numericTieId <= 0) throw new Error("Invalid tie id")
+  const players = await db.getPlayersWithoutParticipation(numericTieId)
+  return players.filter((player) => player.captainComment).map((player) => ({
+    playerId: player.playerId,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    captainComment: player.captainComment,
+    captainCommentAuthor: player.captainCommentAuthor,
+  }))
+}
+
 export async function updateParticipation(
   tieId: string,
   playerId: string,

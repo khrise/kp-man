@@ -31,6 +31,26 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Participation Audit
 
+### Captain comments
+
+Admins and assigned team captains can save a player-specific captain comment
+directly in the lineup view, including for players who have not submitted an
+RSVP. A single Save button stores status and comment edits atomically.
+Changes from the same Save are recorded in one audit entry, including lineup
+membership only when it actually changes. Creating an RSVP does not select the player.
+The speech-bubble button toggles the comment editor; hiding it preserves drafts.
+Saved comments and their attribution remain visible without opening the editor.
+Selecting No response and saving only a comment does not create an RSVP, change availability, or select
+the player for the lineup. Comments remain attached to the player and tie when
+an RSVP is submitted later, and are shown separately from the player's own
+comment, with the captain's linked player name or username. Comment edits are
+audited and are not included in invitation emails.
+Finalized ties lock RSVP status edits but still allow saving comment-only changes.
+
+Apply migration [16-independent-player-captain-comments.sql](scripts/16-independent-player-captain-comments.sql)
+before deploying. It preserves existing player-specific captain comments while
+moving them out of participation rows so an RSVP is no longer required.
+
 Run `npm run db:migrate` before starting or deploying updated application code.
 The participation audit records subsequent changes only, not initial responses
 or identical updates. Only changed status, comment, or lineup value pairs are
