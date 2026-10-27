@@ -92,7 +92,7 @@ export async function saveParticipationCaptainCommentAction(
   tieId: string,
   playerId: string,
   comment: string,
-  status: "confirmed" | "maybe" | "declined" | null = null,
+  status: "confirmed" | "maybe" | "declined" | "no_response" | null = null,
 ) {
   const tieIdNum = Number(tieId)
   const playerIdNum = Number(playerId)
@@ -100,7 +100,7 @@ export async function saveParticipationCaptainCommentAction(
     throw new Error("Invalid tie or player ID")
   }
   if (typeof comment !== "string" || comment.length > 1000) throw new Error("Comment must be 1000 characters or fewer")
-  if (status !== null && !["confirmed", "maybe", "declined"].includes(status)) {
+  if (status !== null && !["confirmed", "maybe", "declined", "no_response"].includes(status)) {
     throw new Error("Invalid participation status")
   }
 
@@ -109,6 +109,7 @@ export async function saveParticipationCaptainCommentAction(
   if (!tie) throw new Error("Tie not found")
   const user = await requireTeamPermission(tie.teamId, Permission.LineupManage)
   await db.updateParticipationCaptainComment(tieIdNum, playerIdNum, comment.trim() || null, user.id, user.username, status)
+  revalidatePath("/admin/ties")
   revalidatePath(`/admin/ties/${tieId}/lineup`)
   revalidatePath("/spieltage")
   return { success: true }
@@ -125,6 +126,7 @@ export async function saveTieCaptainCommentAction(tieId: string, comment: string
   const user = await requireTeamPermission(tie.teamId, Permission.LineupManage)
   await db.updateTieCaptainComment(tieIdNum, comment.trim() || null, user.id, user.username)
 
+  revalidatePath("/admin/ties")
   revalidatePath(`/admin/ties/${tieId}/lineup`)
   revalidatePath("/spieltage")
   return { success: true }

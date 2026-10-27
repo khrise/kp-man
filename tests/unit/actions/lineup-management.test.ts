@@ -4,6 +4,7 @@
 import {
   markTieReadyAction,
   saveParticipationCaptainCommentAction,
+  saveTieCaptainCommentAction,
   setManagedParticipationStatusAction,
   toggleLineupAction,
 } from "@/app/actions/lineup"
@@ -17,6 +18,7 @@ jest.mock("@/lib/db", () => ({
   updateTieReady: jest.fn(),
   setManagedParticipationStatus: jest.fn(),
   updateParticipationCaptainComment: jest.fn(),
+  updateTieCaptainComment: jest.fn(),
 }))
 jest.mock("@/lib/server/auth", () => ({
   requirePermission: jest.fn(),
@@ -106,4 +108,16 @@ it("saves a captain comment by player ID without needing an RSVP", async () => {
 it("passes combined status and comment changes to the atomic database operation", async () => {
   await saveParticipationCaptainCommentAction("4", "5", "Doubles only", "confirmed")
   expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Doubles only", 8, "captain", "confirmed")
+})
+
+it("passes explicit no-response resets to the atomic database operation", async () => {
+  await saveParticipationCaptainCommentAction("4", "5", "Keep note", "no_response")
+  expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Keep note", 8, "captain", "no_response")
+  expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/ties")
+})
+
+it("refreshes the overview after saving a tie captain comment", async () => {
+  await saveTieCaptainCommentAction("4", "New note")
+  expect(mockDb.updateTieCaptainComment).toHaveBeenCalledWith(4, "New note", 8, "captain")
+  expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/ties")
 })

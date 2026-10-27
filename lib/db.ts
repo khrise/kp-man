@@ -445,6 +445,7 @@ export type TieWithSeasonAndTeam = Tie & {
   teamName: string
   seasonName: string
   seasonId: number
+  captainCommentAuthor: string | null
 }
 
 export type TieWithLineupInfo = TieWithSeasonAndTeam & {
@@ -459,7 +460,10 @@ export async function getTies(teamIds?: number[]): Promise<TieWithSeasonAndTeam[
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .innerJoin("seasons as s", "s.id", "tm.seasonId")
+    .leftJoin("users as captain", "captain.id", "t.captainCommentBy")
+    .leftJoin("players as captainPlayer", "captainPlayer.id", "captain.playerId")
     .selectAll("t")
+    .select(sql<string | null>`COALESCE(NULLIF(concat_ws(' ', ${sql.ref("captainPlayer.firstName")}, ${sql.ref("captainPlayer.lastName")}), ''), ${sql.ref("captain.username")}, ${sql.ref("t.captainCommentAuthorUsername")})`.as("captainCommentAuthor"))
     .select((eb) => [
       eb.ref("tm.name").as("teamName"),
       eb.ref("s.name").as("seasonName"),
@@ -1032,20 +1036,35 @@ export async function updateParticipationCaptainComment(
   comment: string | null,
   authorId: number,
   changedBy: string,
-  status: "confirmed" | "maybe" | "declined" | null = null,
+  status: "confirmed" | "maybe" | "declined" | "no_response" | null = null,
 ): Promise<void> {
   await db.transaction().execute(async (trx) => {
     // Serialize edits even when no RSVP or comment row exists yet.
-    const tie = await trx.selectFrom("ties").select("teamId")
+    const tie = await trx.selectFrom("ties").select(["teamId", "isLineupReady"])
       .where("id", "=", tieId).forUpdate().executeTakeFirst()
     if (!tie) throw new Error("Tie not found")
     const member = await trx.selectFrom("teamPlayers").select("playerId")
       .where("teamId", "=", tie.teamId).where("playerId", "=", playerId).executeTakeFirst()
     if (!member) throw new Error("Player does not belong to tie team")
 
-    const statusUpdate = status !== null
-      ? await updateManagedParticipationStatus(trx, tieId, playerId, status, changedBy)
-      : null
+    let statusAudit: Pick<ParticipationAudit, "previousStatus" | "newStatus" | "previousComment" | "newComment" | "previousIsInLineup" | "newIsInLineup"> | null = null
+    if (status === "no_response") {
+      if (tie.isLineupReady) throw new Error("Unfinalize the lineup before changing RSVP status")
+      const previousParticipation = await trx.selectFrom("participations").selectAll()
+        .where("tieId", "=", tieId).where("playerId", "=", playerId).forUpdate().executeTakeFirst()
+      if (previousParticipation) {
+        await trx.deleteFrom("participations").where("id", "=", previousParticipation.id).execute()
+        statusAudit = {
+          previousStatus: previousParticipation.status, newStatus: null,
+          previousComment: previousParticipation.comment, newComment: null,
+          previousIsInLineup: previousParticipation.isInLineup ? true : null,
+          newIsInLineup: previousParticipation.isInLineup ? false : null,
+        }
+      }
+    } else if (status !== null) {
+      const update = await updateManagedParticipationStatus(trx, tieId, playerId, status, changedBy)
+      statusAudit = update.audit
+    }
 
     const previous = await trx
       .selectFrom("playerCaptainComments")
@@ -1054,7 +1073,7 @@ export async function updateParticipationCaptainComment(
       .where("playerId", "=", playerId)
       .executeTakeFirst()
     const commentChanged = (previous?.captainComment ?? null) !== comment
-    if (!commentChanged && !statusUpdate?.audit) return
+    if (!commentChanged && !statusAudit) return
 
     if (commentChanged) {
       await trx
@@ -1080,14 +1099,14 @@ export async function updateParticipationCaptainComment(
       participationId: participation?.id ?? null,
       playerId,
       tieId,
-      previousStatus: statusUpdate?.audit?.previousStatus ?? null,
-      newStatus: statusUpdate?.audit?.newStatus ?? null,
-      previousComment: null,
-      newComment: null,
+      previousStatus: statusAudit?.previousStatus ?? null,
+      newStatus: statusAudit?.newStatus ?? null,
+      previousComment: statusAudit?.previousComment ?? null,
+      newComment: statusAudit?.newComment ?? null,
       previousCaptainComment: commentChanged ? previous?.captainComment ?? null : null,
       newCaptainComment: commentChanged ? comment : null,
-      previousIsInLineup: statusUpdate?.audit?.previousIsInLineup ?? null,
-      newIsInLineup: statusUpdate?.audit?.newIsInLineup ?? null,
+      previousIsInLineup: statusAudit?.previousIsInLineup ?? null,
+      newIsInLineup: statusAudit?.newIsInLineup ?? null,
       changedBy,
       createdAt: sql`now()`,
     }).execute()

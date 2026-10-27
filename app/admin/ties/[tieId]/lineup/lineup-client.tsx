@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Users, UserCheck, UserX, HelpCircle, Scale, ListChecks, Mail, Copy, MessageSquare } from "lucide-react"
+import { Users, UserCheck, UserX, HelpCircle, Scale, ListChecks, Mail, Copy, MessageSquare, Pencil } from "lucide-react"
 import {
   toggleLineupAction,
   markTieReadyAction,
@@ -19,6 +19,7 @@ import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
 import type { PlayerWithoutParticipation } from "@/lib/db"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { usePermission } from "@/components/management-provider"
 import { Permission } from "@/lib/permissions"
 
@@ -64,7 +65,7 @@ type AuditEntry = {
   playerLastName?: string | null
 }
 
-type RsvpManagementControlsProps = {
+type PlayerRsvpFormProps = {
   tieId: number
   playerId: number
   status: Participation["status"] | null
@@ -72,9 +73,11 @@ type RsvpManagementControlsProps = {
   captainCommentAuthor: string | null
   isFinalized: boolean
   onSaved: () => void
+  onCancel: () => void
+  playerName: string
 }
 
-function RsvpManagementControls({
+function PlayerRsvpForm({
   tieId,
   playerId,
   status,
@@ -82,27 +85,23 @@ function RsvpManagementControls({
   captainCommentAuthor,
   isFinalized,
   onSaved,
-}: RsvpManagementControlsProps) {
+  onCancel,
+  playerName,
+}: PlayerRsvpFormProps) {
   const { t } = useTranslation()
   const instanceId = useId()
-  const statusId = `rsvp-status-${instanceId}`
-  const commentPanelId = `captain-comment-${instanceId}`
-  const [selectedStatus, setSelectedStatus] = useState<Participation["status"] | "">(status ?? "")
+  const [selectedStatus, setSelectedStatus] = useState<Participation["status"] | "no_response">(status ?? "no_response")
   const [comment, setComment] = useState(captainComment ?? "")
   const [isSaving, setIsSaving] = useState(false)
-  const [isCommentOpen, setIsCommentOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setSelectedStatus(status ?? "")
-    setComment(captainComment ?? "")
-  }, [status, captainComment])
-
-  const statusChanged = !isFinalized && selectedStatus !== "" && selectedStatus !== status
+  const statusChanged = !isFinalized && selectedStatus !== (status ?? "no_response")
   const hasChanges = statusChanged || comment !== (captainComment ?? "")
 
   const save = async () => {
     if (isSaving || !hasChanges) return
     setIsSaving(true)
+    setError(null)
     try {
       await saveParticipationCaptainCommentAction(
         String(tieId),
@@ -112,72 +111,54 @@ function RsvpManagementControls({
       )
       onSaved()
     } catch (error) {
-      alert(error instanceof Error ? error.message : String(error))
+      setError(error instanceof Error ? error.message : String(error))
     } finally {
       setIsSaving(false)
     }
   }
 
   return (
-    <div className="mt-3 space-y-2 border-t pt-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs font-medium" htmlFor={statusId}>{t("manageRsvp")}</label>
-        <select
-          id={statusId}
-          className="h-9 rounded-md border bg-white px-2 text-sm"
-          value={selectedStatus}
-          onChange={(event) => {
-            const value = event.target.value
-            if (value === "" || value === "confirmed" || value === "maybe" || value === "declined") {
-              setSelectedStatus(value)
-            }
-          }}
-          disabled={isFinalized || isSaving}
-        >
-          {status === null && <option value="">{t("noResponsePlayers")}</option>}
-          {(["confirmed", "maybe", "declined"] as const).map((value) => (
-            <option key={value} value={value}>{t(value)}</option>
-          ))}
-        </select>
-        <Button
-          size="icon"
-          variant="ghost"
-          aria-label={t("captainsComment")}
-          title={t("captainsComment")}
-          aria-expanded={isCommentOpen}
-          aria-controls={commentPanelId}
-          onClick={() => setIsCommentOpen((open) => !open)}
-          disabled={isSaving}
-        >
-          <MessageSquare className="h-4 w-4" />
-        </Button>
-        {isFinalized && <span className="text-xs text-gray-500">{t("statusLockedUntilUnfinalized")}</span>}
-      </div>
-      {isCommentOpen ? (
-        <div id={commentPanelId} className="space-y-2">
-          <Textarea
-            aria-label={t("captainsComment")}
-            className="text-xs md:text-xs"
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            placeholder={t("captainCommentPlaceholder")}
-            maxLength={1000}
-            rows={2}
-            disabled={isSaving}
-          />
-        </div>
-      ) : comment ? (
-        <p className="whitespace-pre-wrap break-words text-xs text-gray-700">{comment}</p>
-      ) : null}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-gray-500">
-          {captainCommentAuthor ? `${t("commentBy")} ${captainCommentAuthor}` : ""}
-        </span>
-        <Button size="sm" variant="outline" onClick={save} disabled={isSaving || !hasChanges}>
-          {t("save")}
-        </Button>
-      </div>
-    </div>
+    <Card className="mb-6">
+      <CardHeader><CardTitle className="text-lg"><h2>{t("manageRsvp")} — {playerName}</h2></CardTitle></CardHeader>
+      <CardContent>
+        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void save() }}>
+          <fieldset disabled={isFinalized || isSaving}>
+            <legend className="mb-2 text-sm font-medium">{t("manageRsvp")}</legend>
+            <div className="flex flex-wrap gap-4">
+              {([
+                { value: "confirmed", label: "confirmed", Icon: UserCheck },
+                { value: "maybe", label: "maybe", Icon: Scale },
+                { value: "declined", label: "declined", Icon: UserX },
+                { value: "no_response", label: "noResponsePlayers", Icon: HelpCircle },
+              ] as const).map(({ value, label, Icon }) => (
+                <label key={value} className="flex items-center gap-2 text-sm">
+                  <input type="radio" name={`rsvp-${instanceId}`} value={value}
+                    checked={selectedStatus === value} onChange={() => setSelectedStatus(value)} />
+                  <Icon className="h-4 w-4" />
+                  {t(label)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {isFinalized && <p className="text-xs text-gray-500">{t("statusLockedUntilUnfinalized")}</p>}
+          <div className="space-y-2">
+            <label htmlFor={`comment-${instanceId}`} className="text-sm font-medium">{t("captainsComment")}</label>
+            <Input id={`comment-${instanceId}`} value={comment} onChange={(event) => setComment(event.target.value)}
+              maxLength={1000} disabled={isSaving} placeholder={t("captainCommentPlaceholder")} />
+          </div>
+          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-gray-500">
+              {captainCommentAuthor ? `${t("commentBy")} ${captainCommentAuthor}` : ""}
+            </span>
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={isSaving || !hasChanges}>{t("save")}</Button>
+              <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={isSaving}>{t("cancel")}</Button>
+            </div>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -195,32 +176,43 @@ function TieCaptainCommentEditor({
   const { t } = useTranslation()
   const [comment, setComment] = useState(initialComment ?? "")
   const [isSaving, setIsSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => setComment(initialComment ?? ""), [initialComment])
 
   const save = async () => {
     setIsSaving(true)
+    setError(null)
     try {
       await saveTieCaptainCommentAction(String(tieId), comment)
+      setIsEditing(false)
       onSaved()
     } catch (error) {
-      alert(error instanceof Error ? error.message : String(error))
+      setError(error instanceof Error ? error.message : String(error))
     } finally {
       setIsSaving(false)
     }
   }
 
   return (
-    <Card className="mb-6">
-      <CardHeader><CardTitle className="text-sm">{t("captainsComment")}</CardTitle></CardHeader>
-      <CardContent className="space-y-2">
-        <Textarea className="text-xs md:text-xs" value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} rows={2} placeholder={t("captainCommentPlaceholder")} />
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-gray-500">{author ? `${t("commentBy")} ${author}` : ""}</span>
-          <Button size="sm" onClick={save} disabled={isSaving || comment === (initialComment ?? "")}>{t("saveComment")}</Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center gap-2">
+        {initialComment && <p className="whitespace-pre-wrap break-words text-sm text-gray-700">{initialComment}</p>}
+        <Button size="icon" variant="ghost" aria-label={t("editTieCaptainComment")} aria-expanded={isEditing} disabled={isSaving}
+          onClick={() => { setComment(initialComment ?? ""); setError(null); setIsEditing((open) => !open) }}>
+          <MessageSquare className="h-4 w-4" />
+        </Button>
+      </div>
+      {author && <p className="text-xs text-gray-500">{t("commentBy")} {author}</p>}
+      {isEditing && <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void save() }}>
+        <Input aria-label={t("captainsComment")} className="min-w-0 flex-1" value={comment}
+          onChange={(event) => setComment(event.target.value)} maxLength={1000} disabled={isSaving} />
+        <Button type="submit" size="sm" disabled={isSaving || comment === (initialComment ?? "")}>{t("save")}</Button>
+        <Button type="button" size="sm" variant="outline" disabled={isSaving} onClick={() => setIsEditing(false)}>{t("cancel")}</Button>
+        {error && <p role="alert" className="w-full text-sm text-red-600">{error}</p>}
+      </form>}
+    </div>
   )
 }
 
@@ -228,15 +220,14 @@ type PlayerCardProps = {
   participation: ParticipationWithPlayer
   isInLineup: boolean
   canToggle: boolean
-  tieId: number
   isFinalized: boolean
   isLoading: boolean
   onToggleLineup: (participationId: number) => void
-  onSaved: () => void
+  onEdit: () => void
 }
 
 function PlayerCard({
-  participation, isInLineup, canToggle, tieId, isFinalized, isLoading, onToggleLineup, onSaved,
+  participation, isInLineup, canToggle, isFinalized, isLoading, onToggleLineup, onEdit,
 }: PlayerCardProps) {
   const { t } = useTranslation()
   const isProblematic = isInLineup && participation.status !== "confirmed"
@@ -246,9 +237,15 @@ function PlayerCard({
       <CardContent className="p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm mb-2">
-              #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
-            </h3>
+            <div className="mb-2 flex items-center gap-2">
+              <h3 className="font-semibold text-sm">
+                #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
+              </h3>
+              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
+                aria-label={t("editRsvp")} title={t("editRsvp")} onClick={onEdit}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={
                 participation.status === "confirmed" ? "default" :
@@ -285,27 +282,18 @@ function PlayerCard({
             <p className="whitespace-pre-wrap break-words">{participation.comment}</p>
           </div>
         )}
-        <RsvpManagementControls
-          tieId={tieId}
-          playerId={participation.playerId}
-          status={participation.status}
-          captainComment={participation.captainComment}
-          captainCommentAuthor={participation.captainCommentAuthor}
-          isFinalized={isFinalized}
-          onSaved={onSaved}
-        />
+        {participation.captainComment && <p className="mt-2 whitespace-pre-wrap break-words text-xs">{participation.captainComment}</p>}
+        {participation.captainCommentAuthor && <p className="text-xs text-gray-500">{t("commentBy")} {participation.captainCommentAuthor}</p>}
       </CardContent>
     </Card>
   )
 }
 
 function NoResponsePlayerCard({
-  player, tieId, isFinalized, onSaved,
+  player, onEdit,
 }: {
   player: PlayerWithoutParticipation
-  tieId: number
-  isFinalized: boolean
-  onSaved: () => void
+  onEdit: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -314,9 +302,15 @@ function NoResponsePlayerCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="flex-1">
-              <h3 className="font-semibold text-sm">
-                #{player.playerRank} {player.firstName} {player.lastName}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm">
+                  #{player.playerRank} {player.firstName} {player.lastName}
+                </h3>
+                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
+                  aria-label={t("editRsvp")} title={t("editRsvp")} onClick={onEdit}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
               <div className="flex items-center space-x-2 mt-1">
                 <Badge variant="outline" className="bg-gray-100 text-gray-600">
                   <HelpCircle className="w-3 h-3 mr-1" />
@@ -326,15 +320,8 @@ function NoResponsePlayerCard({
             </div>
           </div>
         </div>
-        <RsvpManagementControls
-          tieId={tieId}
-          playerId={player.playerId}
-          status={null}
-          captainComment={player.captainComment}
-          captainCommentAuthor={player.captainCommentAuthor}
-          isFinalized={isFinalized}
-          onSaved={onSaved}
-        />
+        {player.captainComment && <p className="mt-2 whitespace-pre-wrap break-words text-xs">{player.captainComment}</p>}
+        {player.captainCommentAuthor && <p className="text-xs text-gray-500">{t("commentBy")} {player.captainCommentAuthor}</p>}
       </CardContent>
     </Card>
   )
@@ -368,6 +355,33 @@ export function LineupClient({
   const [olderAuditHasMore, setOlderAuditHasMore] = useState<boolean | null>(null)
   const [isLoadingMoreAudit, setIsLoadingMoreAudit] = useState(false)
   const [auditLoadError, setAuditLoadError] = useState<string | null>(null)
+  const [editingPlayer, setEditingPlayer] = useState<{
+    playerId: number
+    playerName: string
+    status: Participation["status"] | null
+    captainComment: string | null
+    captainCommentAuthor: string | null
+  } | null>(null)
+  const playerFormRef = useRef<HTMLDivElement>(null)
+
+  const editParticipation = (participation: ParticipationWithPlayer) => {
+    setEditingPlayer({
+      playerId: participation.playerId,
+      playerName: `${participation.player.firstName} ${participation.player.lastName}`,
+      status: participation.status,
+      captainComment: participation.captainComment,
+      captainCommentAuthor: participation.captainCommentAuthor,
+    })
+  }
+  const editNonResponder = (player: PlayerWithoutParticipation) => {
+    setEditingPlayer({
+      playerId: player.playerId, playerName: `${player.firstName} ${player.lastName}`,
+      status: null, captainComment: player.captainComment, captainCommentAuthor: player.captainCommentAuthor,
+    })
+  }
+  useEffect(() => {
+    if (editingPlayer) playerFormRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" })
+  }, [editingPlayer])
 
   // New entries since the first page can shift offsets, so skip ids already shown.
   const allAuditEntries = useMemo(() => {
@@ -507,9 +521,7 @@ Aufstellung: ${playerNames}`
   }
 
   const sharedCardProps = {
-    tieId: tie.id,
     isFinalized: tie.isLineupReady,
-    onSaved: () => router.refresh(),
   }
   const playerCardProps = { ...sharedCardProps, isLoading, onToggleLineup: handleToggleLineup }
 
@@ -574,6 +586,8 @@ Aufstellung: ${playerNames}`
                 ? "—"
                 : `${tieDate.toLocaleDateString()} ${tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
             </p>
+            <TieCaptainCommentEditor tieId={tie.id} comment={tie.captainComment}
+              author={tie.captainCommentAuthor} onSaved={() => router.refresh()} />
           </div>
           
           <div className="text-right">
@@ -647,12 +661,12 @@ Aufstellung: ${playerNames}`
         </div>
       </div>
 
-      <TieCaptainCommentEditor
-        tieId={tie.id}
-        comment={tie.captainComment}
-        author={tie.captainCommentAuthor}
-        onSaved={() => router.refresh()}
-      />
+      {editingPlayer && <div ref={playerFormRef}>
+        <PlayerRsvpForm key={editingPlayer.playerId} {...editingPlayer}
+          tieId={tie.id} isFinalized={tie.isLineupReady}
+          onCancel={() => setEditingPlayer(null)}
+          onSaved={() => { setEditingPlayer(null); router.refresh() }} />
+      </div>}
 
       {/* Warning banner for problematic players */}
       {hasProblematicPlayers && (
@@ -703,6 +717,7 @@ Aufstellung: ${playerNames}`
                       </div>
                       <PlayerCard 
                         {...playerCardProps}
+                        onEdit={() => editParticipation(participation)}
                         participation={participation} 
                         isInLineup={true}
                         canToggle={!tie.isLineupReady}
@@ -735,10 +750,11 @@ Aufstellung: ${playerNames}`
                   .sort((a, b) => a.rank - b.rank)
                   .map((item) =>
                     item.kind === "noResponse" ? (
-                      <NoResponsePlayerCard {...sharedCardProps} key={`nr-${item.player.id}`} player={item.player} />
+                      <NoResponsePlayerCard onEdit={() => editNonResponder(item.player)} key={`nr-${item.player.id}`} player={item.player} />
                     ) : (
                       <PlayerCard
                         {...playerCardProps}
+                        onEdit={() => editParticipation(item.participation)}
                         key={item.participation.id}
                         participation={item.participation}
                         isInLineup={item.inLineup}
@@ -769,6 +785,7 @@ Aufstellung: ${playerNames}`
                   .map((participation) => (
                     <PlayerCard 
                       {...playerCardProps}
+                      onEdit={() => editParticipation(participation)}
                       key={participation.id}
                       participation={participation} 
                       isInLineup={false}
@@ -804,7 +821,7 @@ Aufstellung: ${playerNames}`
                     {playersWithoutParticipation
                       .sort((a, b) => a.playerRank - b.playerRank)
                       .map((player) => (
-                        <NoResponsePlayerCard {...sharedCardProps} key={player.id} player={player} />
+                        <NoResponsePlayerCard onEdit={() => editNonResponder(player)} key={player.id} player={player} />
                       ))}
                   </div>
                 </AccordionContent>

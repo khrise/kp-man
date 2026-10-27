@@ -126,6 +126,10 @@ describe("getTiesBySeasonId", () => {
       captainComment: "Doubles only",
       captainCommentAuthor: "Captain Player",
     }))
+    const overview = await getTiesWithLineupInfo()
+    expect(overview[0]).toEqual(expect.objectContaining({
+      captainComment: "Doubles only", captainCommentAuthor: "Captain Player",
+    }))
   })
 })
 

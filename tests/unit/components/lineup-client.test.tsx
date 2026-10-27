@@ -4,6 +4,7 @@ import { LineupClient } from "@/app/admin/ties/[tieId]/lineup/lineup-client"
 import {
   loadMoreAuditEntriesAction,
   saveParticipationCaptainCommentAction,
+  saveTieCaptainCommentAction,
   setManagedParticipationStatusAction,
 } from "@/app/actions/lineup"
 
@@ -107,6 +108,7 @@ describe("lineup participation audit", () => {
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument()
     expect(screen.queryByText("Anna Smith")).not.toBeInTheDocument()
   })
+
   it.each([
     { previousComment: null, newComment: "New note" },
     { previousComment: "", newComment: "New note" },
@@ -184,6 +186,41 @@ describe("captain RSVP controls", () => {
 
   beforeEach(() => saveStatus.mockReset())
 
+  it("resets an existing RSVP through the no-response radio and saves the comment together", async () => {
+    const saveComment = jest.mocked(saveParticipationCaptainCommentAction).mockReset().mockResolvedValue({ success: true })
+    const participation: Props["availablePlayers"][number] = {
+      id: 4, tieId: 1, playerId: 2, status: "confirmed", isInLineup: false,
+      comment: "Player note", captainComment: "Old note", captainCommentBy: 8, captainCommentAuthor: "Captain",
+      respondedAt: date, createdAt: date, updatedAt: date,
+      player: { id: 2, firstName: "Anna", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+    }
+    render(<LineupClient {...props} availablePlayers={[participation]} />)
+    fireEvent.click(screen.getByRole("button", { name: "editRsvp" }))
+    expect(screen.getByRole("heading", { name: /manageRsvp.*Anna Player/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("radio", { name: "noResponsePlayers" }))
+    fireEvent.change(screen.getByRole("textbox", { name: "captainsComment" }), { target: { value: "New note" } })
+    fireEvent.click(screen.getByRole("button", { name: "save" }))
+    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "2", "New note", "no_response"))
+    await waitFor(() => expect(screen.queryByRole("radio")).not.toBeInTheDocument())
+  })
+
+  it("keeps the form and draft visible after a failed save and discards it on Cancel", async () => {
+    jest.mocked(saveParticipationCaptainCommentAction).mockReset().mockRejectedValue(new Error("Save failed"))
+    render(<LineupClient {...props} playersWithoutParticipation={[{
+      id: 9, playerId: 9, teamId: 1, firstName: "No", lastName: "Response",
+      captainComment: null, captainCommentAuthor: null, createdAt: date, playerRank: 3,
+    }]} />)
+    fireEvent.click(screen.getByText("showSingleList"))
+    fireEvent.click(screen.getByRole("button", { name: "editRsvp" }))
+    fireEvent.change(screen.getByRole("textbox", { name: "captainsComment" }), { target: { value: "Draft" } })
+    fireEvent.click(screen.getByRole("button", { name: "save" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("Save failed")
+    expect(screen.getByRole("textbox", { name: "captainsComment" })).toHaveValue("Draft")
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }))
+    fireEvent.click(screen.getByRole("button", { name: "editRsvp" }))
+    expect(screen.getByRole("textbox", { name: "captainsComment" })).toHaveValue("")
+  })
+
   it.each([false, true])("preserves both player editor drafts while audit entries load in single-list mode: %p", async (singleList) => {
     jest.mocked(loadMoreAuditEntriesAction).mockResolvedValue({ entries: [], hasMore: false })
     const participation: Props["availablePlayers"][number] = {
@@ -205,25 +242,22 @@ describe("captain RSVP controls", () => {
     if (singleList) fireEvent.click(screen.getByText("showSingleList"))
     else fireEvent.click(screen.getByRole("button", { name: /playersWithoutResponse/ }))
 
-    const selectors = screen.getAllByRole("combobox", { name: "manageRsvp" })
-    selectors.forEach((selector) => fireEvent.change(selector, { target: { value: "maybe" } }))
-    screen.getAllByRole("button", { name: "captainsComment" }).forEach((toggle) => fireEvent.click(toggle))
-    const editors = screen.getAllByRole("textbox", { name: "captainsComment" })
-    editors.forEach((editor, index) => fireEvent.change(editor, { target: { value: `Draft ${index}` } }))
+    fireEvent.click(screen.getAllByRole("button", { name: "editRsvp" })[0])
+    const radio = screen.getByRole("radio", { name: "maybe" })
+    fireEvent.click(radio)
+    const editor = screen.getByRole("textbox", { name: "captainsComment" })
+    fireEvent.change(editor, { target: { value: "Draft" } })
 
     fireEvent.click(screen.getByRole("button", { name: /loadMoreAuditEntries/ }))
     await waitFor(() => expect(screen.queryByRole("button", { name: /loadMoreAuditEntries/ })).not.toBeInTheDocument())
 
-    selectors.forEach((selector, index) => {
-      expect(screen.getAllByRole("combobox", { name: "manageRsvp" })[index]).toBe(selector)
-      expect(selector).toHaveValue("maybe")
-      expect(screen.getAllByRole("textbox", { name: "captainsComment" })[index]).toBe(editors[index])
-      expect(editors[index]).toHaveValue(`Draft ${index}`)
-      expect(screen.getAllByRole("button", { name: "captainsComment" })[index]).toHaveAttribute("aria-expanded", "true")
-    })
+    expect(screen.getByRole("radio", { name: "maybe" })).toBe(radio)
+    expect(radio).toBeChecked()
+    expect(screen.getByRole("textbox", { name: "captainsComment" })).toBe(editor)
+    expect(editor).toHaveValue("Draft")
   })
 
-  it("uses unique label and comment-panel associations for duplicate player editors", () => {
+  it("opens only one top-of-page form for a player appearing in both columns", () => {
     const participation: Props["lineupPlayers"][number] = {
       id: 4, tieId: 1, playerId: 2, status: "confirmed", isInLineup: true,
       comment: null, captainComment: null, captainCommentBy: null, captainCommentAuthor: null,
@@ -241,27 +275,16 @@ describe("captain RSVP controls", () => {
     />)
     fireEvent.click(screen.getByText("showSingleList"))
 
-    const selectors = screen.getAllByRole("combobox", { name: "manageRsvp" })
-    const toggles = screen.getAllByRole("button", { name: "captainsComment" })
-    expect(selectors).toHaveLength(3)
-    expect(toggles).toHaveLength(3)
-    expect(new Set(selectors.map((selector) => selector.id)).size).toBe(3)
-    expect(new Set(toggles.map((toggle) => toggle.getAttribute("aria-controls"))).size).toBe(3)
-
-    selectors.forEach((selector, index) => {
-      const label = screen.getAllByText("manageRsvp")[index]
-      expect(label).toHaveAttribute("for", selector.id)
-      expect(document.getElementById(label.getAttribute("for")!)).toBe(selector)
-
-      const toggle = toggles[index]
-      fireEvent.click(toggle)
-      const panelId = toggle.getAttribute("aria-controls")
-      expect(panelId).not.toBeNull()
-      const panel = document.getElementById(panelId!)
-      expect(panel).not.toBeNull()
-      expect(toggle.parentElement?.parentElement).toContainElement(panel)
-      expect(within(panel!).getByRole("textbox", { name: "captainsComment" })).toBeInTheDocument()
-    })
+    const buttons = screen.getAllByRole("button", { name: "editRsvp" })
+    expect(buttons).toHaveLength(3)
+    fireEvent.click(buttons[0])
+    expect(screen.getAllByRole("radio")).toHaveLength(4)
+    expect(screen.getAllByRole("textbox", { name: "captainsComment" })).toHaveLength(1)
+    fireEvent.click(buttons[1])
+    expect(screen.getAllByRole("radio")).toHaveLength(4)
+    expect(screen.getByRole("radio", { name: "confirmed" })).toBeChecked()
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }))
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument()
   })
 
   it.each([false, true])("saves comments without creating an RSVP in single-list layout: %p", async (singleList) => {
@@ -279,23 +302,15 @@ describe("captain RSVP controls", () => {
     } else {
       fireEvent.click(screen.getByText(/playersWithoutResponse/))
     }
-    const toggle = screen.getByRole("button", { name: "captainsComment" })
-    expect(toggle).toHaveAttribute("aria-expanded", "false")
     expect(screen.queryByRole("textbox", { name: "captainsComment" })).not.toBeInTheDocument()
-    fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    fireEvent.click(screen.getByRole("button", { name: "editRsvp" }))
     const editor = screen.getByRole("textbox", { name: "captainsComment" })
-    expect(editor).toHaveClass("text-xs", "md:text-xs")
-    expect(screen.getByLabelText("manageRsvp")).toHaveValue("")
+    expect(editor.tagName).toBe("INPUT")
+    expect(screen.getByRole("radio", { name: "noResponsePlayers" })).toBeChecked()
     expect(screen.getByRole("button", { name: "save" })).toBeDisabled()
     fireEvent.change(editor, { target: { value: "Will speak to the player tomorrow" } })
-    const card = editor.parentElement?.parentElement
-    if (!card) throw new Error("Missing comment editor container")
-    expect(within(card).getAllByRole("button", { name: "save" })).toHaveLength(1)
-    fireEvent.click(toggle)
-    expect(screen.queryByRole("textbox", { name: "captainsComment" })).not.toBeInTheDocument()
-    expect(screen.getByText("Will speak to the player tomorrow")).toBeInTheDocument()
-    fireEvent.click(within(card).getByRole("button", { name: "save" }))
+    expect(screen.getAllByRole("button", { name: "save" })).toHaveLength(1)
+    fireEvent.click(screen.getByRole("button", { name: "save" }))
 
     await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "9", "Will speak to the player tomorrow", null))
     expect(saveStatus).not.toHaveBeenCalled()
@@ -314,11 +329,10 @@ describe("captain RSVP controls", () => {
     />)
 
     fireEvent.click(screen.getByText("showSingleList"))
-    const selector = screen.getByLabelText("manageRsvp")
-    expect(selector).toHaveDisplayValue("noResponsePlayers")
+    fireEvent.click(screen.getByRole("button", { name: "editRsvp" }))
+    expect(screen.getByRole("radio", { name: "noResponsePlayers" })).toBeChecked()
     expect(screen.getByRole("button", { name: "save" })).toBeDisabled()
-    fireEvent.change(selector, { target: { value: "confirmed" } })
-    fireEvent.click(screen.getByRole("button", { name: "captainsComment" }))
+    fireEvent.click(screen.getByRole("radio", { name: "confirmed" }))
     fireEvent.change(screen.getByRole("textbox", { name: "captainsComment" }), { target: { value: "Doubles only" } })
     fireEvent.click(screen.getByRole("button", { name: "save" }))
 
@@ -339,7 +353,32 @@ describe("captain RSVP controls", () => {
       otherParticipations={[participation]}
     />)
 
-    expect(screen.getByLabelText("manageRsvp")).toBeDisabled()
+    fireEvent.click(screen.getByRole("button", { name: "editRsvp" }))
+    screen.getAllByRole("radio").forEach((radio) => expect(radio).toBeDisabled())
+    expect(screen.getByRole("textbox", { name: "captainsComment" })).not.toBeDisabled()
+  })
+})
+
+describe("tie captain comment", () => {
+  it("displays the comment beneath the headline and only opens a single-line input on request", async () => {
+    const save = jest.mocked(saveTieCaptainCommentAction).mockResolvedValue({ success: true })
+    render(<LineupClient {...props} tie={{ ...props.tie, captainComment: "Bring balls", captainCommentAuthor: "Captain" }} />)
+    const heading = screen.getByRole("heading", { name: "manageLineup" })
+    expect(heading.parentElement?.parentElement).toContainElement(screen.getByText("Bring balls"))
+    expect(screen.getByText("commentBy Captain")).toBeInTheDocument()
+    expect(screen.queryByRole("textbox", { name: "captainsComment" })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "editTieCaptainComment" }))
+    const input = screen.getByRole("textbox", { name: "captainsComment" })
+    expect(input.tagName).toBe("INPUT")
+    fireEvent.change(input, { target: { value: "Draft" } })
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }))
+    expect(save).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "editTieCaptainComment" }))
+    expect(screen.getByRole("textbox", { name: "captainsComment" })).toHaveValue("Bring balls")
+    fireEvent.change(screen.getByRole("textbox", { name: "captainsComment" }), { target: { value: "Bring rackets" } })
+    fireEvent.click(screen.getByRole("button", { name: "save" }))
+    await waitFor(() => expect(save).toHaveBeenCalledWith("1", "Bring rackets"))
+    await waitFor(() => expect(screen.queryByRole("textbox", { name: "captainsComment" })).not.toBeInTheDocument())
   })
 })
 

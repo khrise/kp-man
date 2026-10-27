@@ -40,14 +40,23 @@ Changes from the same Save are recorded in one audit entry, including lineup
 membership only when it actually changes. Creating an RSVP does not select the player.
 Public RSVP writes and captain saves acquire the same tie lock before writing,
 keeping concurrent responses and their audit history transactional.
-The speech-bubble button toggles the comment editor; hiding it preserves drafts.
-Saved comments and their attribution remain visible without opening the editor.
-Selecting No response and saving only a comment does not create an RSVP, change availability, or select
-the player for the lineup. Comments remain attached to the player and tie when
+Each player's Edit RSVP button opens a form above the lineup lists, with
+icon-labelled radio choices and a single-line captain comment input. Cancel
+discards the draft; unrelated page updates preserve it. Saved comments and
+their attribution remain visible on the player cards.
+Selecting No response resets an existing RSVP and removes any lineup selection,
+while preserving the independent captain comment. The reset and comment edits
+are audited together, including the removed player-authored comment.
+For a player already without a response, saving only a captain comment does not
+create an RSVP or select the player for the lineup.
+Comments remain attached to the player and tie when
 an RSVP is submitted later, and are shown separately from the player's own
 comment, with the captain's linked player name or username. Comment edits are
 audited and are not included in invitation emails.
 Finalized ties lock RSVP status edits but still allow saving comment-only changes.
+The tie captain comment is displayed beneath the lineup page's date/time and
+on the admin ties overview, with author attribution. Its comment button opens
+a single-line editor with Save and Cancel.
 
 Apply migration [16-independent-player-captain-comments.sql](scripts/16-independent-player-captain-comments.sql)
 before deploying. It preserves existing player-specific captain comments while

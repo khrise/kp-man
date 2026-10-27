@@ -311,6 +311,68 @@ describe("participation audit changes", () => {
 })
 
 describe("captain-managed lineup data", () => {
+  it("resets an RSVP and lineup selection atomically while retaining its captain comment and audit history", async () => {
+    const { player, tie } = await createTestFixture()
+    const captain = await createUser({
+      username: "captain-user", email: "captain@example.com",
+      passwordHash: "not-used", role: "team_captain", playerId: null,
+    })
+    const participation = await upsertParticipation({
+      tieId: tie.id, playerId: player.id, status: "confirmed", comment: "Player note",
+    })
+    await updateParticipationLineup(participation.id, true)
+    await updateParticipationCaptainComment(tie.id, player.id, "Captain note", captain.id, captain.username)
+    const before = await getParticipationAuditForTie(tie.id)
+
+    await expect(updateParticipationCaptainComment(
+      tie.id, player.id, "Changed note", -1, captain.username, "no_response",
+    )).rejects.toThrow()
+    expect(await getParticipationById(participation.id)).toEqual(expect.objectContaining({ isInLineup: true }))
+    expect(await getParticipationAuditForTie(tie.id)).toEqual(before)
+
+    await updateTieReady(tie.id, true)
+    await expect(updateParticipationCaptainComment(
+      tie.id, player.id, "Captain note", captain.id, captain.username, "no_response",
+    )).rejects.toThrow("Unfinalize the lineup")
+    await updateTieReady(tie.id, false)
+    await updateParticipationCaptainComment(tie.id, player.id, "Changed note", captain.id, captain.username, "no_response")
+
+    expect(await getParticipations(tie.id)).toEqual([])
+    expect(await getLineupCount(tie.id)).toBe(0)
+    expect(await getPlayersWithoutParticipation(tie.id)).toEqual([
+      expect.objectContaining({ captainComment: "Changed note", captainCommentAuthor: captain.username }),
+    ])
+    const audit = await getParticipationAuditForTie(tie.id)
+    expect(audit).toHaveLength(before.length + 1)
+    expect(audit[0]).toEqual(expect.objectContaining({
+      participationId: null, previousStatus: "confirmed", newStatus: null,
+      previousComment: "Player note", newComment: null,
+      previousCaptainComment: "Captain note", newCaptainComment: "Changed note",
+      previousIsInLineup: true, newIsInLineup: false, changedBy: captain.username,
+    }))
+    expect(audit.slice(1)).toEqual(before)
+    await updateParticipationCaptainComment(tie.id, player.id, "Changed note", captain.id, captain.username, "no_response")
+    expect(await getParticipationAuditForTie(tie.id)).toEqual(audit)
+  })
+
+  it("resets an unselected RSVP without reporting a lineup change and preserves the captain comment author", async () => {
+    const { player, tie } = await createTestFixture()
+    const captain = await createUser({
+      username: "captain-user", email: "captain@example.com",
+      passwordHash: "not-used", role: "team_captain", playerId: null,
+    })
+    await updateParticipationCaptainComment(tie.id, player.id, "Keep note", captain.id, captain.username, "maybe")
+    await updateParticipationCaptainComment(tie.id, player.id, "Keep note", -1, "other-captain", "no_response")
+    const audit = await getParticipationAuditForTie(tie.id)
+    expect(audit[0]).toEqual(expect.objectContaining({
+      previousStatus: "maybe", newStatus: null, previousIsInLineup: null, newIsInLineup: null,
+      previousCaptainComment: null, newCaptainComment: null,
+    }))
+    expect(await getPlayersWithoutParticipation(tie.id)).toEqual([
+      expect.objectContaining({ captainComment: "Keep note", captainCommentAuthor: captain.username }),
+    ])
+  })
+
   it.each(["public", "captain"])("serializes concurrent first RSVPs starting with %s and preserves both comments", async (first) => {
     const { player, tie } = await createTestFixture()
     const captain = await createUser({
@@ -330,7 +392,7 @@ describe("captain-managed lineup data", () => {
     expect(participations[0]).toEqual(expect.objectContaining({
       comment: "Player note", captainComment: "Captain note", isInLineup: false,
     }))
-    const audit = (await getParticipationAuditForTie(tie.id)).reverse()
+    const audit = (await getParticipationAuditForTie(tie.id)).sort((a, b) => a.id - b.id)
     expect(audit).toHaveLength(2)
     expect(audit[0].previousStatus).toBeNull()
     expect(audit[1].previousStatus).toBe(audit[0].newStatus)
