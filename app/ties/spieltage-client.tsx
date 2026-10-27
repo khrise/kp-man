@@ -62,6 +62,9 @@ export type TieWithDetails = {
   maybeCount: number
   declinedCount: number
   isLineupReady?: boolean
+  captainComment: string | null
+  captainCommentBy: number | null
+  captainCommentAuthor: string | null
 }
 
 export type Tie = {
@@ -76,6 +79,9 @@ export type Tie = {
   maybeCount: number
   declinedCount: number
   isLineupReady?: boolean
+  captainComment: string | null
+  captainCommentBy: number | null
+  captainCommentAuthor: string | null
 }
 
 type SortOption = "date-desc" | "date-asc" | "team" | "opponent"

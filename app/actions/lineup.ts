@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
 import { requirePermission, requireTeamPermission } from "@/lib/server/auth"
 import { Permission } from "@/lib/permissions"
+import { getWeekendParticipationConflicts } from "@/lib/utils"
 
 export async function toggleLineupAction(participationId: string, tieId: string) {
   await requirePermission(Permission.LineupManage)
@@ -35,19 +36,6 @@ export async function toggleLineupAction(participationId: string, tieId: string)
     throw new Error("Cannot modify lineup: lineup has been finalized")
   }
 
-  const team = await db.getTeamById(tie.teamId)
-  if (!team) {
-    throw new Error("Team not found")
-  }
-
-  // If adding to lineup, check if we're at the limit
-  if (!participation.isInLineup) {
-    const currentLineupCount = await db.getLineupCount(tieIdNum)
-    if (currentLineupCount >= team.teamSize) {
-      throw new Error(`Maximum number of players (${team.teamSize}) already selected for lineup`)
-    }
-  }
-
   // Toggle lineup status
   await db.updateParticipationLineup(participationIdNum, !participation.isInLineup)
 
@@ -70,20 +58,82 @@ export async function markTieReadyAction(tieId: string, ready: boolean) {
   if (!tie) throw new Error("Tie not found")
   await requireTeamPermission(tie.teamId, ready ? Permission.LineupManage : Permission.LineupReopen)
 
-  const team = await db.getTeamById(tie.teamId)
-  if (!team) throw new Error("Team not found")
-
-  // If trying to mark ready, ensure lineup is full
-  if (ready) {
-    const currentLineupCount = await db.getLineupCount(tieIdNum)
-    if (currentLineupCount < team.teamSize) {
-      throw new Error(`Cannot mark ready: only ${currentLineupCount}/${team.teamSize} selected`)
-    }
-  }
-
   await db.updateTieReady(tieIdNum, ready)
 
   revalidatePath(`/admin/ties/${tieId}/lineup`)
+  return { success: true }
+}
+
+export async function setManagedParticipationStatusAction(
+  tieId: string,
+  playerId: string,
+  status: "confirmed" | "maybe" | "declined",
+) {
+  const tieIdNum = Number(tieId)
+  const playerIdNum = Number(playerId)
+  if (!Number.isSafeInteger(tieIdNum) || tieIdNum <= 0 || !Number.isSafeInteger(playerIdNum) || playerIdNum <= 0) {
+    throw new Error("Invalid tie or player ID")
+  }
+  if (!["confirmed", "maybe", "declined"].includes(status)) {
+    throw new Error("Invalid participation status")
+  }
+
+  await requirePermission(Permission.LineupManage)
+  const tie = await db.getTieById(tieIdNum)
+  if (!tie) throw new Error("Tie not found")
+  const user = await requireTeamPermission(tie.teamId, Permission.LineupManage)
+  await db.setManagedParticipationStatus(tieIdNum, playerIdNum, status, user.username)
+
+  revalidatePath(`/admin/ties/${tieId}/lineup`)
+  revalidatePath("/spieltage")
+  return { success: true }
+}
+
+export async function saveParticipationCaptainCommentAction(
+  tieId: string,
+  playerId: string,
+  comment: string,
+  status: "confirmed" | "maybe" | "declined" | "no_response" | null = null,
+  removePlayerComment = false,
+) {
+  const tieIdNum = Number(tieId)
+  const playerIdNum = Number(playerId)
+  if (!Number.isSafeInteger(tieIdNum) || tieIdNum <= 0 || !Number.isSafeInteger(playerIdNum) || playerIdNum <= 0) {
+    throw new Error("Invalid tie or player ID")
+  }
+  if (typeof comment !== "string" || comment.length > 1000) throw new Error("Comment must be 1000 characters or fewer")
+  if (status !== null && !["confirmed", "maybe", "declined", "no_response"].includes(status)) {
+    throw new Error("Invalid participation status")
+  }
+  if (typeof removePlayerComment !== "boolean") throw new Error("Invalid remove comment flag")
+
+  await requirePermission(Permission.LineupManage)
+  const tie = await db.getTieById(tieIdNum)
+  if (!tie) throw new Error("Tie not found")
+  const user = await requireTeamPermission(tie.teamId, Permission.LineupManage)
+  await db.updateParticipationCaptainComment(
+    tieIdNum, playerIdNum, comment.trim() || null, user.id, user.username, status, removePlayerComment,
+  )
+  revalidatePath("/admin/ties")
+  revalidatePath(`/admin/ties/${tieId}/lineup`)
+  revalidatePath("/spieltage")
+  return { success: true }
+}
+
+export async function saveTieCaptainCommentAction(tieId: string, comment: string) {
+  const tieIdNum = Number(tieId)
+  if (!Number.isSafeInteger(tieIdNum) || tieIdNum <= 0) throw new Error("Invalid tie ID")
+  if (typeof comment !== "string" || comment.length > 1000) throw new Error("Comment must be 1000 characters or fewer")
+
+  await requirePermission(Permission.LineupManage)
+  const tie = await db.getTieById(tieIdNum)
+  if (!tie) throw new Error("Tie not found")
+  const user = await requireTeamPermission(tie.teamId, Permission.LineupManage)
+  await db.updateTieCaptainComment(tieIdNum, comment.trim() || null, user.id, user.username)
+
+  revalidatePath("/admin/ties")
+  revalidatePath(`/admin/ties/${tieId}/lineup`)
+  revalidatePath("/spieltage")
   return { success: true }
 }
 
@@ -107,6 +157,9 @@ export async function getLineupData(tieId: string) {
     throw new Error("Team not found")
   }
 
+  const seasonTies = await db.getTiesBySeasonId(team.seasonId)
+  const weekendConflictPlayerIds = getWeekendParticipationConflicts(seasonTies).get(tieIdNum) ?? []
+
   // Get players without any participation response
   const playersWithoutParticipation = await db.getPlayersWithoutParticipation(tieIdNum)
 
@@ -125,12 +178,13 @@ export async function getLineupData(tieId: string) {
   return {
     tie,
     team,
+    weekendConflictPlayerIds,
     lineupPlayers,
     availablePlayers,
     otherParticipations,
     playersWithoutParticipation,
     lineupCount: lineupPlayers.length,
-    maxPlayers: team.teamSize,
+    teamSize: team.teamSize,
     auditEntries,
     auditHasMore,
     auditPageSize: AUDIT_PAGE_SIZE,

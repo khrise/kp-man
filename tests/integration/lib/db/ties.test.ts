@@ -16,6 +16,8 @@ import {
   deleteTie,
   upsertParticipation,
   updateParticipationLineup,
+  createUser,
+  updateTieCaptainComment,
 } from "@/lib/db"
 
 let ctx: TestDatabaseContext
@@ -104,6 +106,30 @@ describe("getTiesBySeasonId", () => {
   it("returns empty array for a season with no ties", async () => {
     const season = await createSeason({ name: "Empty", startDate: "2025-01-01", endDate: "2025-12-31", accessCode: "EMPTY1", isActive: false })
     expect(await getTiesBySeasonId(season.id)).toEqual([])
+  })
+
+  it("returns captain comments with the connected player's display name", async () => {
+    const { season, team } = await createTestFixture()
+    const player = await createPlayer({ firstName: "Captain", lastName: "Player" })
+    const tie = await createTie({ teamId: team.id, opponent: "Rivals", tieDate: "2024-06-15", location: null, isHome: true, notes: null })
+    const user = await createUser({
+      username: "captain-user",
+      email: "captain@example.com",
+      passwordHash: "not-used",
+      role: "team_captain",
+      playerId: player.id,
+    })
+    await updateTieCaptainComment(tie.id, "Doubles only", user.id, user.username)
+
+    const ties = await getTiesBySeasonId(season.id)
+    expect(ties[0]).toEqual(expect.objectContaining({
+      captainComment: "Doubles only",
+      captainCommentAuthor: "Captain Player",
+    }))
+    const overview = await getTiesWithLineupInfo()
+    expect(overview[0]).toEqual(expect.objectContaining({
+      captainComment: "Doubles only", captainCommentAuthor: "Captain Player",
+    }))
   })
 })
 

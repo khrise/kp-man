@@ -1,4 +1,4 @@
-import { cn, getISOWeekInfo, getISOWeekKey } from "@/lib/utils"
+import { cn, getISOWeekInfo, getISOWeekKey, getWeekendParticipationConflicts } from "@/lib/utils"
 
 describe("cn", () => {
   it("merges class names", () => {
@@ -124,5 +124,83 @@ describe("getISOWeekKey", () => {
     const key1 = getISOWeekKey(new Date("2024-06-17")) // W25
     const key2 = getISOWeekKey(new Date("2024-06-24")) // W26
     expect(key1).not.toBe(key2)
+  })
+})
+
+describe("getWeekendParticipationConflicts", () => {
+  it("reports players with multiple confirmed or maybe responses on the same weekend", () => {
+    const ties = [
+      {
+        id: 1,
+        tieDate: new Date("2026-06-06T10:00:00"),
+        participations: [
+          { playerId: 10, status: "confirmed" as const },
+          { playerId: 11, status: "maybe" as const },
+        ],
+      },
+      {
+        id: 2,
+        tieDate: new Date("2026-06-07T10:00:00"),
+        participations: [
+          { playerId: 10, status: "maybe" as const },
+          { playerId: 11, status: "declined" as const },
+        ],
+      },
+    ]
+
+    expect(getWeekendParticipationConflicts(ties)).toEqual(
+      new Map([
+        [1, [10]],
+        [2, [10]],
+      ]),
+    )
+  })
+
+  it("does not report a conflict across weeks or from declined responses", () => {
+    const ties = [
+      {
+        id: 1,
+        tieDate: new Date("2026-06-07T10:00:00"),
+        participations: [{ playerId: 10, status: "confirmed" as const }],
+      },
+      {
+        id: 2,
+        tieDate: new Date("2026-06-08T10:00:00"),
+        participations: [{ playerId: 10, status: "maybe" as const }],
+      },
+      {
+        id: 3,
+        tieDate: new Date("2026-06-06T10:00:00"),
+        participations: [{ playerId: 11, status: "declined" as const }],
+      },
+      {
+        id: 4,
+        tieDate: new Date("2026-06-07T10:00:00"),
+        participations: [{ playerId: 11, status: "confirmed" as const }],
+      },
+      {
+        id: 5,
+        tieDate: new Date("2026-06-09T10:00:00"),
+        participations: [{ playerId: 12, status: "confirmed" as const }],
+      },
+      {
+        id: 6,
+        tieDate: new Date("2026-06-11T10:00:00"),
+        participations: [{ playerId: 12, status: "maybe" as const }],
+      },
+    ]
+
+    expect(getWeekendParticipationConflicts(ties)).toEqual(new Map())
+  })
+
+  it("treats Friday as part of the weekend but not Thursday", () => {
+    const ties = [
+      { id: 1, tieDate: new Date("2026-06-05T11:00:00"), participations: [{ playerId: 10, status: "confirmed" as const }] },
+      { id: 2, tieDate: new Date("2026-06-07T15:00:00"), participations: [{ playerId: 10, status: "confirmed" as const }] },
+      { id: 3, tieDate: new Date("2026-06-04T11:00:00"), participations: [{ playerId: 11, status: "confirmed" as const }] },
+      { id: 4, tieDate: new Date("2026-06-06T11:00:00"), participations: [{ playerId: 11, status: "confirmed" as const }] },
+    ]
+
+    expect(getWeekendParticipationConflicts(ties)).toEqual(new Map([[1, [10]], [2, [10]]]))
   })
 })

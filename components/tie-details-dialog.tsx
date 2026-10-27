@@ -5,7 +5,7 @@ import { Calendar, MapPin, Users, CheckCircle, HelpCircle, XCircle } from "lucid
 import { useTranslation } from "@/lib/i18n"
 import type { TieWithDetails } from "@/app/ties/spieltage-client"
 import { useEffect, useState } from "react"
-import { getParticipationsForTie } from "@/app/actions/public"
+import { getCaptainCommentsWithoutRsvp, getParticipationsForTie } from "@/app/actions/public"
 import { ParticipationWithPlayer } from "@/lib/db"
 
 interface TieDetailsDialogProps {
@@ -42,6 +42,7 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
   const { t } = useTranslation()
   const [participationsLoading, setParticipationsLoading] = useState(true)
   const [participations, setParticipations] = useState<ParticipationWithPlayer[]>([])
+  const [commentsWithoutRsvp, setCommentsWithoutRsvp] = useState<Awaited<ReturnType<typeof getCaptainCommentsWithoutRsvp>>>([])
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("de-DE", {
@@ -55,8 +56,12 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
   useEffect(() => {
     async function fetchParticipations() {
       setParticipationsLoading(true)
-      const [participations] = await Promise.all([getParticipationsForTie(String(tie.id))])
+      const [participations, comments] = await Promise.all([
+        getParticipationsForTie(String(tie.id)),
+        getCaptainCommentsWithoutRsvp(String(tie.id)),
+      ])
       setParticipations(participations)
+      setCommentsWithoutRsvp(comments)
       setParticipationsLoading(false)
     }
     fetchParticipations()
@@ -127,6 +132,16 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
             </div>
           </div>
 
+          {tie.captainComment && (
+            <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-sm text-gray-700">
+              <p className="font-medium">{t("captainsComment")}</p>
+              <p className="mt-1 whitespace-pre-wrap">{tie.captainComment}</p>
+              <p className="mt-2 text-xs text-gray-500">
+                {t("commentBy")} {tie.captainCommentAuthor ?? t("unknownUser")}
+              </p>
+            </div>
+          )}
+
           {/* Participation Lists */}
           {participationsLoading ? (
             <div className="text-center">
@@ -160,6 +175,11 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                               <ExpandableComment comment={p.comment} />
                             )}
                           </div>
+                          {p.captainComment && (
+                            <p className="mt-1 text-xs text-blue-700">
+                              {t("captainsComment")}: {p.captainComment} — {p.captainCommentAuthor ?? t("unknownUser")}
+                            </p>
+                          )}
                         </div>
                         {lineupFinalized && p.isInLineup && (
                           <span className="ml-2 inline-flex flex-shrink-0 items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
@@ -196,6 +216,11 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                               <ExpandableComment comment={p.comment} />
                             )}
                           </div>
+                          {p.captainComment && (
+                            <p className="mt-1 text-xs text-blue-700">
+                              {t("captainsComment")}: {p.captainComment} — {p.captainCommentAuthor ?? t("unknownUser")}
+                            </p>
+                          )}
                         </div>
                         {lineupFinalized && p.isInLineup && (
                           <span className="ml-2 inline-flex flex-shrink-0 items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
@@ -232,6 +257,11 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
                               <ExpandableComment comment={p.comment} />
                             )}
                           </div>
+                          {p.captainComment && (
+                            <p className="mt-1 text-xs text-blue-700">
+                              {t("captainsComment")}: {p.captainComment} — {p.captainCommentAuthor ?? t("unknownUser")}
+                            </p>
+                          )}
                         </div>
                         {lineupFinalized && p.isInLineup && (
                           <span className="ml-2 inline-flex flex-shrink-0 items-center rounded-full bg-blue-600 text-white text-[10px] px-2 py-0.5">
@@ -245,6 +275,19 @@ export function TieDetailsDialog({ tie, open, onOpenChange }: TieDetailsDialogPr
               )}
 
               {participations.length === 0 && <p className="text-center text-sm text-gray-500">{t("noResponses")}</p>}
+              {commentsWithoutRsvp.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-gray-900">{t("playersWithoutResponse")}</h3>
+                  {commentsWithoutRsvp.map((player) => (
+                    <div key={player.playerId} className="rounded bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                      <p>{player.firstName} {player.lastName}</p>
+                      <p className="whitespace-pre-wrap break-words text-xs text-blue-700">
+                        {t("captainsComment")}: {player.captainComment} — {player.captainCommentAuthor ?? t("unknownUser")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

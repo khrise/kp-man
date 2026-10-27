@@ -62,6 +62,9 @@ export interface Tie {
   isHome: boolean
   isLineupReady: boolean
   notes: string | null
+  captainComment: string | null
+  captainCommentBy: number | null
+  captainCommentAuthor: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -72,6 +75,9 @@ export interface Participation {
   playerId: number
   status: "confirmed" | "maybe" | "declined"
   comment: string | null // Added comment field for participation notes
+  captainComment: string | null
+  captainCommentBy: number | null
+  captainCommentAuthor: string | null
   isInLineup: boolean // Whether this confirmed player is selected for the actual lineup
   respondedAt: Date
   createdAt: Date

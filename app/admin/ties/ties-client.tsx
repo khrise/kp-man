@@ -22,6 +22,8 @@ type Tie = {
   location: string | null
   isHome: boolean
   notes: string | null
+  captainComment?: string | null
+  captainCommentAuthor?: string | null
   seasonId: number
   teamName: string
   seasonName: string
@@ -884,6 +886,11 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                       </div>
 
                       {/* Lineup Teaser */}
+                      {tie.captainComment && <div className="mt-2 text-sm text-gray-700">
+                        <p className="whitespace-pre-wrap break-words">{tie.captainComment}</p>
+                        {tie.captainCommentAuthor && <p className="text-xs text-gray-500">{t("commentBy")} {tie.captainCommentAuthor}</p>}
+                      </div>}
+
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                           <div className="flex items-center space-x-2 flex-wrap">
@@ -896,8 +903,6 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                               <span className="h-2 w-2 rounded-full bg-gray-400" title={t("noLineup")}></span>
                             ) : tie.problematicCount > 0 ? (
                               <span className="h-2 w-2 rounded-full bg-red-500" title={t("lineupIssues")}></span>
-                            ) : tie.lineupCount < tie.teamSize ? (
-                              <span className="h-2 w-2 rounded-full bg-yellow-500" title={t("lineupIncomplete")}></span>
                             ) : (
                               <span className="h-2 w-2 rounded-full bg-green-500" title={t("lineupComplete")}></span>
                             )}

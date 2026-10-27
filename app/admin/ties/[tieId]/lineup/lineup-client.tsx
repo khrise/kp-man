@@ -1,18 +1,40 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Users, UserCheck, UserX, Clock, HelpCircle, Mail, Copy } from "lucide-react"
-import { toggleLineupAction, markTieReadyAction, loadMoreAuditEntriesAction } from "@/app/actions/lineup"
+import {
+  Users,
+  UserCheck,
+  UserX,
+  HelpCircle,
+  Scale,
+  ListChecks,
+  Mail,
+  Copy,
+  MessageSquare,
+  Pencil,
+  ListOrdered,
+  TriangleAlert,
+  Trash2,
+  Undo2,
+} from "lucide-react"
+import {
+  toggleLineupAction,
+  markTieReadyAction,
+  loadMoreAuditEntriesAction,
+  saveParticipationCaptainCommentAction,
+  saveTieCaptainCommentAction,
+} from "@/app/actions/lineup"
 import { useTranslation } from "@/lib/i18n"
 import { Tie, Team, Participation, PlayerWithRank } from "@/lib/types"
-import type { TeamPlayerWithDetails } from "@/lib/db"
+import type { PlayerWithoutParticipation } from "@/lib/db"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { usePermission } from "@/components/management-provider"
 import { Permission } from "@/lib/permissions"
 
@@ -31,9 +53,10 @@ type LineupClientProps = {
   lineupPlayers: ParticipationWithPlayer[]
   availablePlayers: ParticipationWithPlayer[]
   otherParticipations: ParticipationWithPlayer[]
-  playersWithoutParticipation: TeamPlayerWithDetails[]
+  weekendConflictPlayerIds: number[]
+  playersWithoutParticipation: PlayerWithoutParticipation[]
   lineupCount: number
-  maxPlayers: number
+  teamSize: number
   auditEntries?: AuditEntry[]
   auditHasMore?: boolean
   auditPageSize?: number
@@ -48,6 +71,8 @@ type AuditEntry = {
   newStatus: string | null
   previousComment: string | null
   newComment: string | null
+  previousCaptainComment: string | null
+  newCaptainComment: string | null
   previousIsInLineup: boolean | null
   newIsInLineup: boolean | null
   changedBy: string | null
@@ -56,15 +81,366 @@ type AuditEntry = {
   playerLastName?: string | null
 }
 
+function AuditLogEntry({ entry: e, showPlayer = false }: { entry: AuditEntry; showPlayer?: boolean }) {
+  const { t } = useTranslation()
+  const formatComment = (comment: string | null) => comment ? `"${comment}"` : t("emptyComment")
+
+  return (
+    <li className="text-sm text-gray-700 bg-white border border-gray-100 rounded p-3">
+      {showPlayer && <div className="font-medium mb-1">{e.playerFirstName} {e.playerLastName}</div>}
+      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+        <div className="min-w-0 text-left">{e.changedBy ?? "—"}</div>
+        <time dateTime={e.createdAt} className="ml-4 text-right">{new Date(e.createdAt).toLocaleString()}</time>
+      </div>
+      {e.previousStatus !== e.newStatus && (
+        <div className="text-xs">
+          <span className="text-gray-400 mr-1">{t("statusLabel")}:</span>
+          <span className="font-medium">{e.previousStatus ?? "—"}</span>
+          <span className="mx-2">→</span>
+          <span className="font-medium">{e.newStatus ?? "—"}</span>
+        </div>
+      )}
+      {(e.previousIsInLineup ?? false) !== (e.newIsInLineup ?? false) && (
+        <div className="text-xs mt-1">
+          <span className="text-gray-400 mr-1">{t("lineupLabel")}:</span>
+          <span className="font-medium ml-1">{e.previousIsInLineup ? t("inLineup") : t("notInLineup")}</span>
+          <span className="mx-2">→</span>
+          <span className="font-medium">{e.newIsInLineup ? t("inLineup") : t("notInLineup")}</span>
+        </div>
+      )}
+      {e.previousComment !== e.newComment && (
+        <div className="text-xs mt-1">
+          <span className="text-gray-400 mr-1">{t("commentChange")}</span>
+          <span className="ml-1">{`${formatComment(e.previousComment)} → ${formatComment(e.newComment)}`}</span>
+        </div>
+      )}
+      {e.previousCaptainComment !== e.newCaptainComment && (
+        <div className="text-xs mt-1">
+          <span className="text-gray-400 mr-1">{t("captainsComment")}:</span>
+          <span className="ml-1">{`${formatComment(e.previousCaptainComment)} → ${formatComment(e.newCaptainComment)}`}</span>
+        </div>
+      )}
+    </li>
+  )
+}
+
+type PlayerRsvpFormProps = {
+  tieId: number
+  playerId: number
+  status: Participation["status"] | null
+  playerComment: string | null
+  captainComment: string | null
+  captainCommentAuthor: string | null
+  isFinalized: boolean
+  onSaved: () => void
+  onCancel: () => void
+  playerName: string
+}
+
+function PlayerRsvpForm({
+  tieId,
+  playerId,
+  status,
+  playerComment,
+  captainComment,
+  captainCommentAuthor,
+  isFinalized,
+  onSaved,
+  onCancel,
+  playerName,
+}: PlayerRsvpFormProps) {
+  const { t } = useTranslation()
+  const instanceId = useId()
+  const [selectedStatus, setSelectedStatus] = useState<Participation["status"] | "no_response">(status ?? "no_response")
+  const [comment, setComment] = useState(captainComment ?? "")
+  const [removePlayerComment, setRemovePlayerComment] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const statusChanged = !isFinalized && selectedStatus !== (status ?? "no_response")
+  const hasChanges = statusChanged || removePlayerComment || comment !== (captainComment ?? "")
+
+  const save = async () => {
+    if (isSaving || !hasChanges) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      await saveParticipationCaptainCommentAction(
+        String(tieId),
+        String(playerId),
+        comment,
+        statusChanged ? selectedStatus : null,
+        removePlayerComment,
+      )
+      onSaved()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <Card className="mb-6">
+      <CardHeader><CardTitle className="text-lg"><h2>{t("manageRsvp")} — {playerName}</h2></CardTitle></CardHeader>
+      <CardContent>
+        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void save() }}>
+          <fieldset disabled={isFinalized || isSaving}>
+            <legend className="mb-2 text-sm font-medium">{t("manageRsvp")}</legend>
+            <div className="flex flex-wrap gap-4">
+              {([
+                { value: "confirmed", label: "confirmed", Icon: UserCheck },
+                { value: "maybe", label: "maybe", Icon: Scale },
+                { value: "declined", label: "declined", Icon: UserX },
+                { value: "no_response", label: "noResponsePlayers", Icon: HelpCircle },
+              ] as const).map(({ value, label, Icon }) => (
+                <label key={value} className="flex items-center gap-2 text-sm">
+                  <input type="radio" name={`rsvp-${instanceId}`} value={value}
+                    checked={selectedStatus === value} onChange={() => setSelectedStatus(value)} />
+                  <Icon className="h-4 w-4" />
+                  {t(label)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {isFinalized && <p className="text-xs text-gray-500">{t("statusLockedUntilUnfinalized")}</p>}
+          {playerComment && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t("participationComment")}</p>
+              <div className="flex items-start gap-2 rounded-md border bg-gray-50 p-2">
+                <p data-testid="player-comment"
+                  className={`flex-1 whitespace-pre-wrap break-words text-sm ${removePlayerComment ? "text-gray-400 line-through" : ""}`}>
+                  {playerComment}
+                </p>
+                <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" disabled={isSaving}
+                  aria-label={removePlayerComment ? t("restorePlayerComment") : t("removePlayerComment")}
+                  title={removePlayerComment ? t("restorePlayerComment") : t("removePlayerComment")}
+                  aria-pressed={removePlayerComment} onClick={() => setRemovePlayerComment((remove) => !remove)}>
+                  {removePlayerComment ? <Undo2 className="h-4 w-4" /> : <Trash2 className="h-4 w-4 text-red-600" />}
+                </Button>
+              </div>
+              {removePlayerComment && <p className="text-xs text-gray-500">{t("playerCommentRemovedOnSave")}</p>}
+            </div>
+          )}
+          <div className="space-y-2">
+            <label htmlFor={`comment-${instanceId}`} className="text-sm font-medium">{t("captainsComment")}</label>
+            <Input id={`comment-${instanceId}`} value={comment} onChange={(event) => setComment(event.target.value)}
+              maxLength={1000} disabled={isSaving} placeholder={t("captainCommentPlaceholder")} />
+          </div>
+          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-gray-500">
+              {captainCommentAuthor ? `${t("commentBy")} ${captainCommentAuthor}` : ""}
+            </span>
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={isSaving || !hasChanges}>{t("save")}</Button>
+              <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={isSaving}>{t("cancel")}</Button>
+            </div>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+function TieCaptainCommentEditor({
+  tieId,
+  comment: initialComment,
+  author,
+  onSaved,
+}: {
+  tieId: number
+  comment: string | null
+  author: string | null
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const [comment, setComment] = useState(initialComment ?? "")
+  const [isSaving, setIsSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => setComment(initialComment ?? ""), [initialComment])
+
+  const save = async () => {
+    setIsSaving(true)
+    setError(null)
+    try {
+      await saveTieCaptainCommentAction(String(tieId), comment)
+      setIsEditing(false)
+      onSaved()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center gap-2">
+        {initialComment && <p className="whitespace-pre-wrap break-words text-sm text-gray-700">{initialComment}</p>}
+        <Button size="icon" variant="ghost" aria-label={t("editTieCaptainComment")} aria-expanded={isEditing} disabled={isSaving}
+          onClick={() => { setComment(initialComment ?? ""); setError(null); setIsEditing((open) => !open) }}>
+          <MessageSquare className="h-4 w-4" />
+        </Button>
+      </div>
+      {author && <p className="text-xs text-gray-500">{t("commentBy")} {author}</p>}
+      {isEditing && <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void save() }}>
+        <Input aria-label={t("captainsComment")} className="min-w-0 flex-1" value={comment}
+          onChange={(event) => setComment(event.target.value)} maxLength={1000} disabled={isSaving} />
+        <Button type="submit" size="sm" disabled={isSaving || comment === (initialComment ?? "")}>{t("save")}</Button>
+        <Button type="button" size="sm" variant="outline" disabled={isSaving} onClick={() => setIsEditing(false)}>{t("cancel")}</Button>
+        {error && <p role="alert" className="w-full text-sm text-red-600">{error}</p>}
+      </form>}
+    </div>
+  )
+}
+
+type PlayerCardProps = {
+  participation: ParticipationWithPlayer
+  isInLineup: boolean
+  canToggle: boolean
+  isFinalized: boolean
+  isLoading: boolean
+  hasWeekendConflict: boolean
+  onToggleLineup: (participationId: number) => void
+  onEdit: () => void
+}
+
+function PlayerCard({
+  participation, isInLineup, canToggle, isFinalized, isLoading, hasWeekendConflict, onToggleLineup, onEdit,
+}: PlayerCardProps) {
+  const { t } = useTranslation()
+  const isProblematic = isInLineup && participation.status !== "confirmed"
+
+  return (
+    <Card className={`${isInLineup ? 'ring-2 ring-blue-500 bg-blue-50' : ''} ${isProblematic ? 'ring-red-500 bg-red-50' : ''}`}>
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="mb-2 flex items-center gap-2">
+              <h3 className="font-semibold text-sm">
+                #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
+              </h3>
+              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
+                aria-label={t("editRsvp")} title={t("editRsvp")} onClick={onEdit}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={
+                participation.status === "confirmed" ? "success" :
+                participation.status === "maybe" ? "warning" : "destructive"
+              }>
+                {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
+                {participation.status === "maybe" && <Scale className="w-3 h-3 mr-1" />}
+                {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
+                {t(participation.status)}
+              </Badge>
+              {isInLineup && <Badge variant="outline" className="bg-blue-100">{t("inLineup")}</Badge>}
+              {isProblematic && (
+                <Badge variant="destructive" className="bg-red-500 text-white">
+                  ⚠️ {t("needsAttention")}
+                </Badge>
+              )}
+              {hasWeekendConflict && (
+                <span
+                  role="status"
+                  title={t("weekendConflictHint")}
+                  aria-label={`${t("weekendConflict")}: ${t("weekendConflictHint")}`}
+                >
+                  <Badge variant="outline" className="gap-1 border-amber-400 bg-amber-50 text-amber-900">
+                    <TriangleAlert className="h-3 w-3" />
+                    {t("weekendConflict")}
+                  </Badge>
+                </span>
+              )}
+            </div>
+          </div>
+          {canToggle && (
+            <Button
+              size="sm"
+              variant={isInLineup ? "outline" : "default"}
+              onClick={() => onToggleLineup(participation.id)}
+              disabled={isLoading || isFinalized}
+              className="w-full sm:w-auto mt-2 sm:mt-0"
+            >
+              {isInLineup ? t("remove") : t("add")}
+            </Button>
+          )}
+        </div>
+        {participation.comment && (
+          <>
+            <p className="mt-2 text-xs font-medium text-gray-600">{t("participationComment")}</p>
+            <p className="whitespace-pre-wrap break-words text-xs">{participation.comment}</p>
+          </>
+        )}
+        {participation.captainComment && (
+          <>
+            <p className="mt-2 text-xs font-medium text-gray-600">{t("captainsComment")}</p>
+            <p className="whitespace-pre-wrap break-words text-xs">{participation.captainComment}</p>
+          </>
+        )}
+        {participation.captainCommentAuthor && <p className="text-xs text-gray-500">{t("commentBy")} {participation.captainCommentAuthor}</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
+function NoResponsePlayerCard({
+  player, onEdit,
+}: {
+  player: PlayerWithoutParticipation
+  onEdit: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <Card className="bg-gray-50 border-gray-200">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm">
+                  #{player.playerRank} {player.firstName} {player.lastName}
+                </h3>
+                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
+                  aria-label={t("editRsvp")} title={t("editRsvp")} onClick={onEdit}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="outline" className="bg-gray-100 text-gray-600">
+                  <HelpCircle className="w-3 h-3 mr-1" />
+                  {t("noResponsePlayers")}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+        {player.captainComment && (
+          <>
+            <p className="mt-2 text-xs font-medium text-gray-600">{t("captainsComment")}</p>
+            <p className="whitespace-pre-wrap break-words text-xs">{player.captainComment}</p>
+          </>
+        )}
+        {player.captainCommentAuthor && <p className="text-xs text-gray-500">{t("commentBy")} {player.captainCommentAuthor}</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function LineupClient({
   tie,
   team,
   lineupPlayers,
   availablePlayers,
   otherParticipations,
+  weekendConflictPlayerIds,
   playersWithoutParticipation,
   lineupCount,
-  maxPlayers,
+  teamSize,
   auditEntries,
   auditHasMore = false,
   auditPageSize = 100,
@@ -83,6 +459,36 @@ export function LineupClient({
   const [olderAuditHasMore, setOlderAuditHasMore] = useState<boolean | null>(null)
   const [isLoadingMoreAudit, setIsLoadingMoreAudit] = useState(false)
   const [auditLoadError, setAuditLoadError] = useState<string | null>(null)
+  const [isChronologicalAudit, setIsChronologicalAudit] = useState(false)
+  const [editingPlayer, setEditingPlayer] = useState<{
+    playerId: number
+    playerName: string
+    status: Participation["status"] | null
+    playerComment: string | null
+    captainComment: string | null
+    captainCommentAuthor: string | null
+  } | null>(null)
+  const playerFormRef = useRef<HTMLDivElement>(null)
+
+  const editParticipation = (participation: ParticipationWithPlayer) => {
+    setEditingPlayer({
+      playerId: participation.playerId,
+      playerName: `${participation.player.firstName} ${participation.player.lastName}`,
+      status: participation.status,
+      playerComment: participation.comment,
+      captainComment: participation.captainComment,
+      captainCommentAuthor: participation.captainCommentAuthor,
+    })
+  }
+  const editNonResponder = (player: PlayerWithoutParticipation) => {
+    setEditingPlayer({
+      playerId: player.playerId, playerName: `${player.firstName} ${player.lastName}`,
+      status: null, playerComment: null, captainComment: player.captainComment, captainCommentAuthor: player.captainCommentAuthor,
+    })
+  }
+  useEffect(() => {
+    if (editingPlayer) playerFormRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" })
+  }, [editingPlayer])
 
   // New entries since the first page can shift offsets, so skip ids already shown.
   const allAuditEntries = useMemo(() => {
@@ -92,6 +498,9 @@ export function LineupClient({
   }, [auditEntries, olderAuditEntries])
 
   const hasMoreAudit = olderAuditHasMore ?? auditHasMore
+  const chronologicalAudit = useMemo(() => [...allAuditEntries].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || b.id - a.id,
+  ), [allAuditEntries])
 
   const handleLoadMoreAudit = async () => {
     if (isLoadingMoreAudit) return
@@ -206,14 +615,8 @@ Aufstellung: ${playerNames}`
     }))
   }, [allAuditEntries])
 
-  const handleToggleLineup = async (participationId: number, isCurrentlyInLineup: boolean) => {
+  const handleToggleLineup = async (participationId: number) => {
     if (isLoading) return
-    
-    // Check if we're trying to add a player but already at max capacity
-    if (!isCurrentlyInLineup && lineupCount >= maxPlayers) {
-      alert(t("maxPlayersReached"))
-      return
-    }
 
     setIsLoading(true)
     try {
@@ -227,91 +630,17 @@ Aufstellung: ${playerNames}`
     }
   }
 
-  const PlayerCard = ({ participation, isInLineup, canToggle }: { 
-    participation: ParticipationWithPlayer, 
-    isInLineup: boolean,
-    canToggle: boolean
-  }) => {
-    // Check if this is a problematic lineup situation
-    const isProblematic = isInLineup && participation.status !== "confirmed"
-    
-    return (
-      <Card className={`${isInLineup ? 'ring-2 ring-blue-500 bg-blue-50' : ''} ${isProblematic ? 'ring-red-500 bg-red-50' : ''}`}>
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm mb-2">
-                #{participation.player.playerRank} {participation.player.firstName} {participation.player.lastName}
-              </h3>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={
-                  participation.status === "confirmed" ? "default" : 
-                  participation.status === "maybe" ? "secondary" : "destructive"
-                }>
-                  {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
-                  {participation.status === "maybe" && <Clock className="w-3 h-3 mr-1" />}
-                  {participation.status === "declined" && <UserX className="w-3 h-3 mr-1" />}
-                  {t(participation.status)}
-                </Badge>
-                {isInLineup && (
-                  <Badge variant="outline" className="bg-blue-100">
-                    {t("inLineup")}
-                  </Badge>
-                )}
-                {isProblematic && (
-                  <Badge variant="destructive" className="bg-red-500 text-white">
-                    ⚠️ {t("needsAttention")}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            
-            {canToggle && (
-              <Button
-                size="sm"
-                variant={isInLineup ? "outline" : "default"}
-                onClick={() => handleToggleLineup(participation.id, isInLineup)}
-                disabled={isLoading || tie.isLineupReady || (!isInLineup && lineupCount >= maxPlayers)}
-                className="w-full sm:w-auto mt-2 sm:mt-0"
-              >
-                {isInLineup ? t("remove") : t("add")}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    )
+  const sharedCardProps = {
+    isFinalized: tie.isLineupReady,
   }
-
-  const NoResponsePlayerCard = ({ player }: { player: TeamPlayerWithDetails }) => {
-    return (
-      <Card className="bg-gray-50 border-gray-200">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm">
-                  #{player.playerRank} {player.firstName} {player.lastName}
-                </h3>
-                <div className="flex items-center space-x-2 mt-1">
-                  <Badge variant="outline" className="bg-gray-100 text-gray-600">
-                    <HelpCircle className="w-3 h-3 mr-1" />
-                    {t("noResponsePlayers")}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
+  const conflictPlayerIds = new Set(weekendConflictPlayerIds)
+  const playerCardProps = { ...sharedCardProps, isLoading, onToggleLineup: handleToggleLineup }
 
   const maybeParticipations = otherParticipations.filter((p) => p.status === "maybe")
   const declinedParticipations = otherParticipations.filter((p) => p.status !== "maybe")
   const availableListItems: Array<
     | { rank: number; kind: "participation"; participation: ParticipationWithPlayer; inLineup: boolean }
-    | { rank: number; kind: "noResponse"; player: TeamPlayerWithDetails }
+    | { rank: number; kind: "noResponse"; player: PlayerWithoutParticipation }
   > = [
     ...(separateOthers ? availablePlayers : [...lineupPlayers, ...availablePlayers, ...otherParticipations]).map(
       (participation) => ({
@@ -328,7 +657,7 @@ Aufstellung: ${playerNames}`
   const otherSections = (
     separateOthers
       ? [
-          { key: "maybe", title: t("maybe"), icon: <HelpCircle className="w-5 h-5 text-yellow-600" />, items: maybeParticipations },
+          { key: "maybe", title: t("maybe"), icon: <Scale className="w-5 h-5 text-yellow-600" />, items: maybeParticipations },
           { key: "declined", title: t("declined"), icon: <UserX className="w-5 h-5 text-red-600" />, items: declinedParticipations },
         ]
       : []
@@ -368,13 +697,15 @@ Aufstellung: ${playerNames}`
                 ? "—"
                 : `${tieDate.toLocaleDateString()} ${tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
             </p>
+            <TieCaptainCommentEditor tieId={tie.id} comment={tie.captainComment}
+              author={tie.captainCommentAuthor} onSaved={() => router.refresh()} />
           </div>
           
           <div className="text-right">
             <div className="flex items-center space-x-2">
               <Users className="w-5 h-5" />
               <span className="text-lg font-semibold">
-                {lineupCount}/{maxPlayers}
+                {lineupCount}/{teamSize}
               </span>
             </div>
 
@@ -420,10 +751,6 @@ Aufstellung: ${playerNames}`
                   variant="default"
                   onClick={async () => {
                     if (isTogglingReady) return
-                    if (lineupCount < maxPlayers) {
-                      alert(t("lineupIncomplete"))
-                      return
-                    }
                     setIsTogglingReady(true)
                     try {
                       await markTieReadyAction(String(tie.id), true)
@@ -435,7 +762,7 @@ Aufstellung: ${playerNames}`
                       setIsTogglingReady(false)
                     }
                   }}
-                  disabled={isTogglingReady || lineupCount < maxPlayers}
+                  disabled={isTogglingReady}
                 >
                   {t("markLineupReady")}
                 </Button>
@@ -444,6 +771,13 @@ Aufstellung: ${playerNames}`
           </div>
         </div>
       </div>
+
+      {editingPlayer && <div ref={playerFormRef}>
+        <PlayerRsvpForm key={editingPlayer.playerId} {...editingPlayer}
+          tieId={tie.id} isFinalized={tie.isLineupReady}
+          onCancel={() => setEditingPlayer(null)}
+          onSaved={() => { setEditingPlayer(null); router.refresh() }} />
+      </div>}
 
       {/* Warning banner for problematic players */}
       {hasProblematicPlayers && (
@@ -479,7 +813,7 @@ Aufstellung: ${playerNames}`
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <UserCheck className="w-5 h-5 text-blue-600" />
+                <ListChecks className="w-5 h-5 text-blue-600" />
                 <span>{t("lineupPlayers")} ({lineupCount})</span>
               </CardTitle>
             </CardHeader>
@@ -493,6 +827,9 @@ Aufstellung: ${playerNames}`
                         {index + 1}
                       </div>
                       <PlayerCard 
+                        {...playerCardProps}
+                        hasWeekendConflict={conflictPlayerIds.has(participation.playerId)}
+                        onEdit={() => editParticipation(participation)}
                         participation={participation} 
                         isInLineup={true}
                         canToggle={!tie.isLineupReady}
@@ -513,7 +850,9 @@ Aufstellung: ${playerNames}`
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Users className="w-5 h-5 text-green-600" />
+                {separateOthers
+                  ? <UserCheck className="w-5 h-5 text-green-600" />
+                  : <Users className="w-5 h-5 text-green-600" />}
                 <span>{separateOthers ? t("availablePlayers") : t("allPlayers")} ({availableListItems.length})</span>
               </CardTitle>
             </CardHeader>
@@ -523,9 +862,12 @@ Aufstellung: ${playerNames}`
                   .sort((a, b) => a.rank - b.rank)
                   .map((item) =>
                     item.kind === "noResponse" ? (
-                      <NoResponsePlayerCard key={`nr-${item.player.id}`} player={item.player} />
+                      <NoResponsePlayerCard onEdit={() => editNonResponder(item.player)} key={`nr-${item.player.id}`} player={item.player} />
                     ) : (
                       <PlayerCard
+                        {...playerCardProps}
+                        hasWeekendConflict={conflictPlayerIds.has(item.participation.playerId)}
+                        onEdit={() => editParticipation(item.participation)}
                         key={item.participation.id}
                         participation={item.participation}
                         isInLineup={item.inLineup}
@@ -555,6 +897,9 @@ Aufstellung: ${playerNames}`
                   .sort((a, b) => a.player.playerRank - b.player.playerRank)
                   .map((participation) => (
                     <PlayerCard 
+                      {...playerCardProps}
+                      hasWeekendConflict={conflictPlayerIds.has(participation.playerId)}
+                      onEdit={() => editParticipation(participation)}
                       key={participation.id}
                       participation={participation} 
                       isInLineup={false}
@@ -590,7 +935,7 @@ Aufstellung: ${playerNames}`
                     {playersWithoutParticipation
                       .sort((a, b) => a.playerRank - b.playerRank)
                       .map((player) => (
-                        <NoResponsePlayerCard key={player.id} player={player} />
+                        <NoResponsePlayerCard onEdit={() => editNonResponder(player)} key={player.id} player={player} />
                       ))}
                   </div>
                 </AccordionContent>
@@ -603,11 +948,17 @@ Aufstellung: ${playerNames}`
       {/* RSVP Audit Log */}
       <div className="mt-8">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center space-x-2">
-              <Users className="w-5 h-5 text-gray-600" />
+              {isChronologicalAudit ? <ListOrdered className="w-5 h-5 text-gray-600" /> : <Users className="w-5 h-5 text-gray-600" />}
               <span>RSVP Audit</span>
             </CardTitle>
+            <Button size="icon" variant="ghost"
+              aria-label={t(isChronologicalAudit ? "showAuditByPlayer" : "showChronologicalAudit")}
+              title={t(isChronologicalAudit ? "showAuditByPlayer" : "showChronologicalAudit")}
+              onClick={() => setIsChronologicalAudit((value) => !value)}>
+              {isChronologicalAudit ? <Users className="h-4 w-4" /> : <ListOrdered className="h-4 w-4" />}
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -615,49 +966,23 @@ Aufstellung: ${playerNames}`
                 <p className="text-sm text-gray-500">No audit entries</p>
               )}
 
-              {groupedAudit.length > 0 && (
+              {isChronologicalAudit && chronologicalAudit.length > 0 && (
+                <ul className="space-y-2" aria-label={t("chronologicalAudit")}>
+                  {chronologicalAudit.map((entry) => <AuditLogEntry key={entry.id} entry={entry} showPlayer />)}
+                </ul>
+              )}
+
+              {!isChronologicalAudit && groupedAudit.length > 0 && (
                 <div className="space-y-4">
                   {groupedAudit.map((group) => (
                     <div key={group.playerId} className="bg-gray-50 border border-gray-100 rounded-md p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-medium">{group.playerFirstName} {group.playerLastName}</div>
-                        <div className="text-xs text-gray-500">{group.entries.length} {t("participationResponses")}</div>
+                        <div className="text-xs text-gray-500">{group.entries.length} {t("participationChanges")}</div>
                       </div>
 
                       <ul className="space-y-2">
-                        {group.entries.map((e) => (
-                          <li key={e.id} className="text-sm text-gray-700 bg-white border border-gray-100 rounded p-3">
-                            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                              <div className="min-w-0 text-left">{e.changedBy ?? ""}</div>
-                              <div className="ml-4 text-right">{new Date(e.createdAt).toLocaleString()}</div>
-                            </div>
-
-                            {e.previousStatus !== e.newStatus && (
-                              <div className="text-xs">
-                                <span className="text-gray-400 mr-1">{t("statusLabel")}:</span>
-                                <span className="font-medium">{e.previousStatus ?? "—"}</span>
-                                <span className="mx-2">→</span>
-                                <span className="font-medium">{e.newStatus ?? "—"}</span>
-                              </div>
-                            )}
-
-                            {e.previousIsInLineup !== e.newIsInLineup && (
-                              <div className="text-xs mt-1">
-                                <span className="text-gray-400 mr-1">{t("lineupLabel")}:</span>
-                                <span className="font-medium ml-1">{e.previousIsInLineup ? t("inLineup") : t("notInLineup")}</span>
-                                <span className="mx-2">→</span>
-                                <span className="font-medium">{e.newIsInLineup ? t("inLineup") : t("notInLineup")}</span>
-                              </div>
-                            )}
-
-                            {e.previousComment !== e.newComment && (
-                              <div className="text-xs mt-1">
-                                <span className="text-gray-400 mr-1">{t("commentChange")}</span>
-                                <span className="ml-1">{`"${e.previousComment ?? ""}" → "${e.newComment ?? ""}"`}</span>
-                              </div>
-                            )}
-                          </li>
-                        ))}
+                        {group.entries.map((entry) => <AuditLogEntry key={entry.id} entry={entry} />)}
                       </ul>
                     </div>
                   ))}

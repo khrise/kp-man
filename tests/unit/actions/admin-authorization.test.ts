@@ -58,6 +58,9 @@ jest.mock("@/lib/db", () => ({
   updateTie: jest.fn(),
   deleteTie: jest.fn(),
   getParticipationById: jest.fn(),
+  setManagedParticipationStatus: jest.fn(),
+  updateParticipationCaptainComment: jest.fn(),
+  updateTieCaptainComment: jest.fn(),
   getTieById: jest.fn(),
   getTeamById: jest.fn(),
   getLineupCount: jest.fn(),
@@ -125,6 +128,9 @@ const protectedActions: Array<{ name: string; run: () => Promise<unknown>; query
   { name: "deleteTieAction", run: () => ties.deleteTieAction("1"), query: "deleteTie" },
   { name: "toggleLineupAction", run: () => lineup.toggleLineupAction("1", "1"), query: "updateParticipationLineup" },
   { name: "markTieReadyAction", run: () => lineup.markTieReadyAction("1", false), query: "updateTieReady" },
+  { name: "setManagedParticipationStatusAction", run: () => lineup.setManagedParticipationStatusAction("1", "1", "confirmed"), query: "setManagedParticipationStatus" },
+  { name: "saveParticipationCaptainCommentAction", run: () => lineup.saveParticipationCaptainCommentAction("1", "1", "note"), query: "updateParticipationCaptainComment" },
+  { name: "saveTieCaptainCommentAction", run: () => lineup.saveTieCaptainCommentAction("1", "note"), query: "updateTieCaptainComment" },
   { name: "getLineupData", run: () => lineup.getLineupData("1"), query: "getTieWithParticipations" },
   { name: "loadMoreAuditEntriesAction", run: () => lineup.loadMoreAuditEntriesAction("1", 100), query: "getParticipationAuditForTie" },
   { name: "getSettings", run: () => settings.getSettings(), query: "getAllAppSettings" },
@@ -172,7 +178,9 @@ it.each(protectedActions)("allows an admin to execute $name", async ({ run, quer
   })
   const tie = {
     id: 1, teamId: 1, opponent: "Opponent", tieDate: new Date(), location: null,
-    isHome: true, isLineupReady: false, notes: null, createdAt: new Date(), updatedAt: new Date(),
+    isHome: true, isLineupReady: false, notes: null, captainComment: null, captainCommentBy: null,
+    captainCommentAuthorUsername: null,
+    createdAt: new Date(), updatedAt: new Date(),
   }
   mockDb.getTieById.mockResolvedValue(tie)
   const team = {
@@ -181,9 +189,10 @@ it.each(protectedActions)("allows an admin to execute $name", async ({ run, quer
   }
   mockDb.getTeamById.mockResolvedValue(team)
   mockDb.getTieWithParticipations.mockResolvedValue({
-    ...tie, team, participations: [], confirmedCount: 0, maybeCount: 0, declinedCount: 0,
+    ...tie, captainCommentAuthor: null, team, participations: [], confirmedCount: 0, maybeCount: 0, declinedCount: 0,
   })
   mockDb.getLineupCount.mockResolvedValue(0)
+  mockDb.getTiesBySeasonId.mockResolvedValue([])
   await run()
   expect(mockDb.getUserById).toHaveBeenCalledWith(1)
   expect(query === "setTeamCaptains" ? setTeamCaptains : mockDb[query]).toHaveBeenCalled()

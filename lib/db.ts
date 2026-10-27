@@ -17,6 +17,7 @@ import {
   Kysely,
   PostgresDialect,
   Selectable,
+  Transaction,
   sql,
   Updateable,
 } from "kysely"
@@ -25,6 +26,7 @@ import type { PlayerAdminListItem, TieWithDetails } from "./types"
 type TimestampColumn = ColumnType<Date, string | Date | undefined, string | Date | undefined>
 type DateColumn = ColumnType<Date, string | Date, string | Date>
 type NullableStringColumn = ColumnType<string | null, string | null | undefined, string | null | undefined>
+type NullableNumberColumn = ColumnType<number | null, number | null | undefined, number | null | undefined>
 
 interface UsersTable {
   id: Generated<number>
@@ -90,6 +92,9 @@ interface TiesTable {
   isHome: ColumnType<boolean, boolean | undefined, boolean | undefined>
   isLineupReady: ColumnType<boolean, boolean | undefined, boolean | undefined>
   notes: NullableStringColumn
+  captainComment: NullableStringColumn
+  captainCommentBy: NullableNumberColumn
+  captainCommentAuthorUsername: NullableStringColumn
   createdAt: TimestampColumn
   updatedAt: TimestampColumn
 }
@@ -106,6 +111,14 @@ interface ParticipationsTable {
   updatedAt: TimestampColumn
 }
 
+interface PlayerCaptainCommentsTable {
+  tieId: number
+  playerId: number
+  captainComment: NullableStringColumn
+  captainCommentBy: NullableNumberColumn
+  captainCommentAuthorUsername: NullableStringColumn
+}
+
 interface ParticipationAuditTable {
   id: Generated<number>
   participationId: number | null
@@ -115,6 +128,8 @@ interface ParticipationAuditTable {
   newStatus: string | null
   previousComment: string | null
   newComment: string | null
+  previousCaptainComment: string | null
+  newCaptainComment: string | null
   previousIsInLineup: ColumnType<boolean | null, boolean | null | undefined, boolean | null | undefined>
   newIsInLineup: ColumnType<boolean | null, boolean | null | undefined, boolean | null | undefined>
   changedBy: string | null
@@ -146,6 +161,7 @@ export interface Database {
   teamCaptains: TeamCaptainsTable
   ties: TiesTable
   participations: ParticipationsTable
+  playerCaptainComments: PlayerCaptainCommentsTable
   participation_audit: ParticipationAuditTable
   migrations: MigrationsTable
   app_settings: AppSettingsTable
@@ -429,6 +445,7 @@ export type TieWithSeasonAndTeam = Tie & {
   teamName: string
   seasonName: string
   seasonId: number
+  captainCommentAuthor: string | null
 }
 
 export type TieWithLineupInfo = TieWithSeasonAndTeam & {
@@ -443,7 +460,10 @@ export async function getTies(teamIds?: number[]): Promise<TieWithSeasonAndTeam[
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .innerJoin("seasons as s", "s.id", "tm.seasonId")
+    .leftJoin("users as captain", "captain.id", "t.captainCommentBy")
+    .leftJoin("players as captainPlayer", "captainPlayer.id", "captain.playerId")
     .selectAll("t")
+    .select(sql<string | null>`COALESCE(NULLIF(concat_ws(' ', ${sql.ref("captainPlayer.firstName")}, ${sql.ref("captainPlayer.lastName")}), ''), ${sql.ref("captain.username")}, ${sql.ref("t.captainCommentAuthorUsername")})`.as("captainCommentAuthor"))
     .select((eb) => [
       eb.ref("tm.name").as("teamName"),
       eb.ref("s.name").as("seasonName"),
@@ -503,6 +523,9 @@ export type TieDto = {
   createdAt: Date
   participations: Participation[]
   isLineupReady: boolean
+  captainComment: string | null
+  captainCommentBy: number | null
+  captainCommentAuthor: string | null
 }
 
 export type TeamDto = Team & {
@@ -555,12 +578,15 @@ export async function getSeasonPlayerRanks(seasonId: number): Promise<SeasonPlay
 }
 
 export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
-  console.time("[DB] Fetching ties by season ID")
+  // console.time labels are global, so concurrent calls would collide.
+  const startedAt = performance.now()
 
   const ties = await db
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .leftJoin("participations as p", "p.tieId", "t.id")
+    .leftJoin("users as captain", "captain.id", "t.captainCommentBy")
+    .leftJoin("players as captainPlayer", "captainPlayer.id", "captain.playerId")
     .select((eb) => [
       "t.id",
       "t.teamId",
@@ -568,19 +594,27 @@ export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
       "t.tieDate",
       "t.location",
       "t.isHome",
+      "t.captainComment",
+      "t.captainCommentBy",
+      "t.captainCommentAuthorUsername",
       "t.createdAt",
+      sql<string>`COALESCE(NULLIF(concat_ws(' ', ${sql.ref("captainPlayer.firstName")}, ${sql.ref("captainPlayer.lastName")}), ''), ${sql.ref("t.captainCommentAuthorUsername")}, ${sql.ref("captain.username")})`.as("captainCommentAuthor"),
       eb.fn
         .coalesce(eb.fn.jsonAgg(sql`to_jsonb(p)`).filterWhere("p.id", "is not", null), sql`'[]'::json`)
         .as("participations"),
       eb.ref("t.isLineupReady").as("isLineupReady"),
     ])
     .where("tm.seasonId", "=", seasonId)
-    .groupBy(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.location", "t.isHome", "t.createdAt"])
+    .groupBy([
+      "t.id", "t.teamId", "t.opponent", "t.tieDate", "t.location", "t.isHome", "t.captainComment",
+      "t.captainCommentBy", "t.captainCommentAuthorUsername", "t.createdAt", "captain.username",
+      "captainPlayer.firstName", "captainPlayer.lastName",
+    ])
     .orderBy("t.isLineupReady", "asc")
     .execute()
 
-  console.timeEnd("[DB] Fetching ties by season ID")
-  return ties as TieDto[]
+  console.log(`[DB] Fetching ties by season ID ${seasonId}: ${(performance.now() - startedAt).toFixed(3)}ms`)
+  return ties as unknown as TieDto[]
 }
 
 export async function getTieById(id: number): Promise<Tie | undefined> {
@@ -620,6 +654,10 @@ export type ParticipationWithPlayer = Participation & {
   firstName: string
   lastName: string
   playerRank: number
+  captainComment: string | null
+  captainCommentBy: number | null
+  captainCommentAuthorUsername: string | null
+  captainCommentAuthor: string | null
 }
 
 export type PlayerParticipationDto = {
@@ -655,16 +693,26 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
     .innerJoin("ties as t", "t.id", "p.tieId")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .innerJoin("teamPlayers as tp", (join) => join.onRef("pl.id", "=", "tp.playerId").onRef("tm.id", "=", "tp.teamId"))
+    .leftJoin("playerCaptainComments as cc", (join) => join
+      .onRef("cc.tieId", "=", "p.tieId").onRef("cc.playerId", "=", "p.playerId"))
+    .leftJoin("users as captain", "captain.id", "cc.captainCommentBy")
+    .leftJoin("players as captainPlayer", "captainPlayer.id", "captain.playerId")
     .select([
       "p.id",
       "p.tieId",
       "p.playerId",
       "p.status",
       "p.comment",
+      "cc.captainComment",
+      "cc.captainCommentBy",
+      "cc.captainCommentAuthorUsername",
       "p.isInLineup",
       "p.respondedAt",
       "p.createdAt",
       "p.updatedAt",
+      "captain.username as captainUsername",
+      "captainPlayer.firstName as captainPlayerFirstName",
+      "captainPlayer.lastName as captainPlayerLastName",
     ])
     .select(["pl.firstName", "pl.lastName", "tp.playerRank"])
     .where("p.tieId", "=", tieId)
@@ -672,40 +720,49 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
     .orderBy("pl.lastName")
     .orderBy("pl.firstName")
     .execute()
+    .then((rows) => rows.map((row) => ({
+      ...row,
+      captainCommentAuthor: row.captainPlayerFirstName
+        ? `${row.captainPlayerFirstName} ${row.captainPlayerLastName}`
+        : row.captainCommentAuthorUsername ?? row.captainUsername ?? null,
+    })))
 }
 
 type UpsertParticipationInput = Pick<Insertable<ParticipationsTable>, "tieId" | "playerId" | "status" | "comment">
 
 export async function upsertParticipation(data: UpsertParticipationInput): Promise<Participation> {
-  // Read previous participation (if any) to record audit
-  const previous = await db
-    .selectFrom("participations")
-    .selectAll()
-    .where("tieId", "=", data.tieId)
-    .where("playerId", "=", data.playerId)
-    .executeTakeFirst()
+  return db.transaction().execute(async (trx) => {
+    // Use the same lock order as captain edits, including first responses.
+    const tie = await trx.selectFrom("ties").select("id")
+      .where("id", "=", data.tieId).forUpdate().executeTakeFirst()
+    if (!tie) throw new Error("Tie not found")
 
-  const inserted = await db
-    .insertInto("participations")
-    .values({
-      ...data,
-    })
-    .onConflict((oc) =>
-      oc.columns(["tieId", "playerId"]).doUpdateSet({
-        status: data.status,
-        comment: data.comment ?? null,
-        updatedAt: sql`now()`,
-      }),
-    )
-    .returningAll()
-    .executeTakeFirst()
+    const previous = await trx
+      .selectFrom("participations")
+      .selectAll()
+      .where("tieId", "=", data.tieId)
+      .where("playerId", "=", data.playerId)
+      .executeTakeFirst()
 
-  if (!inserted) {
-    throw new Error("Failed to upsert participation")
-  }
+    const inserted = await trx
+      .insertInto("participations")
+      .values({
+        ...data,
+      })
+      .onConflict((oc) =>
+        oc.columns(["tieId", "playerId"]).doUpdateSet({
+          status: data.status,
+          comment: data.comment ?? null,
+          updatedAt: sql`now()`,
+        }),
+      )
+      .returningAll()
+      .executeTakeFirst()
 
-  // Insert audit row capturing previous and new values, including the first response
-  try {
+    if (!inserted) {
+      throw new Error("Failed to upsert participation")
+    }
+
     await insertParticipationAudit({
       participationId: inserted.id,
       playerId: Number(inserted.playerId),
@@ -717,12 +774,10 @@ export async function upsertParticipation(data: UpsertParticipationInput): Promi
       previousIsInLineup: previous?.isInLineup ?? null,
       newIsInLineup: previous ? inserted.isInLineup : null,
       changedBy: null,
-    })
-  } catch (err) {
-    console.error("Failed to insert participation audit:", err)
-  }
+    }, trx)
 
-  return inserted
+    return inserted
+  })
 }
 
 export async function getParticipationById(id: number): Promise<Participation | undefined> {
@@ -767,26 +822,31 @@ export async function insertParticipationAudit(entry: {
   playerId: number
   tieId: number
   previousStatus?: string | null
-  newStatus: string
+  newStatus?: string | null
   previousComment?: string | null
   newComment?: string | null
+  previousCaptainComment?: string | null
+  newCaptainComment?: string | null
   previousIsInLineup?: boolean | null
   newIsInLineup?: boolean | null
   changedBy?: string | null
-}) {
+}, transaction?: Transaction<Database>) {
   const statusChanged = (entry.previousStatus ?? null) !== entry.newStatus
   const commentChanged = (entry.previousComment ?? null) !== (entry.newComment ?? null)
+  const captainCommentChanged = (entry.previousCaptainComment ?? null) !== (entry.newCaptainComment ?? null)
   const lineupChanged = (entry.previousIsInLineup ?? null) !== (entry.newIsInLineup ?? null)
-  if (!statusChanged && !commentChanged && !lineupChanged) return
+  if (!statusChanged && !commentChanged && !captainCommentChanged && !lineupChanged) return
 
-  return db.insertInto("participation_audit").values({
+  return (transaction ?? db).insertInto("participation_audit").values({
     participationId: entry.participationId ?? null,
     playerId: entry.playerId,
     tieId: entry.tieId,
     previousStatus: statusChanged ? entry.previousStatus ?? null : null,
-    newStatus: statusChanged ? entry.newStatus : null,
+    newStatus: statusChanged ? entry.newStatus ?? null : null,
     previousComment: commentChanged ? entry.previousComment ?? null : null,
     newComment: commentChanged ? entry.newComment ?? null : null,
+    previousCaptainComment: captainCommentChanged ? entry.previousCaptainComment ?? null : null,
+    newCaptainComment: captainCommentChanged ? entry.newCaptainComment ?? null : null,
     previousIsInLineup: lineupChanged ? entry.previousIsInLineup ?? null : null,
     newIsInLineup: lineupChanged ? entry.newIsInLineup ?? null : null,
     changedBy: entry.changedBy ?? null,
@@ -807,6 +867,8 @@ export async function getParticipationAuditForTie(tieId: number, limit = 100, of
       "a.newStatus",
       "a.previousComment",
       "a.newComment",
+      "a.previousCaptainComment",
+      "a.newCaptainComment",
       "a.previousIsInLineup",
       "a.newIsInLineup",
       "a.changedBy",
@@ -835,7 +897,18 @@ export async function getLineupCount(tieId: number): Promise<number> {
 }
 
 export async function getTieWithParticipations(id: number): Promise<TieWithDetails | undefined> {
-  const tie = await db.selectFrom("ties").selectAll().where("id", "=", id).executeTakeFirst()
+  const tie = await db
+    .selectFrom("ties as t")
+    .leftJoin("users as captain", "captain.id", "t.captainCommentBy")
+    .leftJoin("players as captainPlayer", "captainPlayer.id", "captain.playerId")
+    .selectAll("t")
+    .select([
+      "captain.username as captainUsername",
+      "captainPlayer.firstName as captainPlayerFirstName",
+      "captainPlayer.lastName as captainPlayerLastName",
+    ])
+    .where("t.id", "=", id)
+    .executeTakeFirst()
   if (!tie) return undefined
 
   const participations = await db
@@ -847,12 +920,19 @@ export async function getTieWithParticipations(id: number): Promise<TieWithDetai
         .onRef("teamPlayers.playerId", "=", "participations.playerId")
         .onRef("teamPlayers.teamId", "=", "ties.teamId"),
     )
+    .leftJoin("playerCaptainComments as cc", (join) => join
+      .onRef("cc.tieId", "=", "participations.tieId").onRef("cc.playerId", "=", "participations.playerId"))
+    .leftJoin("users as captain", "captain.id", "cc.captainCommentBy")
+    .leftJoin("players as captainPlayer", "captainPlayer.id", "captain.playerId")
     .select([
       "participations.id",
       "participations.tieId",
       "participations.playerId",
       "participations.status",
       "participations.comment",
+      "cc.captainComment",
+      "cc.captainCommentBy",
+      "cc.captainCommentAuthorUsername",
       "participations.isInLineup",
       "participations.respondedAt",
       "participations.createdAt",
@@ -862,6 +942,9 @@ export async function getTieWithParticipations(id: number): Promise<TieWithDetai
       "players.createdAt as playerCreatedAt",
       "players.updatedAt as playerUpdatedAt",
       "teamPlayers.playerRank",
+      "captain.username as captainUsername",
+      "captainPlayer.firstName as captainPlayerFirstName",
+      "captainPlayer.lastName as captainPlayerLastName",
     ])
     .where("participations.tieId", "=", id)
     .orderBy("teamPlayers.playerRank")
@@ -873,6 +956,11 @@ export async function getTieWithParticipations(id: number): Promise<TieWithDetai
     playerId: p.playerId,
     status: p.status,
     comment: p.comment,
+    captainComment: p.captainComment,
+    captainCommentBy: p.captainCommentBy,
+    captainCommentAuthor: p.captainPlayerFirstName
+      ? `${p.captainPlayerFirstName} ${p.captainPlayerLastName}`
+      : p.captainCommentAuthorUsername ?? p.captainUsername ?? null,
     isInLineup: p.isInLineup,
     respondedAt: p.respondedAt,
     createdAt: p.createdAt,
@@ -912,6 +1000,9 @@ export async function getTieWithParticipations(id: number): Promise<TieWithDetai
 
   return {
     ...tie,
+    captainCommentAuthor: tie.captainPlayerFirstName
+      ? `${tie.captainPlayerFirstName} ${tie.captainPlayerLastName}`
+      : tie.captainCommentAuthorUsername ?? tie.captainUsername ?? null,
     team: teamWithPlayerIds,
     participations: participationsWithPlayer,
     confirmedCount,
@@ -920,7 +1011,213 @@ export async function getTieWithParticipations(id: number): Promise<TieWithDetai
   }
 }
 
-export async function getPlayersWithoutParticipation(tieId: number): Promise<TeamPlayerWithDetails[]> {
+export async function updateTieCaptainComment(
+  tieId: number,
+  comment: string | null,
+  authorId: number,
+  authorUsername: string,
+): Promise<void> {
+  const updated = await db
+    .updateTable("ties")
+    .set({
+      captainComment: comment,
+      captainCommentBy: authorId,
+      captainCommentAuthorUsername: authorUsername,
+      updatedAt: sql`now()`,
+    })
+    .where("id", "=", tieId)
+    .returning("id")
+    .executeTakeFirst()
+  if (!updated) throw new Error("Tie not found")
+}
+
+export async function updateParticipationCaptainComment(
+  tieId: number,
+  playerId: number,
+  comment: string | null,
+  authorId: number,
+  changedBy: string,
+  status: "confirmed" | "maybe" | "declined" | "no_response" | null = null,
+  removePlayerComment = false,
+): Promise<void> {
+  await db.transaction().execute(async (trx) => {
+    // Serialize edits even when no RSVP or comment row exists yet.
+    const tie = await trx.selectFrom("ties").select(["teamId", "isLineupReady"])
+      .where("id", "=", tieId).forUpdate().executeTakeFirst()
+    if (!tie) throw new Error("Tie not found")
+    const member = await trx.selectFrom("teamPlayers").select("playerId")
+      .where("teamId", "=", tie.teamId).where("playerId", "=", playerId).executeTakeFirst()
+    if (!member) throw new Error("Player does not belong to tie team")
+
+    let statusAudit: Pick<ParticipationAudit, "previousStatus" | "newStatus" | "previousComment" | "newComment" | "previousIsInLineup" | "newIsInLineup"> | null = null
+    if (status === "no_response") {
+      if (tie.isLineupReady) throw new Error("Unfinalize the lineup before changing RSVP status")
+      const previousParticipation = await trx.selectFrom("participations").selectAll()
+        .where("tieId", "=", tieId).where("playerId", "=", playerId).forUpdate().executeTakeFirst()
+      if (previousParticipation) {
+        await trx.deleteFrom("participations").where("id", "=", previousParticipation.id).execute()
+        statusAudit = {
+          previousStatus: previousParticipation.status, newStatus: null,
+          previousComment: previousParticipation.comment, newComment: null,
+          previousIsInLineup: previousParticipation.isInLineup ? true : null,
+          newIsInLineup: previousParticipation.isInLineup ? false : null,
+        }
+      }
+    } else if (status !== null) {
+      const update = await updateManagedParticipationStatus(trx, tieId, playerId, status, changedBy)
+      statusAudit = update.audit
+    }
+
+    let removedPlayerComment: string | null = null
+    if (removePlayerComment && status !== "no_response") {
+      const participation = await trx.selectFrom("participations").select(["id", "comment"])
+        .where("tieId", "=", tieId).where("playerId", "=", playerId).forUpdate().executeTakeFirst()
+      if (participation?.comment) {
+        removedPlayerComment = participation.comment
+        await trx.updateTable("participations").set({ comment: null, updatedAt: sql`now()` })
+          .where("id", "=", participation.id).execute()
+      }
+    }
+
+    const previous = await trx
+      .selectFrom("playerCaptainComments")
+      .selectAll()
+      .where("tieId", "=", tieId)
+      .where("playerId", "=", playerId)
+      .executeTakeFirst()
+    const commentChanged = (previous?.captainComment ?? null) !== comment
+    if (!commentChanged && !statusAudit && removedPlayerComment === null) return
+
+    if (commentChanged) {
+      await trx
+        .insertInto("playerCaptainComments")
+        .values({
+          tieId,
+          playerId,
+          captainComment: comment,
+          captainCommentBy: authorId,
+          captainCommentAuthorUsername: changedBy,
+        })
+        .onConflict((oc) => oc.columns(["tieId", "playerId"]).doUpdateSet({
+          captainComment: comment,
+          captainCommentBy: authorId,
+          captainCommentAuthorUsername: changedBy,
+        }))
+        .execute()
+    }
+
+    const participation = await trx.selectFrom("participations").select("id")
+      .where("tieId", "=", tieId).where("playerId", "=", playerId).executeTakeFirst()
+    await trx.insertInto("participation_audit").values({
+      participationId: participation?.id ?? null,
+      playerId,
+      tieId,
+      previousStatus: statusAudit?.previousStatus ?? null,
+      newStatus: statusAudit?.newStatus ?? null,
+      previousComment: removedPlayerComment ?? statusAudit?.previousComment ?? null,
+      newComment: statusAudit?.newComment ?? null,
+      previousCaptainComment: commentChanged ? previous?.captainComment ?? null : null,
+      newCaptainComment: commentChanged ? comment : null,
+      previousIsInLineup: statusAudit?.previousIsInLineup ?? null,
+      newIsInLineup: statusAudit?.newIsInLineup ?? null,
+      changedBy,
+      createdAt: sql`now()`,
+    }).execute()
+  })
+}
+
+export async function setManagedParticipationStatus(
+  tieId: number,
+  playerId: number,
+  status: "confirmed" | "maybe" | "declined",
+  changedBy: string,
+  transaction?: Transaction<Database>,
+): Promise<Participation> {
+  const execute = async (trx: Transaction<Database>) => {
+    const { participation, audit } = await updateManagedParticipationStatus(trx, tieId, playerId, status, changedBy)
+    if (audit) await trx.insertInto("participation_audit").values(audit).execute()
+    return participation
+  }
+  return transaction ? execute(transaction) : db.transaction().execute(execute)
+}
+
+async function updateManagedParticipationStatus(
+  trx: Transaction<Database>,
+  tieId: number,
+  playerId: number,
+  status: "confirmed" | "maybe" | "declined",
+  changedBy: string,
+) {
+  const tie = await trx
+    .selectFrom("ties")
+    .select(["id", "teamId", "isLineupReady"])
+    .where("id", "=", tieId)
+    .forUpdate()
+    .executeTakeFirst()
+  if (!tie) throw new Error("Tie not found")
+  if (tie.isLineupReady) throw new Error("Unfinalize the lineup before changing RSVP status")
+
+  const playerBelongsToTeam = await trx
+    .selectFrom("teamPlayers")
+    .select("playerId")
+    .where("teamId", "=", tie.teamId)
+    .where("playerId", "=", playerId)
+    .executeTakeFirst()
+  if (!playerBelongsToTeam) throw new Error("Player does not belong to tie team")
+
+  const previous = await trx
+    .selectFrom("participations")
+    .selectAll()
+    .where("tieId", "=", tieId)
+    .where("playerId", "=", playerId)
+    .forUpdate()
+    .executeTakeFirst()
+
+  const participation = previous
+    ? await trx
+        .updateTable("participations")
+        .set({
+          status,
+          isInLineup: status === "confirmed" ? previous.isInLineup : false,
+          updatedAt: sql`now()`,
+        })
+        .where("id", "=", previous.id)
+        .returningAll()
+        .executeTakeFirstOrThrow()
+    : await trx
+        .insertInto("participations")
+        .values({ tieId, playerId, status, comment: null })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+
+  const lineupChanged = (previous?.isInLineup ?? false) !== participation.isInLineup
+  const audit = !previous || previous.status !== status || lineupChanged
+    ? {
+      participationId: participation.id,
+      playerId,
+      tieId,
+      previousStatus: previous?.status ?? null,
+      newStatus: status,
+      previousComment: null,
+      newComment: null,
+      previousCaptainComment: null,
+      newCaptainComment: null,
+      previousIsInLineup: lineupChanged ? previous?.isInLineup ?? false : null,
+      newIsInLineup: lineupChanged ? participation.isInLineup : null,
+      changedBy,
+      createdAt: sql<Date>`now()`,
+    }
+    : null
+
+  return { participation, audit }
+}
+
+export type PlayerWithoutParticipation = TeamPlayerWithDetails & {
+  captainComment: string | null
+  captainCommentAuthor: string | null
+}
+
+export async function getPlayersWithoutParticipation(tieId: number): Promise<PlayerWithoutParticipation[]> {
   const tie = await db.selectFrom("ties").selectAll().where("id", "=", tieId).executeTakeFirst()
   if (!tie) return []
 
@@ -928,7 +1225,14 @@ export async function getPlayersWithoutParticipation(tieId: number): Promise<Tea
     .selectFrom("players as p")
     .innerJoin("teamPlayers as tp", "tp.playerId", "p.id")
     .leftJoin("participations as part", (join) => join.onRef("part.playerId", "=", "p.id").on("part.tieId", "=", tieId))
+    .leftJoin("playerCaptainComments as cc", (join) => join.onRef("cc.playerId", "=", "p.id").on("cc.tieId", "=", tieId))
+    .leftJoin("users as captain", "captain.id", "cc.captainCommentBy")
+    .leftJoin("players as captainPlayer", "captainPlayer.id", "captain.playerId")
     .select(["p.id", "p.firstName", "p.lastName", "p.createdAt", "tp.teamId", "tp.playerId", "tp.playerRank"])
+    .select([
+      "cc.captainComment",
+      sql<string | null>`COALESCE(NULLIF(concat_ws(' ', ${sql.ref("captainPlayer.firstName")}, ${sql.ref("captainPlayer.lastName")}), ''), ${sql.ref("captain.username")}, ${sql.ref("cc.captainCommentAuthorUsername")})`.as("captainCommentAuthor"),
+    ])
     .where("tp.teamId", "=", tie.teamId)
     .where("part.id", "is", null) // Only players without participation record
     .orderBy("tp.playerRank")
