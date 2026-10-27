@@ -578,7 +578,8 @@ export async function getSeasonPlayerRanks(seasonId: number): Promise<SeasonPlay
 }
 
 export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
-  console.time("[DB] Fetching ties by season ID")
+  // console.time labels are global, so concurrent calls would collide.
+  const startedAt = performance.now()
 
   const ties = await db
     .selectFrom("ties as t")
@@ -612,7 +613,7 @@ export async function getTiesBySeasonId(seasonId: number): Promise<TieDto[]> {
     .orderBy("t.isLineupReady", "asc")
     .execute()
 
-  console.timeEnd("[DB] Fetching ties by season ID")
+  console.log(`[DB] Fetching ties by season ID ${seasonId}: ${(performance.now() - startedAt).toFixed(3)}ms`)
   return ties as unknown as TieDto[]
 }
 
