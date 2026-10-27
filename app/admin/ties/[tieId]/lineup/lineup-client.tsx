@@ -19,6 +19,8 @@ import {
   Pencil,
   ListOrdered,
   TriangleAlert,
+  Trash2,
+  Undo2,
 } from "lucide-react"
 import {
   toggleLineupAction,
@@ -126,6 +128,7 @@ type PlayerRsvpFormProps = {
   tieId: number
   playerId: number
   status: Participation["status"] | null
+  playerComment: string | null
   captainComment: string | null
   captainCommentAuthor: string | null
   isFinalized: boolean
@@ -138,6 +141,7 @@ function PlayerRsvpForm({
   tieId,
   playerId,
   status,
+  playerComment,
   captainComment,
   captainCommentAuthor,
   isFinalized,
@@ -149,11 +153,12 @@ function PlayerRsvpForm({
   const instanceId = useId()
   const [selectedStatus, setSelectedStatus] = useState<Participation["status"] | "no_response">(status ?? "no_response")
   const [comment, setComment] = useState(captainComment ?? "")
+  const [removePlayerComment, setRemovePlayerComment] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const statusChanged = !isFinalized && selectedStatus !== (status ?? "no_response")
-  const hasChanges = statusChanged || comment !== (captainComment ?? "")
+  const hasChanges = statusChanged || removePlayerComment || comment !== (captainComment ?? "")
 
   const save = async () => {
     if (isSaving || !hasChanges) return
@@ -165,6 +170,7 @@ function PlayerRsvpForm({
         String(playerId),
         comment,
         statusChanged ? selectedStatus : null,
+        removePlayerComment,
       )
       onSaved()
     } catch (error) {
@@ -198,6 +204,24 @@ function PlayerRsvpForm({
             </div>
           </fieldset>
           {isFinalized && <p className="text-xs text-gray-500">{t("statusLockedUntilUnfinalized")}</p>}
+          {playerComment && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t("participationComment")}</p>
+              <div className="flex items-start gap-2 rounded-md border bg-gray-50 p-2">
+                <p data-testid="player-comment"
+                  className={`flex-1 whitespace-pre-wrap break-words text-sm ${removePlayerComment ? "text-gray-400 line-through" : ""}`}>
+                  {playerComment}
+                </p>
+                <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" disabled={isSaving}
+                  aria-label={removePlayerComment ? t("restorePlayerComment") : t("removePlayerComment")}
+                  title={removePlayerComment ? t("restorePlayerComment") : t("removePlayerComment")}
+                  aria-pressed={removePlayerComment} onClick={() => setRemovePlayerComment((remove) => !remove)}>
+                  {removePlayerComment ? <Undo2 className="h-4 w-4" /> : <Trash2 className="h-4 w-4 text-red-600" />}
+                </Button>
+              </div>
+              {removePlayerComment && <p className="text-xs text-gray-500">{t("playerCommentRemovedOnSave")}</p>}
+            </div>
+          )}
           <div className="space-y-2">
             <label htmlFor={`comment-${instanceId}`} className="text-sm font-medium">{t("captainsComment")}</label>
             <Input id={`comment-${instanceId}`} value={comment} onChange={(event) => setComment(event.target.value)}
@@ -430,6 +454,7 @@ export function LineupClient({
     playerId: number
     playerName: string
     status: Participation["status"] | null
+    playerComment: string | null
     captainComment: string | null
     captainCommentAuthor: string | null
   } | null>(null)
@@ -440,6 +465,7 @@ export function LineupClient({
       playerId: participation.playerId,
       playerName: `${participation.player.firstName} ${participation.player.lastName}`,
       status: participation.status,
+      playerComment: participation.comment,
       captainComment: participation.captainComment,
       captainCommentAuthor: participation.captainCommentAuthor,
     })
@@ -447,7 +473,7 @@ export function LineupClient({
   const editNonResponder = (player: PlayerWithoutParticipation) => {
     setEditingPlayer({
       playerId: player.playerId, playerName: `${player.firstName} ${player.lastName}`,
-      status: null, captainComment: player.captainComment, captainCommentAuthor: player.captainCommentAuthor,
+      status: null, playerComment: null, captainComment: player.captainComment, captainCommentAuthor: player.captainCommentAuthor,
     })
   }
   useEffect(() => {

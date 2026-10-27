@@ -100,19 +100,31 @@ it("rejects unknown RSVP statuses", async () => {
 it("saves a captain comment by player ID without needing an RSVP", async () => {
   await saveParticipationCaptainCommentAction("4", "5", "  Doubles only  ")
 
-  expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Doubles only", 8, "captain", null)
+  expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Doubles only", 8, "captain", null, false)
   expect(mockDb.getParticipationById).not.toHaveBeenCalled()
   expect(mockDb.setManagedParticipationStatus).not.toHaveBeenCalled()
 })
 
 it("passes combined status and comment changes to the atomic database operation", async () => {
   await saveParticipationCaptainCommentAction("4", "5", "Doubles only", "confirmed")
-  expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Doubles only", 8, "captain", "confirmed")
+  expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Doubles only", 8, "captain", "confirmed", false)
+})
+
+it("passes player comment removal to the atomic database operation", async () => {
+  await saveParticipationCaptainCommentAction("4", "5", "Keep note", null, true)
+  expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Keep note", 8, "captain", null, true)
+})
+
+it("rejects a non-boolean remove comment flag", async () => {
+  await expect(
+    saveParticipationCaptainCommentAction("4", "5", "note", null, "false" as unknown as boolean),
+  ).rejects.toThrow("Invalid remove comment flag")
+  expect(mockDb.updateParticipationCaptainComment).not.toHaveBeenCalled()
 })
 
 it("passes explicit no-response resets to the atomic database operation", async () => {
   await saveParticipationCaptainCommentAction("4", "5", "Keep note", "no_response")
-  expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Keep note", 8, "captain", "no_response")
+  expect(mockDb.updateParticipationCaptainComment).toHaveBeenCalledWith(4, 5, "Keep note", 8, "captain", "no_response", false)
   expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/ties")
 })
 

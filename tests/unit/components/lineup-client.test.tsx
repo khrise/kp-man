@@ -231,8 +231,41 @@ describe("captain RSVP controls", () => {
     fireEvent.click(screen.getByRole("radio", { name: "noResponsePlayers" }))
     fireEvent.change(screen.getByRole("textbox", { name: "captainsComment" }), { target: { value: "New note" } })
     fireEvent.click(screen.getByRole("button", { name: "save" }))
-    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "2", "New note", "no_response"))
+    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "2", "New note", "no_response", false))
     await waitFor(() => expect(screen.queryByRole("radio")).not.toBeInTheDocument())
+  })
+
+  it("lets the captain mark the player's comment for removal and saves it with the form", async () => {
+    const saveComment = jest.mocked(saveParticipationCaptainCommentAction).mockReset().mockResolvedValue({ success: true })
+    const participation: Props["availablePlayers"][number] = {
+      id: 4, tieId: 1, playerId: 2, status: "confirmed", isInLineup: false,
+      comment: "Player note", captainComment: null, captainCommentBy: null, captainCommentAuthor: null,
+      respondedAt: date, createdAt: date, updatedAt: date,
+      player: { id: 2, firstName: "Anna", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+    }
+    render(<LineupClient {...props} availablePlayers={[participation]} />)
+    fireEvent.click(screen.getByRole("button", { name: "editRsvp" }))
+    expect(screen.getByTestId("player-comment")).toHaveTextContent("Player note")
+    expect(screen.getByRole("button", { name: "save" })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole("button", { name: "removePlayerComment" }))
+    expect(screen.getByText("playerCommentRemovedOnSave")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "restorePlayerComment" }))
+    expect(screen.getByRole("button", { name: "save" })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole("button", { name: "removePlayerComment" }))
+    fireEvent.click(screen.getByRole("button", { name: "save" }))
+    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "2", "", null, true))
+  })
+
+  it("does not show the remove button when the player has no comment", () => {
+    render(<LineupClient {...props} playersWithoutParticipation={[{
+      id: 9, playerId: 9, teamId: 1, firstName: "No", lastName: "Response",
+      captainComment: null, captainCommentAuthor: null, createdAt: date, playerRank: 3,
+    }]} />)
+    fireEvent.click(screen.getByText("showSingleList"))
+    fireEvent.click(screen.getByRole("button", { name: "editRsvp" }))
+    expect(screen.queryByRole("button", { name: "removePlayerComment" })).not.toBeInTheDocument()
   })
 
   it("keeps the form and draft visible after a failed save and discards it on Cancel", async () => {
@@ -343,7 +376,7 @@ describe("captain RSVP controls", () => {
     expect(screen.getAllByRole("button", { name: "save" })).toHaveLength(1)
     fireEvent.click(screen.getByRole("button", { name: "save" }))
 
-    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "9", "Will speak to the player tomorrow", null))
+    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "9", "Will speak to the player tomorrow", null, false))
     expect(saveStatus).not.toHaveBeenCalled()
   })
 
@@ -367,7 +400,7 @@ describe("captain RSVP controls", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "captainsComment" }), { target: { value: "Doubles only" } })
     fireEvent.click(screen.getByRole("button", { name: "save" }))
 
-    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "9", "Doubles only", "confirmed"))
+    await waitFor(() => expect(saveComment).toHaveBeenCalledWith("1", "9", "Doubles only", "confirmed", false))
     expect(saveStatus).not.toHaveBeenCalled()
   })
 

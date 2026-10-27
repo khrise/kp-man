@@ -441,6 +441,34 @@ describe("captain-managed lineup data", () => {
     }))
   })
 
+  it("removes the player's comment atomically with an audit entry and keeps status and captain comment", async () => {
+    const { player, tie } = await createTestFixture()
+    const captain = await createUser({
+      username: "captain-user", email: "captain@example.com",
+      passwordHash: "not-used", role: "team_captain", playerId: null,
+    })
+    await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: "Inappropriate" })
+    await updateParticipationCaptainComment(tie.id, player.id, "Captain note", captain.id, captain.username)
+    await updateTieReady(tie.id, true)
+    const before = await getParticipationAuditForTie(tie.id)
+
+    await updateParticipationCaptainComment(tie.id, player.id, "Captain note", captain.id, captain.username, null, true)
+    expect((await getParticipations(tie.id))[0]).toEqual(expect.objectContaining({
+      status: "confirmed", comment: null, captainComment: "Captain note",
+    }))
+    const audit = await getParticipationAuditForTie(tie.id)
+    expect(audit).toHaveLength(before.length + 1)
+    expect(audit[0]).toEqual(expect.objectContaining({
+      previousStatus: null, newStatus: null,
+      previousComment: "Inappropriate", newComment: null,
+      previousCaptainComment: null, newCaptainComment: null,
+      changedBy: captain.username,
+    }))
+
+    await updateParticipationCaptainComment(tie.id, player.id, "Captain note", captain.id, captain.username, null, true)
+    expect(await getParticipationAuditForTie(tie.id)).toEqual(audit)
+  })
+
   it("combines status, comment and actual lineup changes in one entry and skips unchanged saves", async () => {
     const { player, tie } = await createTestFixture()
     const captain = await createUser({

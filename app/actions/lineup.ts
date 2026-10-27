@@ -94,6 +94,7 @@ export async function saveParticipationCaptainCommentAction(
   playerId: string,
   comment: string,
   status: "confirmed" | "maybe" | "declined" | "no_response" | null = null,
+  removePlayerComment = false,
 ) {
   const tieIdNum = Number(tieId)
   const playerIdNum = Number(playerId)
@@ -104,12 +105,15 @@ export async function saveParticipationCaptainCommentAction(
   if (status !== null && !["confirmed", "maybe", "declined", "no_response"].includes(status)) {
     throw new Error("Invalid participation status")
   }
+  if (typeof removePlayerComment !== "boolean") throw new Error("Invalid remove comment flag")
 
   await requirePermission(Permission.LineupManage)
   const tie = await db.getTieById(tieIdNum)
   if (!tie) throw new Error("Tie not found")
   const user = await requireTeamPermission(tie.teamId, Permission.LineupManage)
-  await db.updateParticipationCaptainComment(tieIdNum, playerIdNum, comment.trim() || null, user.id, user.username, status)
+  await db.updateParticipationCaptainComment(
+    tieIdNum, playerIdNum, comment.trim() || null, user.id, user.username, status, removePlayerComment,
+  )
   revalidatePath("/admin/ties")
   revalidatePath(`/admin/ties/${tieId}/lineup`)
   revalidatePath("/spieltage")

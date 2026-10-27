@@ -91,6 +91,9 @@ export const translations = {
     // Participation Comments
     addComment: "Kommentar hinzufügen",
     participationComment: "Teilnahme-Kommentar",
+    removePlayerComment: "Kommentar des Spielers entfernen",
+    restorePlayerComment: "Kommentar des Spielers behalten",
+    playerCommentRemovedOnSave: "Der Kommentar wird beim Speichern entfernt.",
     addOptionalComment: "Fügen Sie einen optionalen Kommentar zu Ihrer Teilnahme hinzu",
     commentLabel: "Kommentar (optional)",
     commentPlaceholder: "Geben Sie hier Ihren Kommentar ein...",
@@ -433,6 +436,9 @@ export const translations = {
     // Participation Comments
     addComment: "Add Comment",
     participationComment: "Participation Comment",
+    removePlayerComment: "Remove player's comment",
+    restorePlayerComment: "Keep player's comment",
+    playerCommentRemovedOnSave: "The comment will be removed when you save.",
     addOptionalComment: "Add an optional comment to your participation",
     commentLabel: "Comment (optional)",
     commentPlaceholder: "Enter your comment here...",

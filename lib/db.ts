@@ -1038,6 +1038,7 @@ export async function updateParticipationCaptainComment(
   authorId: number,
   changedBy: string,
   status: "confirmed" | "maybe" | "declined" | "no_response" | null = null,
+  removePlayerComment = false,
 ): Promise<void> {
   await db.transaction().execute(async (trx) => {
     // Serialize edits even when no RSVP or comment row exists yet.
@@ -1067,6 +1068,17 @@ export async function updateParticipationCaptainComment(
       statusAudit = update.audit
     }
 
+    let removedPlayerComment: string | null = null
+    if (removePlayerComment && status !== "no_response") {
+      const participation = await trx.selectFrom("participations").select(["id", "comment"])
+        .where("tieId", "=", tieId).where("playerId", "=", playerId).forUpdate().executeTakeFirst()
+      if (participation?.comment) {
+        removedPlayerComment = participation.comment
+        await trx.updateTable("participations").set({ comment: null, updatedAt: sql`now()` })
+          .where("id", "=", participation.id).execute()
+      }
+    }
+
     const previous = await trx
       .selectFrom("playerCaptainComments")
       .selectAll()
@@ -1074,7 +1086,7 @@ export async function updateParticipationCaptainComment(
       .where("playerId", "=", playerId)
       .executeTakeFirst()
     const commentChanged = (previous?.captainComment ?? null) !== comment
-    if (!commentChanged && !statusAudit) return
+    if (!commentChanged && !statusAudit && removedPlayerComment === null) return
 
     if (commentChanged) {
       await trx
@@ -1102,7 +1114,7 @@ export async function updateParticipationCaptainComment(
       tieId,
       previousStatus: statusAudit?.previousStatus ?? null,
       newStatus: statusAudit?.newStatus ?? null,
-      previousComment: statusAudit?.previousComment ?? null,
+      previousComment: removedPlayerComment ?? statusAudit?.previousComment ?? null,
       newComment: statusAudit?.newComment ?? null,
       previousCaptainComment: commentChanged ? previous?.captainComment ?? null : null,
       newCaptainComment: commentChanged ? comment : null,
