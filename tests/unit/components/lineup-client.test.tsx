@@ -159,8 +159,9 @@ describe("player RSVP comments", () => {
       }]}
     />)
 
-    expect(screen.getByText("participationComment")).toBeInTheDocument()
-    expect(screen.getByText(/I can arrive at 14:00/)).toHaveClass("whitespace-pre-wrap", "break-words")
+    expect(screen.getAllByText("participationComment").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("captainsComment").length).toBeGreaterThan(0)
+    expect(screen.getByText(/I can arrive at 14:00/)).toHaveClass("whitespace-pre-wrap", "break-words", "text-xs")
     expect(screen.getByText("Plays doubles only")).toBeInTheDocument()
     expect(screen.queryByRole("textbox", { name: "captainsComment" })).not.toBeInTheDocument()
     expect(screen.queryByDisplayValue("I can arrive at 14:00.\nPlease arrange transport.")).not.toBeInTheDocument()

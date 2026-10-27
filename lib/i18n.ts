@@ -90,7 +90,7 @@ export const translations = {
 
     // Participation Comments
     addComment: "Kommentar hinzufügen",
-    participationComment: "Teilnahme-Kommentar",
+    participationComment: "Spieler-Kommentar",
     removePlayerComment: "Kommentar des Spielers entfernen",
     restorePlayerComment: "Kommentar des Spielers behalten",
     playerCommentRemovedOnSave: "Der Kommentar wird beim Speichern entfernt.",
@@ -435,7 +435,7 @@ export const translations = {
 
     // Participation Comments
     addComment: "Add Comment",
-    participationComment: "Participation Comment",
+    participationComment: "Player's comment",
     removePlayerComment: "Remove player's comment",
     restorePlayerComment: "Keep player's comment",
     playerCommentRemovedOnSave: "The comment will be removed when you save.",

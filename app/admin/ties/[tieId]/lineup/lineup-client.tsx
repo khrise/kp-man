@@ -371,12 +371,17 @@ function PlayerCard({
           )}
         </div>
         {participation.comment && (
-          <div className="mt-3 text-sm text-gray-700">
-            <p className="font-medium">{t("participationComment")}</p>
-            <p className="whitespace-pre-wrap break-words">{participation.comment}</p>
-          </div>
+          <>
+            <p className="mt-2 text-xs font-medium text-gray-600">{t("participationComment")}</p>
+            <p className="whitespace-pre-wrap break-words text-xs">{participation.comment}</p>
+          </>
         )}
-        {participation.captainComment && <p className="mt-2 whitespace-pre-wrap break-words text-xs">{participation.captainComment}</p>}
+        {participation.captainComment && (
+          <>
+            <p className="mt-2 text-xs font-medium text-gray-600">{t("captainsComment")}</p>
+            <p className="whitespace-pre-wrap break-words text-xs">{participation.captainComment}</p>
+          </>
+        )}
         {participation.captainCommentAuthor && <p className="text-xs text-gray-500">{t("commentBy")} {participation.captainCommentAuthor}</p>}
       </CardContent>
     </Card>
@@ -414,7 +419,12 @@ function NoResponsePlayerCard({
             </div>
           </div>
         </div>
-        {player.captainComment && <p className="mt-2 whitespace-pre-wrap break-words text-xs">{player.captainComment}</p>}
+        {player.captainComment && (
+          <>
+            <p className="mt-2 text-xs font-medium text-gray-600">{t("captainsComment")}</p>
+            <p className="whitespace-pre-wrap break-words text-xs">{player.captainComment}</p>
+          </>
+        )}
         {player.captainCommentAuthor && <p className="text-xs text-gray-500">{t("commentBy")} {player.captainCommentAuthor}</p>}
       </CardContent>
     </Card>
