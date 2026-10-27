@@ -78,7 +78,7 @@ it("allows adding players without applying a team-size limit", async () => {
 
   await toggleLineupAction("12", "4")
 
-  expect(mockDb.updateParticipationLineup).toHaveBeenCalledWith(12, true)
+  expect(mockDb.updateParticipationLineup).toHaveBeenCalledWith(12, true, "captain")
   expect(mockDb.getLineupCount).not.toHaveBeenCalled()
 })
 
