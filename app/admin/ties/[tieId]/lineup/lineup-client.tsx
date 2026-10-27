@@ -6,7 +6,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Users, UserCheck, UserX, HelpCircle, Scale, ListChecks, Mail, Copy, MessageSquare, Pencil, ListOrdered } from "lucide-react"
+import {
+  Users,
+  UserCheck,
+  UserX,
+  HelpCircle,
+  Scale,
+  ListChecks,
+  Mail,
+  Copy,
+  MessageSquare,
+  Pencil,
+  ListOrdered,
+  TriangleAlert,
+} from "lucide-react"
 import {
   toggleLineupAction,
   markTieReadyAction,
@@ -38,6 +51,7 @@ type LineupClientProps = {
   lineupPlayers: ParticipationWithPlayer[]
   availablePlayers: ParticipationWithPlayer[]
   otherParticipations: ParticipationWithPlayer[]
+  weekendConflictPlayerIds: number[]
   playersWithoutParticipation: PlayerWithoutParticipation[]
   lineupCount: number
   teamSize: number
@@ -265,12 +279,13 @@ type PlayerCardProps = {
   canToggle: boolean
   isFinalized: boolean
   isLoading: boolean
+  hasWeekendConflict: boolean
   onToggleLineup: (participationId: number) => void
   onEdit: () => void
 }
 
 function PlayerCard({
-  participation, isInLineup, canToggle, isFinalized, isLoading, onToggleLineup, onEdit,
+  participation, isInLineup, canToggle, isFinalized, isLoading, hasWeekendConflict, onToggleLineup, onEdit,
 }: PlayerCardProps) {
   const { t } = useTranslation()
   const isProblematic = isInLineup && participation.status !== "confirmed"
@@ -304,6 +319,18 @@ function PlayerCard({
                 <Badge variant="destructive" className="bg-red-500 text-white">
                   ⚠️ {t("needsAttention")}
                 </Badge>
+              )}
+              {hasWeekendConflict && (
+                <span
+                  role="status"
+                  title={t("weekendConflictHint")}
+                  aria-label={`${t("weekendConflict")}: ${t("weekendConflictHint")}`}
+                >
+                  <Badge variant="outline" className="gap-1 border-amber-400 bg-amber-50 text-amber-900">
+                    <TriangleAlert className="h-3 w-3" />
+                    {t("weekendConflict")}
+                  </Badge>
+                </span>
               )}
             </div>
           </div>
@@ -376,6 +403,7 @@ export function LineupClient({
   lineupPlayers,
   availablePlayers,
   otherParticipations,
+  weekendConflictPlayerIds,
   playersWithoutParticipation,
   lineupCount,
   teamSize,
@@ -569,6 +597,7 @@ Aufstellung: ${playerNames}`
   const sharedCardProps = {
     isFinalized: tie.isLineupReady,
   }
+  const conflictPlayerIds = new Set(weekendConflictPlayerIds)
   const playerCardProps = { ...sharedCardProps, isLoading, onToggleLineup: handleToggleLineup }
 
   const maybeParticipations = otherParticipations.filter((p) => p.status === "maybe")
@@ -763,6 +792,7 @@ Aufstellung: ${playerNames}`
                       </div>
                       <PlayerCard 
                         {...playerCardProps}
+                        hasWeekendConflict={conflictPlayerIds.has(participation.playerId)}
                         onEdit={() => editParticipation(participation)}
                         participation={participation} 
                         isInLineup={true}
@@ -800,6 +830,7 @@ Aufstellung: ${playerNames}`
                     ) : (
                       <PlayerCard
                         {...playerCardProps}
+                        hasWeekendConflict={conflictPlayerIds.has(item.participation.playerId)}
                         onEdit={() => editParticipation(item.participation)}
                         key={item.participation.id}
                         participation={item.participation}
@@ -831,6 +862,7 @@ Aufstellung: ${playerNames}`
                   .map((participation) => (
                     <PlayerCard 
                       {...playerCardProps}
+                      hasWeekendConflict={conflictPlayerIds.has(participation.playerId)}
                       onEdit={() => editParticipation(participation)}
                       key={participation.id}
                       participation={participation} 

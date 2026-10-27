@@ -85,6 +85,8 @@ export const translations = {
     noRankInformation: "Keine Ranginformationen verfügbar",
     noTiesFound: "Keine Spieltage gefunden.",
     yourAreInLineup: "Du spielst",
+    weekendConflict: "Möglicher Konflikt am Wochenende",
+    weekendConflictHint: "Mehrfach zugesagt oder vielleicht gemeldet:",
 
     // Participation Comments
     addComment: "Kommentar hinzufügen",
@@ -425,6 +427,8 @@ export const translations = {
     noRankInformation: "No rank information available",
     noTiesFound: "No ties found.",
     yourAreInLineup: "You're playing",
+    weekendConflict: "Potential weekend conflict",
+    weekendConflictHint: "Multiple yes or maybe responses:",
 
     // Participation Comments
     addComment: "Add Comment",

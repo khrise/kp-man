@@ -192,6 +192,7 @@ it.each(protectedActions)("allows an admin to execute $name", async ({ run, quer
     ...tie, captainCommentAuthor: null, team, participations: [], confirmedCount: 0, maybeCount: 0, declinedCount: 0,
   })
   mockDb.getLineupCount.mockResolvedValue(0)
+  mockDb.getTiesBySeasonId.mockResolvedValue([])
   await run()
   expect(mockDb.getUserById).toHaveBeenCalledWith(1)
   expect(query === "setTeamCaptains" ? setTeamCaptains : mockDb[query]).toHaveBeenCalled()

@@ -36,7 +36,8 @@ const props: Props = {
     captainCommentAuthor: null, createdAt: date, updatedAt: date,
   },
   team: { id: 1, seasonId: 1, name: "Team", league: null, teamSize: 6, createdAt: date, updatedAt: date },
-  lineupPlayers: [], availablePlayers: [], otherParticipations: [], playersWithoutParticipation: [],
+  lineupPlayers: [], availablePlayers: [], otherParticipations: [], weekendConflictPlayerIds: [],
+  playersWithoutParticipation: [],
   lineupCount: 0, teamSize: 6,
 }
 
@@ -166,6 +167,36 @@ describe("player RSVP comments", () => {
 
     fireEvent.click(screen.getByText("showSingleList"))
     expect(screen.getAllByText(/I can arrive at 14:00/).length).toBeGreaterThan(0)
+  })
+
+  describe("weekend participation conflict warnings", () => {
+    it("shows a warning on only the affected player's lineup-view card", () => {
+      const affectedPlayer: Props["availablePlayers"][number] = {
+        id: 4, tieId: 1, playerId: 2, status: "confirmed", isInLineup: false,
+        comment: null, captainComment: null, captainCommentBy: null, captainCommentAuthor: null,
+        respondedAt: date, createdAt: date, updatedAt: date,
+        player: { id: 2, firstName: "Anna", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+      }
+      const unaffectedPlayer: Props["availablePlayers"][number] = {
+        ...affectedPlayer,
+        id: 5,
+        playerId: 3,
+        player: { id: 3, firstName: "Bob", lastName: "Player", playerRank: 3, createdAt: date, updatedAt: date },
+      }
+
+      render(
+        <LineupClient
+          {...props}
+          availablePlayers={[affectedPlayer, unaffectedPlayer]}
+          weekendConflictPlayerIds={[2]}
+        />,
+      )
+
+      const warning = screen.getByText("weekendConflict")
+      expect(warning).toBeInTheDocument()
+      expect(warning.closest("[title]")).toHaveAttribute("title", "weekendConflictHint")
+      expect(screen.getAllByText("weekendConflict")).toHaveLength(1)
+    })
   })
 
   it.each([null, ""])("omits the player comment section when the comment is %p", (comment) => {

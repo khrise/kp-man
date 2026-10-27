@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
 import { requirePermission, requireTeamPermission } from "@/lib/server/auth"
 import { Permission } from "@/lib/permissions"
+import { getWeekendParticipationConflicts } from "@/lib/utils"
 
 export async function toggleLineupAction(participationId: string, tieId: string) {
   await requirePermission(Permission.LineupManage)
@@ -152,6 +153,9 @@ export async function getLineupData(tieId: string) {
     throw new Error("Team not found")
   }
 
+  const seasonTies = await db.getTiesBySeasonId(team.seasonId)
+  const weekendConflictPlayerIds = getWeekendParticipationConflicts(seasonTies).get(tieIdNum) ?? []
+
   // Get players without any participation response
   const playersWithoutParticipation = await db.getPlayersWithoutParticipation(tieIdNum)
 
@@ -170,6 +174,7 @@ export async function getLineupData(tieId: string) {
   return {
     tie,
     team,
+    weekendConflictPlayerIds,
     lineupPlayers,
     availablePlayers,
     otherParticipations,
