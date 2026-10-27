@@ -330,8 +330,8 @@ function PlayerCard({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={
-                participation.status === "confirmed" ? "default" :
-                participation.status === "maybe" ? "secondary" : "destructive"
+                participation.status === "confirmed" ? "success" :
+                participation.status === "maybe" ? "warning" : "destructive"
               }>
                 {participation.status === "confirmed" && <UserCheck className="w-3 h-3 mr-1" />}
                 {participation.status === "maybe" && <Scale className="w-3 h-3 mr-1" />}

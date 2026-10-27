@@ -544,3 +544,25 @@ describe("lineup audit pagination", () => {
     expect(await screen.findByText("boom")).toBeInTheDocument()
   })
 })
+
+describe("RSVP status badges", () => {
+  it.each([
+    ["confirmed", "bg-green-100"],
+    ["maybe", "bg-yellow-100"],
+    ["declined", "bg-red-100"],
+  ] as const)("colors the %s badge like its section icon", (status, colorClass) => {
+    const participation: Props["availablePlayers"][number] = {
+      id: 4, tieId: 1, playerId: 2, status, isInLineup: false,
+      comment: null, captainComment: null, captainCommentBy: null, captainCommentAuthor: null,
+      respondedAt: date, createdAt: date, updatedAt: date,
+      player: { id: 2, firstName: "Anna", lastName: "Player", playerRank: 2, createdAt: date, updatedAt: date },
+    }
+    render(<LineupClient
+      {...props}
+      availablePlayers={status === "confirmed" ? [participation] : []}
+      otherParticipations={status !== "confirmed" ? [participation] : []}
+    />)
+    const badge = screen.getAllByText(status).map((el) => el.closest("span")).find((el) => el?.className.includes("rounded-full"))
+    expect(badge).toHaveClass(colorClass)
+  })
+})
