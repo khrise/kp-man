@@ -179,8 +179,16 @@ describe("updateParticipationLineup", () => {
     const p = await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: null })
     expect(p.isInLineup).toBe(false)
 
-    const updated = await updateParticipationLineup(p.id, true)
+    const updated = await updateParticipationLineup(p.id, true, "lineup-captain")
     expect(updated?.isInLineup).toBe(true)
+    expect(await getParticipationAuditForTie(tie.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        participationId: p.id,
+        previousIsInLineup: false,
+        newIsInLineup: true,
+        changedBy: "lineup-captain",
+      }),
+    ]))
   })
 
   it("sets isInLineup back to false", async () => {

@@ -784,7 +784,11 @@ export async function getParticipationById(id: number): Promise<Participation | 
   return db.selectFrom("participations").selectAll().where("id", "=", id).executeTakeFirst()
 }
 
-export async function updateParticipationLineup(id: number, isInLineup: boolean): Promise<Participation | undefined> {
+export async function updateParticipationLineup(
+  id: number,
+  isInLineup: boolean,
+  changedBy?: string | null,
+): Promise<Participation | undefined> {
   // Read previous participation to record audit
   const previous = await getParticipationById(id)
 
@@ -807,7 +811,7 @@ export async function updateParticipationLineup(id: number, isInLineup: boolean)
         newComment: updated.comment ?? null,
         previousIsInLineup: previous?.isInLineup ?? null,
         newIsInLineup: updated.isInLineup ?? null,
-        changedBy: null,
+        changedBy,
       })
     } catch (err) {
       console.error("Failed to insert participation audit:", err)

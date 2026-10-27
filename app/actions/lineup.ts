@@ -17,7 +17,7 @@ export async function toggleLineupAction(participationId: string, tieId: string)
 
   const tie = await db.getTieById(tieIdNum)
   if (!tie) throw new Error("Tie not found")
-  await requireTeamPermission(tie.teamId, Permission.LineupManage)
+  const user = await requireTeamPermission(tie.teamId, Permission.LineupManage)
 
   // Get current participation
   const participation = await db.getParticipationById(participationIdNum)
@@ -37,7 +37,7 @@ export async function toggleLineupAction(participationId: string, tieId: string)
   }
 
   // Toggle lineup status
-  await db.updateParticipationLineup(participationIdNum, !participation.isInLineup)
+  await db.updateParticipationLineup(participationIdNum, !participation.isInLineup, user.username)
 
   revalidatePath(`/admin/ties/${tieId}/lineup`)
   return { success: true }
