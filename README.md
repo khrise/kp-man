@@ -67,6 +67,10 @@ The participation audit records subsequent changes only, not initial responses
 or identical updates. Only changed status, comment, or lineup value pairs are
 stored; unchanged pairs are both `NULL`. Clearing a comment remains a recorded
 change. The lineup UI displays only changed fields.
+The audit header's icon button switches between player groups (with change
+counts) and a newest-first chronological view. Chronological entries include
+the affected player, recorded editor, date/time and all changed fields.
+Both views share loaded entries and the same load-more pagination.
 
 Migration [14-participation-audit-changes-only.sql](scripts/14-participation-audit-changes-only.sql)
 removes historical initial-response and no-op entries and clears unchanged

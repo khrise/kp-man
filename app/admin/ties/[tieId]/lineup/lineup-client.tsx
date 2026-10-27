@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Users, UserCheck, UserX, HelpCircle, Scale, ListChecks, Mail, Copy, MessageSquare, Pencil } from "lucide-react"
+import { Users, UserCheck, UserX, HelpCircle, Scale, ListChecks, Mail, Copy, MessageSquare, Pencil, ListOrdered } from "lucide-react"
 import {
   toggleLineupAction,
   markTieReadyAction,
@@ -63,6 +63,49 @@ type AuditEntry = {
   createdAt: string
   playerFirstName?: string | null
   playerLastName?: string | null
+}
+
+function AuditLogEntry({ entry: e, showPlayer = false }: { entry: AuditEntry; showPlayer?: boolean }) {
+  const { t } = useTranslation()
+  const formatComment = (comment: string | null) => comment ? `"${comment}"` : t("emptyComment")
+
+  return (
+    <li className="text-sm text-gray-700 bg-white border border-gray-100 rounded p-3">
+      {showPlayer && <div className="font-medium mb-1">{e.playerFirstName} {e.playerLastName}</div>}
+      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+        <div className="min-w-0 text-left">{e.changedBy ?? "—"}</div>
+        <time dateTime={e.createdAt} className="ml-4 text-right">{new Date(e.createdAt).toLocaleString()}</time>
+      </div>
+      {e.previousStatus !== e.newStatus && (
+        <div className="text-xs">
+          <span className="text-gray-400 mr-1">{t("statusLabel")}:</span>
+          <span className="font-medium">{e.previousStatus ?? "—"}</span>
+          <span className="mx-2">→</span>
+          <span className="font-medium">{e.newStatus ?? "—"}</span>
+        </div>
+      )}
+      {(e.previousIsInLineup ?? false) !== (e.newIsInLineup ?? false) && (
+        <div className="text-xs mt-1">
+          <span className="text-gray-400 mr-1">{t("lineupLabel")}:</span>
+          <span className="font-medium ml-1">{e.previousIsInLineup ? t("inLineup") : t("notInLineup")}</span>
+          <span className="mx-2">→</span>
+          <span className="font-medium">{e.newIsInLineup ? t("inLineup") : t("notInLineup")}</span>
+        </div>
+      )}
+      {e.previousComment !== e.newComment && (
+        <div className="text-xs mt-1">
+          <span className="text-gray-400 mr-1">{t("commentChange")}</span>
+          <span className="ml-1">{`${formatComment(e.previousComment)} → ${formatComment(e.newComment)}`}</span>
+        </div>
+      )}
+      {e.previousCaptainComment !== e.newCaptainComment && (
+        <div className="text-xs mt-1">
+          <span className="text-gray-400 mr-1">{t("captainsComment")}:</span>
+          <span className="ml-1">{`${formatComment(e.previousCaptainComment)} → ${formatComment(e.newCaptainComment)}`}</span>
+        </div>
+      )}
+    </li>
+  )
 }
 
 type PlayerRsvpFormProps = {
@@ -341,7 +384,6 @@ export function LineupClient({
   auditPageSize = 100,
 }: LineupClientProps) {
   const { t, tWithParams } = useTranslation()
-  const formatAuditComment = (comment: string | null) => comment ? `"${comment}"` : t("emptyComment")
   const router = useRouter()
   const canReopen = usePermission(Permission.LineupReopen)
   const [isLoading, setIsLoading] = useState(false)
@@ -355,6 +397,7 @@ export function LineupClient({
   const [olderAuditHasMore, setOlderAuditHasMore] = useState<boolean | null>(null)
   const [isLoadingMoreAudit, setIsLoadingMoreAudit] = useState(false)
   const [auditLoadError, setAuditLoadError] = useState<string | null>(null)
+  const [isChronologicalAudit, setIsChronologicalAudit] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState<{
     playerId: number
     playerName: string
@@ -391,6 +434,9 @@ export function LineupClient({
   }, [auditEntries, olderAuditEntries])
 
   const hasMoreAudit = olderAuditHasMore ?? auditHasMore
+  const chronologicalAudit = useMemo(() => [...allAuditEntries].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || b.id - a.id,
+  ), [allAuditEntries])
 
   const handleLoadMoreAudit = async () => {
     if (isLoadingMoreAudit) return
@@ -834,11 +880,17 @@ Aufstellung: ${playerNames}`
       {/* RSVP Audit Log */}
       <div className="mt-8">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center space-x-2">
-              <Users className="w-5 h-5 text-gray-600" />
+              {isChronologicalAudit ? <ListOrdered className="w-5 h-5 text-gray-600" /> : <Users className="w-5 h-5 text-gray-600" />}
               <span>RSVP Audit</span>
             </CardTitle>
+            <Button size="icon" variant="ghost"
+              aria-label={t(isChronologicalAudit ? "showAuditByPlayer" : "showChronologicalAudit")}
+              title={t(isChronologicalAudit ? "showAuditByPlayer" : "showChronologicalAudit")}
+              onClick={() => setIsChronologicalAudit((value) => !value)}>
+              {isChronologicalAudit ? <Users className="h-4 w-4" /> : <ListOrdered className="h-4 w-4" />}
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -846,56 +898,23 @@ Aufstellung: ${playerNames}`
                 <p className="text-sm text-gray-500">No audit entries</p>
               )}
 
-              {groupedAudit.length > 0 && (
+              {isChronologicalAudit && chronologicalAudit.length > 0 && (
+                <ul className="space-y-2" aria-label={t("chronologicalAudit")}>
+                  {chronologicalAudit.map((entry) => <AuditLogEntry key={entry.id} entry={entry} showPlayer />)}
+                </ul>
+              )}
+
+              {!isChronologicalAudit && groupedAudit.length > 0 && (
                 <div className="space-y-4">
                   {groupedAudit.map((group) => (
                     <div key={group.playerId} className="bg-gray-50 border border-gray-100 rounded-md p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-medium">{group.playerFirstName} {group.playerLastName}</div>
-                        <div className="text-xs text-gray-500">{group.entries.length} {t("participationResponses")}</div>
+                        <div className="text-xs text-gray-500">{group.entries.length} {t("participationChanges")}</div>
                       </div>
 
                       <ul className="space-y-2">
-                        {group.entries.map((e) => (
-                          <li key={e.id} className="text-sm text-gray-700 bg-white border border-gray-100 rounded p-3">
-                            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                              <div className="min-w-0 text-left">{e.changedBy ?? ""}</div>
-                              <div className="ml-4 text-right">{new Date(e.createdAt).toLocaleString()}</div>
-                            </div>
-
-                            {e.previousStatus !== e.newStatus && (
-                              <div className="text-xs">
-                                <span className="text-gray-400 mr-1">{t("statusLabel")}:</span>
-                                <span className="font-medium">{e.previousStatus ?? "—"}</span>
-                                <span className="mx-2">→</span>
-                                <span className="font-medium">{e.newStatus ?? "—"}</span>
-                              </div>
-                            )}
-
-                            {(e.previousIsInLineup ?? false) !== (e.newIsInLineup ?? false) && (
-                              <div className="text-xs mt-1">
-                                <span className="text-gray-400 mr-1">{t("lineupLabel")}:</span>
-                                <span className="font-medium ml-1">{e.previousIsInLineup ? t("inLineup") : t("notInLineup")}</span>
-                                <span className="mx-2">→</span>
-                                <span className="font-medium">{e.newIsInLineup ? t("inLineup") : t("notInLineup")}</span>
-                              </div>
-                            )}
-
-                            {e.previousComment !== e.newComment && (
-                              <div className="text-xs mt-1">
-                                <span className="text-gray-400 mr-1">{t("commentChange")}</span>
-                                <span className="ml-1">{`${formatAuditComment(e.previousComment)} → ${formatAuditComment(e.newComment)}`}</span>
-                              </div>
-                            )}
-
-                            {e.previousCaptainComment !== e.newCaptainComment && (
-                              <div className="text-xs mt-1">
-                                <span className="text-gray-400 mr-1">{t("captainsComment")}:</span>
-                                <span className="ml-1">{`${formatAuditComment(e.previousCaptainComment)} → ${formatAuditComment(e.newCaptainComment)}`}</span>
-                              </div>
-                            )}
-                          </li>
-                        ))}
+                        {group.entries.map((entry) => <AuditLogEntry key={entry.id} entry={entry} />)}
                       </ul>
                     </div>
                   ))}

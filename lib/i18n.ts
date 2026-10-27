@@ -106,7 +106,10 @@ export const translations = {
     statusLockedUntilUnfinalized: "Bitte nehmen Sie die Aufstellung zurück, um Rückmeldungen zu ändern.",
     commentChange: "Kommentar:",
     emptyComment: "LEER",
-    participationResponses: "Antworten",
+    participationChanges: "Änderungen",
+    showChronologicalAudit: "Änderungen chronologisch anzeigen",
+    showAuditByPlayer: "Änderungen nach Spieler gruppieren",
+    chronologicalAudit: "Chronologische Änderungen",
     loadMoreAuditEntries: "{count} weitere laden",
     loadMoreAuditEntriesFailed: "Weitere Einträge konnten nicht geladen werden",
 
@@ -443,7 +446,10 @@ export const translations = {
     statusLockedUntilUnfinalized: "Unfinalize the lineup to change RSVPs.",
     commentChange: "Comment:",
     emptyComment: "EMPTY",
-    participationResponses: "Responses",
+    participationChanges: "changes",
+    showChronologicalAudit: "Show changes chronologically",
+    showAuditByPlayer: "Group changes by player",
+    chronologicalAudit: "Chronological changes",
     loadMoreAuditEntries: "Load {count} more",
     loadMoreAuditEntriesFailed: "Failed to load more entries",
 

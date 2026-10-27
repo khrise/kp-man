@@ -392,6 +392,65 @@ describe("lineup audit pagination", () => {
 
   beforeEach(() => loadMore.mockReset())
 
+  it("switches between player groups and newest-first entries with all change details", () => {
+    const newest = {
+      ...entry, id: 8, playerId: 2, playerFirstName: "Ben", playerLastName: "Jones",
+      changedBy: "Captain Ben", createdAt: "2026-06-02T14:00:00Z",
+      previousStatus: "confirmed", newStatus: "declined",
+      previousIsInLineup: true, newIsInLineup: false,
+      previousComment: null, newComment: "Player note",
+      previousCaptainComment: "Old note", newCaptainComment: "New note",
+    }
+    render(<LineupClient {...props} auditEntries={[
+      { ...entry, changedBy: "Captain Anna", previousStatus: "maybe", newStatus: "confirmed" },
+      newest,
+      { ...entry, id: 7, playerId: 3, playerFirstName: "Chris", playerLastName: "Smith",
+        changedBy: "Captain Chris", createdAt: newest.createdAt },
+    ]} />)
+
+    expect(screen.getAllByText(/participationChanges/)).toHaveLength(3)
+    fireEvent.click(screen.getByRole("button", { name: "showChronologicalAudit" }))
+    const list = screen.getByRole("list", { name: "chronologicalAudit" })
+    const items = within(list).getAllByRole("listitem")
+    expect(items).toHaveLength(3)
+    const first = within(items[0])
+    expect(first.getByText("Ben Jones")).toBeInTheDocument()
+    expect(first.getByText("Captain Ben")).toBeInTheDocument()
+    expect(items[0].querySelector("time")).toHaveAttribute("datetime", newest.createdAt)
+    expect(first.getByText(new Date(newest.createdAt).toLocaleString())).toBeInTheDocument()
+    expect(first.getByText("statusLabel:")).toBeInTheDocument()
+    expect(first.getByText("lineupLabel:")).toBeInTheDocument()
+    expect(first.getByText('emptyComment → "Player note"')).toBeInTheDocument()
+    expect(first.getByText('"Old note" → "New note"')).toBeInTheDocument()
+    expect(within(items[1]).getByText("Chris Smith")).toBeInTheDocument()
+    expect(within(items[2]).getByText("Anna Smith")).toBeInTheDocument()
+    expect(screen.queryByText(/participationChanges/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "showAuditByPlayer" }))
+    expect(screen.queryByRole("list", { name: "chronologicalAudit" })).not.toBeInTheDocument()
+    expect(screen.getAllByText(/participationChanges/)).toHaveLength(3)
+  })
+
+  it("retains loaded entries across view switches and paginates the chronological view", async () => {
+    loadMore.mockResolvedValueOnce({ entries: [older(5, 2, "Older")], hasMore: false })
+    render(<LineupClient {...props} auditEntries={[{ ...entry, id: 10 }]} auditHasMore />)
+    fireEvent.click(screen.getByRole("button", { name: "showChronologicalAudit" }))
+    fireEvent.click(screen.getByText(linkText))
+    expect(await screen.findByText("Anna Older")).toBeInTheDocument()
+    expect(loadMore).toHaveBeenCalledWith("1", 1)
+    expect(within(screen.getByRole("list", { name: "chronologicalAudit" })).getAllByRole("listitem")).toHaveLength(2)
+    fireEvent.click(screen.getByRole("button", { name: "showAuditByPlayer" }))
+    expect(screen.getByText("Anna Older")).toBeInTheDocument()
+    expect(screen.queryByText(linkText)).not.toBeInTheDocument()
+  })
+
+  it("keeps the empty state when switching to chronological view", () => {
+    render(<LineupClient {...props} auditEntries={[]} />)
+    fireEvent.click(screen.getByRole("button", { name: "showChronologicalAudit" }))
+    expect(screen.getByText("No audit entries")).toBeInTheDocument()
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument()
+  })
+
   it("hides the load-more link when there are no older entries", () => {
     render(<LineupClient {...props} auditEntries={[entry]} auditHasMore={false} auditPageSize={100} />)
     expect(screen.queryByText(linkText)).not.toBeInTheDocument()
