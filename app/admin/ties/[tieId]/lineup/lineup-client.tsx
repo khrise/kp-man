@@ -354,6 +354,7 @@ export function LineupClient({
   auditPageSize = 100,
 }: LineupClientProps) {
   const { t, tWithParams } = useTranslation()
+  const formatAuditComment = (comment: string | null) => comment ? `"${comment}"` : t("emptyComment")
   const router = useRouter()
   const canReopen = usePermission(Permission.LineupReopen)
   const [isLoading, setIsLoading] = useState(false)
@@ -866,14 +867,14 @@ Aufstellung: ${playerNames}`
                             {e.previousComment !== e.newComment && (
                               <div className="text-xs mt-1">
                                 <span className="text-gray-400 mr-1">{t("commentChange")}</span>
-                                <span className="ml-1">{`"${e.previousComment ?? ""}" → "${e.newComment ?? ""}"`}</span>
+                                <span className="ml-1">{`${formatAuditComment(e.previousComment)} → ${formatAuditComment(e.newComment)}`}</span>
                               </div>
                             )}
 
                             {e.previousCaptainComment !== e.newCaptainComment && (
                               <div className="text-xs mt-1">
                                 <span className="text-gray-400 mr-1">{t("captainsComment")}:</span>
-                                <span className="ml-1">{`"${e.previousCaptainComment ?? ""}" → "${e.newCaptainComment ?? ""}"`}</span>
+                                <span className="ml-1">{`${formatAuditComment(e.previousCaptainComment)} → ${formatAuditComment(e.newCaptainComment)}`}</span>
                               </div>
                             )}
                           </li>

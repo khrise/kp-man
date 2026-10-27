@@ -107,6 +107,25 @@ describe("lineup participation audit", () => {
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument()
     expect(screen.queryByText("Anna Smith")).not.toBeInTheDocument()
   })
+  it.each([
+    { previousComment: null, newComment: "New note" },
+    { previousComment: "", newComment: "New note" },
+    { previousCaptainComment: null, newCaptainComment: "New note" },
+    { previousCaptainComment: "", newCaptainComment: "New note" },
+  ])("labels empty previous comments instead of displaying empty quotes: %o", (changes) => {
+    const audit = renderAudit(changes)
+    expect(audit.getByText('emptyComment → "New note"')).toBeInTheDocument()
+  })
+
+  it.each([
+    { previousComment: "Old note", newComment: null },
+    { previousComment: "Old note", newComment: "" },
+    { previousCaptainComment: "Old note", newCaptainComment: null },
+    { previousCaptainComment: "Old note", newCaptainComment: "" },
+  ])("labels cleared comments instead of displaying empty quotes: %o", (changes) => {
+    const audit = renderAudit(changes)
+    expect(audit.getByText('"Old note" → emptyComment')).toBeInTheDocument()
+  })
 })
 
 describe("player RSVP comments", () => {
