@@ -237,6 +237,25 @@ export const translations = {
     linkedTo: "Verknüpft mit",
     confirmDeleteUser: "Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?",
 
+    // Captain notifications
+    noCaptainCandidates: "Keine Benutzer mit der Rolle Mannschaftskapitän vorhanden.",
+    unassignedCaptainsHint: "Mannschaftskapitäne ohne Mannschaft (erhalten keine Benachrichtigungen):",
+    notificationPreferences: "Benachrichtigungen",
+    notificationPreferencesDesc: "Werde benachrichtigt, wenn sich Zu- oder Absagen für Spieltage deiner Mannschaft ändern.",
+    notificationsEnabled: "Benachrichtigungen aktiviert",
+    pushoverUserKey: "Pushover User Key",
+    pushoverUserKeyHelp: "Den User Key findest du in deinem Pushover-Dashboard.",
+    notificationWindow: "Zeitfenster",
+    windowNextTie: "Nur nächster Spieltag",
+    window7: "Innerhalb von 7 Tagen",
+    window14: "Innerhalb von 14 Tagen",
+    window30: "Innerhalb von 30 Tagen",
+    windowAll: "Alle kommenden Spieltage",
+    sendTestNotification: "Testbenachrichtigung senden",
+    testNotificationSent: "Testbenachrichtigung wurde gesendet.",
+    settingsSaved: "Einstellungen gespeichert.",
+    captainsOnly: "Diese Seite ist nur für Mannschaftskapitäne verfügbar.",
+
     // Teams
     manageTeamsDesc: "Verwalten Sie Ihre Mannschaften",
     addTeam: "Mannschaft hinzufügen",
@@ -581,6 +600,25 @@ export const translations = {
     player: "Player",
     linkedTo: "Linked to",
     confirmDeleteUser: "Are you sure you want to delete this user?",
+
+    // Captain notifications
+    noCaptainCandidates: "No users with the team captain role yet.",
+    unassignedCaptainsHint: "Team captains without a team (they will not receive notifications):",
+    notificationPreferences: "Notifications",
+    notificationPreferencesDesc: "Get notified when players change their participation for ties of your team.",
+    notificationsEnabled: "Notifications enabled",
+    pushoverUserKey: "Pushover user key",
+    pushoverUserKeyHelp: "You can find your user key in your Pushover dashboard.",
+    notificationWindow: "Time window",
+    windowNextTie: "Next tie only",
+    window7: "Within 7 days",
+    window14: "Within 14 days",
+    window30: "Within 30 days",
+    windowAll: "All upcoming ties",
+    sendTestNotification: "Send test notification",
+    testNotificationSent: "Test notification sent.",
+    settingsSaved: "Settings saved.",
+    captainsOnly: "This page is only available to team captains.",
 
     // Teams
     manageTeamsDesc: "Manage your teams",

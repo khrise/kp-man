@@ -103,3 +103,8 @@ export async function deleteUserAction(id: string) {
   revalidatePath("/admin/users")
   return { success: true }
 }
+
+export async function getUnassignedCaptainUsersAction() {
+  await requireAdmin()
+  return await db.getUnassignedCaptainUsers()
+}

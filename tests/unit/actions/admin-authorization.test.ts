@@ -37,6 +37,7 @@ jest.mock("@/lib/config-service", () => ({
 jest.mock("@/lib/db", () => ({
   getUserById: jest.fn(),
   getUsersWithPlayerInfo: jest.fn(),
+  getUnassignedCaptainUsers: jest.fn(),
   createUser: jest.fn(),
   updateUser: jest.fn(),
   updateUserPassword: jest.fn(),
@@ -106,6 +107,7 @@ function form() {
 
 const protectedActions: Array<{ name: string; run: () => Promise<unknown>; query: keyof typeof db | "setTeamCaptains" }> = [
   { name: "getUsers", run: () => users.getUsers(), query: "getUsersWithPlayerInfo" },
+  { name: "getUnassignedCaptainUsersAction", run: () => users.getUnassignedCaptainUsersAction(), query: "getUnassignedCaptainUsers" },
   { name: "createUserAction", run: () => users.createUserAction(form()), query: "createUser" },
   { name: "updateUserAction", run: () => users.updateUserAction("1", form()), query: "updateUser" },
   { name: "updateUserPasswordAction", run: () => users.updateUserPasswordAction("1", form()), query: "updateUserPassword" },

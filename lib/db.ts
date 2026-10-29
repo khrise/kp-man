@@ -152,6 +152,17 @@ interface AppSettingsTable {
   updatedAt: TimestampColumn
 }
 
+interface NotificationSettingsTable {
+  id: Generated<number>
+  userId: number
+  channel: string
+  enabled: ColumnType<boolean, boolean | undefined, boolean | undefined>
+  target: ColumnType<string, string | undefined, string | undefined>
+  windowMode: ColumnType<string, string | undefined, string | undefined>
+  createdAt: TimestampColumn
+  updatedAt: TimestampColumn
+}
+
 export interface Database {
   users: UsersTable
   seasons: SeasonsTable
@@ -165,6 +176,7 @@ export interface Database {
   participation_audit: ParticipationAuditTable
   migrations: MigrationsTable
   app_settings: AppSettingsTable
+  notificationSettings: NotificationSettingsTable
 }
 
 const globalForDb = globalThis as unknown as {
@@ -729,6 +741,18 @@ export async function getParticipations(tieId: number): Promise<ParticipationWit
 }
 
 type UpsertParticipationInput = Pick<Insertable<ParticipationsTable>, "tieId" | "playerId" | "status" | "comment">
+
+export async function getParticipationByTieAndPlayer(
+  tieId: number,
+  playerId: number,
+): Promise<Participation | undefined> {
+  return db
+    .selectFrom("participations")
+    .selectAll()
+    .where("tieId", "=", tieId)
+    .where("playerId", "=", playerId)
+    .executeTakeFirst()
+}
 
 export async function upsertParticipation(data: UpsertParticipationInput): Promise<Participation> {
   return db.transaction().execute(async (trx) => {
@@ -1432,4 +1456,93 @@ export async function setAppSetting(
 
 export async function deleteAppSetting(key: string): Promise<void> {
   await db.deleteFrom("app_settings").where("key", "=", key).execute()
+}
+
+// Notification settings
+export type NotificationSetting = Selectable<NotificationSettingsTable>
+
+export async function getNotificationSettings(userId: number): Promise<NotificationSetting[]> {
+  return db.selectFrom("notificationSettings").selectAll().where("userId", "=", userId).execute()
+}
+
+export async function upsertNotificationSetting(data: {
+  userId: number
+  channel: string
+  enabled: boolean
+  target: string
+  windowMode: string
+}): Promise<NotificationSetting> {
+  return db
+    .insertInto("notificationSettings")
+    .values(data)
+    .onConflict((oc) =>
+      oc.columns(["userId", "channel"]).doUpdateSet({
+        enabled: data.enabled,
+        target: data.target,
+        windowMode: data.windowMode,
+        updatedAt: sql`now()`,
+      }),
+    )
+    .returningAll()
+    .executeTakeFirstOrThrow()
+}
+
+export type CaptainRecipient = {
+  userId: number
+  playerId: number | null
+  channel: string
+  target: string
+  windowMode: string
+}
+
+// Enabled notification settings of all captains of a team
+export async function getCaptainRecipientsForTeam(teamId: number): Promise<CaptainRecipient[]> {
+  return db
+    .selectFrom("teamCaptains as tc")
+    .innerJoin("users as u", "u.id", "tc.userId")
+    .innerJoin("notificationSettings as ns", "ns.userId", "u.id")
+    .select(["u.id as userId", "u.playerId", "ns.channel", "ns.target", "ns.windowMode"])
+    .where("tc.teamId", "=", teamId)
+    .where("u.role", "=", "team_captain")
+    .where("ns.enabled", "=", true)
+    .execute()
+}
+
+export async function getNextUpcomingTieId(teamId: number, now: Date): Promise<number | undefined> {
+  const row = await db
+    .selectFrom("ties")
+    .select("id")
+    .where("teamId", "=", teamId)
+    .where("tieDate", ">=", now)
+    .orderBy("tieDate")
+    .orderBy("id")
+    .executeTakeFirst()
+  return row?.id
+}
+
+export async function getParticipationNotificationContext(tieId: number, playerId: number) {
+  const tie = await db
+    .selectFrom("ties as t")
+    .innerJoin("teams as tm", "tm.id", "t.teamId")
+    .select(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.isHome", "tm.name as teamName"])
+    .where("t.id", "=", tieId)
+    .executeTakeFirst()
+  const player = await db
+    .selectFrom("players")
+    .select(["id", "firstName", "lastName"])
+    .where("id", "=", playerId)
+    .executeTakeFirst()
+  return { tie, player }
+}
+
+export async function getUnassignedCaptainUsers(): Promise<{ id: number; username: string; email: string }[]> {
+  return db
+    .selectFrom("users as u")
+    .select(["u.id", "u.username", "u.email"])
+    .where("u.role", "=", "team_captain")
+    .where((eb) =>
+      eb.not(eb.exists(eb.selectFrom("teamCaptains as tc").select("tc.userId").whereRef("tc.userId", "=", "u.id"))),
+    )
+    .orderBy("u.username")
+    .execute()
 }

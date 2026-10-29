@@ -2,6 +2,7 @@
 
 import * as db from "@/lib/db"
 import { PlayerParticipationDto } from "@/lib/db"
+import { upsertParticipationAndNotify } from "@/lib/notifications/dispatcher"
 
 export async function validateAccessCode(accessCode: string) {
   const season = await db.getSeasonByAccessCode(accessCode)
@@ -121,7 +122,7 @@ export async function updateParticipation(
     "comment:",
     comment,
   )
-  return await db.upsertParticipation({
+  return await upsertParticipationAndNotify({
     tieId: numericTieId,
     playerId: numericPlayerId,
     status,
