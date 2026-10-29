@@ -89,7 +89,12 @@ export async function notifyParticipationChange(
 
 /** Single write path for participations: stores the response and notifies captains on changes. */
 export async function upsertParticipationAndNotify(data: UpsertInput): Promise<db.Participation> {
-  const previous = await db.getParticipationByTieAndPlayer(data.tieId, data.playerId)
+  let previous: db.Participation | undefined
+  try {
+    previous = await db.getParticipationByTieAndPlayer(data.tieId, data.playerId)
+  } catch (error) {
+    console.error("[NOTIFICATIONS] Failed to load previous participation:", error instanceof Error ? error.message : error)
+  }
   const current = await db.upsertParticipation(data)
 
   try {

@@ -9,9 +9,6 @@ import {
   updateUser,
   deleteUser,
   deleteTeam,
-  setTeamCaptains,
-  getTeamCaptainIds,
-  getCaptainCandidates,
   getUnassignedCaptainUsers,
   upsertNotificationSetting,
   getNotificationSettings,
@@ -22,6 +19,15 @@ import {
 } from "@/lib/db"
 
 let ctx: TestDatabaseContext
+
+const setTeamCaptains = async (teamId: number, userIds: number[]) => {
+  await ctx.db.deleteFrom("teamCaptains").where("teamId", "=", teamId).execute()
+  if (userIds.length) {
+    await ctx.db.insertInto("teamCaptains").values(userIds.map((userId) => ({ teamId, userId }))).execute()
+  }
+}
+const getTeamCaptainIds = async (teamId: number) =>
+  (await ctx.db.selectFrom("teamCaptains").select("userId").where("teamId", "=", teamId).execute()).map((r) => r.userId)
 
 beforeAll(async () => {
   ctx = await setupTestDatabase()
@@ -41,23 +47,7 @@ async function fixture() {
   return { season, team, mk }
 }
 
-describe("team captains", () => {
-  it("assigns several captains and only accepts team_captain users", async () => {
-    const { team, mk } = await fixture()
-    const c1 = await mk("c1")
-    const c2 = await mk("c2")
-    const plain = await mk("plain", "user")
-
-    await setTeamCaptains(team.id, [c1.id, c2.id, plain.id])
-    expect((await getTeamCaptainIds(team.id)).sort()).toEqual([c1.id, c2.id].sort())
-    expect((await getCaptainCandidates()).map((u) => u.username)).toEqual(["c1", "c2"])
-
-    await setTeamCaptains(team.id, [c2.id])
-    expect(await getTeamCaptainIds(team.id)).toEqual([c2.id])
-    await setTeamCaptains(team.id, [])
-    expect(await getTeamCaptainIds(team.id)).toEqual([])
-  })
-
+describe("captain assignment cleanup", () => {
   it("removes assignments when the role changes or the user/team is deleted", async () => {
     const { team, mk } = await fixture()
     const c1 = await mk("c1")

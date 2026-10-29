@@ -14,6 +14,8 @@ import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import { createSeasonAction, updateSeasonAction, deleteSeasonAction } from "@/app/actions/seasons"
 import { useTranslation } from "@/lib/i18n"
 import Link from "next/link"
+import { usePermission } from "@/components/management-provider"
+import { Permission } from "@/lib/permissions"
 
 type Season = {
   id: number
@@ -39,6 +41,7 @@ function generateAccessCode(): string {
 export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) {
   const { t } = useTranslation()
   const router = useRouter()
+  const canManage = usePermission(Permission.SeasonsManage)
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
@@ -118,11 +121,11 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
           <p className="mt-2 text-gray-600">{t("manageSeasonsDesc")}</p>
         </div>
         <div className="flex gap-2 sm:flex-shrink-0">
-          <Button onClick={handleAddNew}>
+          {canManage && <Button onClick={handleAddNew}>
             <Plus className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">{t("addSeason")}</span>
             <span className="sm:hidden">{t("add")}</span>
-          </Button>
+          </Button>}
         </div>
       </div>
 
@@ -228,7 +231,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                     </Link>
                   </p>
                 </div>
-                <div className="flex gap-2 sm:flex-shrink-0">
+                {canManage && <div className="flex gap-2 sm:flex-shrink-0">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(season)}>
                     <Edit className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("edit")}</span>
@@ -243,7 +246,7 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
                     <Trash2 className="h-4 w-4" />
                     <span className="ml-1 hidden sm:inline">{t("delete")}</span>
                   </Button>
-                </div>
+                </div>}
               </div>
             </CardContent>
           </Card>
@@ -252,4 +255,3 @@ export function SeasonsClient({ initialSeasons }: { initialSeasons: Season[] }) 
     </>
   )
 }
-

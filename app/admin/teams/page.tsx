@@ -2,18 +2,22 @@ import { AuthGuard } from "@/components/auth-guard"
 import { AdminHeader } from "@/components/admin-header"
 import { TeamsClient } from "./teams-client"
 import * as db from "@/lib/db"
+import { requireAdminPage } from "@/lib/server/auth"
+import { Permission } from "@/lib/permissions"
+import { getCaptainOptions, getCaptainTeamIds, getTeamCaptains } from "@/lib/team-captains"
+import { ManagementProvider } from "@/components/management-provider"
 
 // Force dynamic rendering for admin pages
 export const dynamic = 'force-dynamic'
 
 export default async function TeamsPage() {
-  const [teams, seasons, players, currentSeason, captainCandidates, teamCaptains] = await Promise.all([
-    db.getTeams(),
-    db.getSeasons(),
-    db.getPlayers(),
+  const user = await requireAdminPage(Permission.ManagementAccess)
+  const teamIds = user.role === "admin" ? undefined : await getCaptainTeamIds(user.id)
+  const [teams, seasons, players, currentSeason] = await Promise.all([
+    db.getTeams(teamIds),
+    db.getSeasons(teamIds),
+    db.getPlayers(teamIds),
     db.getCurrentSeason(),
-    db.getCaptainCandidates(),
-    db.getAllTeamCaptains(),
   ])
 
   const teamsWithPlayers = await Promise.all(
@@ -21,7 +25,7 @@ export default async function TeamsPage() {
       const teamPlayers = await db.getTeamPlayers(team.id)
       return {
         ...team,
-        captainIds: teamCaptains.filter((c) => c.teamId === team.id).map((c) => c.userId),
+        captains: await getTeamCaptains(team.id),
         players: teamPlayers.map((player) => ({
           id: player.id,
           firstName: player.firstName,
@@ -33,7 +37,7 @@ export default async function TeamsPage() {
   )
 
   return (
-    <AuthGuard>
+    <ManagementProvider role={user.role}><AuthGuard>
       <div className="min-h-screen bg-gray-50">
         <AdminHeader />
         <main className="mx-auto max-w-7xl px-6 py-8">
@@ -41,12 +45,11 @@ export default async function TeamsPage() {
             initialTeams={teamsWithPlayers}
             seasons={seasons}
             players={players}
-            currentSeasonId={currentSeason?.id ?? null}
-            captainCandidates={captainCandidates}
+            currentSeasonId={currentSeason && seasons.some((season) => season.id === currentSeason.id) ? currentSeason.id : null}
+            captainOptions={user.role === "admin" ? await getCaptainOptions() : []}
           />
         </main>
       </div>
-    </AuthGuard>
+    </AuthGuard></ManagementProvider>
   )
 }
-

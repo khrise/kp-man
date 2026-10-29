@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Trash2, Check, X, ArrowUpDown, Users, Calendar, MapPin } from "lucide-react"
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
+import { fetchMatchImportPage } from "@/lib/api/match-import"
 import { useTranslation } from "@/lib/i18n"
 
 type Tie = {
@@ -21,6 +22,8 @@ type Tie = {
   location: string | null
   isHome: boolean
   notes: string | null
+  captainComment?: string | null
+  captainCommentAuthor?: string | null
   seasonId: number
   teamName: string
   seasonName: string
@@ -461,19 +464,11 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                       setImportResult(null)
                       setParsedTies([])
                       try {
-                        // Fetch the remote page via our proxy to avoid CORS
-                        const res = await fetch("/api/proxy-fetch", {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({ url: importUrl }),
-                        })
-                        if (!res.ok) {
-                          const errorData = await res.json().catch(() => ({}))
-                          throw new Error(errorData.error || `${res.status} ${res.statusText}`)
-                        }
-                        const { html: text } = await res.json()
+                        const [teamName, seasonName] = importTeamSeason.split("|")
+                        const season = seasons.find((item) => item.name === seasonName)
+                        const team = teams.find((item) => item.name === teamName && item.seasonId === season?.id)
+                        if (!team) throw new Error(t("selectTeamForImport"))
+                        const text = await fetchMatchImportPage(importUrl, team.id)
                         // Parse HTML in the client
                         const parser = new DOMParser()
                         const doc = parser.parseFromString(text, "text/html")
@@ -891,6 +886,11 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                       </div>
 
                       {/* Lineup Teaser */}
+                      {tie.captainComment && <div className="mt-2 text-sm text-gray-700">
+                        <p className="whitespace-pre-wrap break-words">{tie.captainComment}</p>
+                        {tie.captainCommentAuthor && <p className="text-xs text-gray-500">{t("commentBy")} {tie.captainCommentAuthor}</p>}
+                      </div>}
+
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                           <div className="flex items-center space-x-2 flex-wrap">
@@ -903,8 +903,6 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                               <span className="h-2 w-2 rounded-full bg-gray-400" title={t("noLineup")}></span>
                             ) : tie.problematicCount > 0 ? (
                               <span className="h-2 w-2 rounded-full bg-red-500" title={t("lineupIssues")}></span>
-                            ) : tie.lineupCount < tie.teamSize ? (
-                              <span className="h-2 w-2 rounded-full bg-yellow-500" title={t("lineupIncomplete")}></span>
                             ) : (
                               <span className="h-2 w-2 rounded-full bg-green-500" title={t("lineupComplete")}></span>
                             )}

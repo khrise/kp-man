@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
+import { AuthorizationError, requirePermission, requireTeamPermission } from "@/lib/server/auth"
+import { Permission } from "@/lib/permissions"
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json()
+    const user = await requirePermission(Permission.TiesManage)
+    const { url, teamId } = await request.json()
+    if (user.role !== "admin") {
+      if (!Number.isSafeInteger(teamId) || teamId <= 0) {
+        return NextResponse.json({ error: "A valid team ID is required" }, { status: 400 })
+      }
+      await requireTeamPermission(teamId, Permission.TiesManage)
+    }
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ error: "Invalid URL provided" }, { status: 400 })
@@ -46,6 +55,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ html })
   } catch (error) {
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     console.error("Proxy fetch error:", error)
     return NextResponse.json(
       { error: `Failed to fetch page: ${error instanceof Error ? error.message : "Unknown error"}` },

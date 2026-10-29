@@ -4,10 +4,15 @@
 import { createTieAction, updateTieAction, deleteTieAction } from "@/app/actions/ties"
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }))
+jest.mock("@/lib/server/auth", () => ({
+  requirePermission: jest.fn().mockResolvedValue({ role: "admin" }),
+  requireTeamPermission: jest.fn().mockResolvedValue({ role: "admin" }),
+}))
 jest.mock("@/lib/db", () => ({
   createTie: jest.fn(),
   updateTie: jest.fn(),
   deleteTie: jest.fn(),
+  getTieById: jest.fn().mockResolvedValue({ id: 1, teamId: 1 }),
 }))
 
 import * as db from "@/lib/db"

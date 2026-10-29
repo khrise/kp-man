@@ -1,13 +1,4 @@
--- Team captains (a team can have several captains) and per-user notification settings
-
-CREATE TABLE IF NOT EXISTS team_captains (
-  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  PRIMARY KEY (team_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_team_captains_user_id ON team_captains(user_id);
+-- Per-user notification settings
 
 -- channel and window_mode are free-form text so new channels/presets need no migration
 CREATE TABLE IF NOT EXISTS notification_settings (

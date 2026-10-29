@@ -8,6 +8,8 @@ import { LogOut, User, Menu, X } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 import { AdminLanguageSwitcher } from "@/components/admin-language-switcher"
 import { useTranslation } from "@/lib/i18n"
+import { usePermission } from "@/components/management-provider"
+import { Permission } from "@/lib/permissions"
 
 export function AdminHeader() {
   const router = useRouter()
@@ -15,6 +17,8 @@ export function AdminHeader() {
   const { data: session } = useSession()
   const { t } = useTranslation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const canManageUsers = usePermission(Permission.UsersManage)
+  const canManageSettings = usePermission(Permission.SettingsManage)
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
@@ -27,8 +31,8 @@ export function AdminHeader() {
     { href: "/admin/teams", label: t("teams") },
     { href: "/admin/players", label: t("players") },
     { href: "/admin/ties", label: t("ties") },
-    { href: "/admin/users", label: t("users") },
-    { href: "/admin/settings", label: t("settings") },
+    ...(canManageUsers ? [{ href: "/admin/users", label: t("users") }] : []),
+    ...(canManageSettings ? [{ href: "/admin/settings", label: t("settings") }] : []),
     ...(session?.user?.role === "team_captain"
       ? [{ href: "/admin/profile", label: t("notificationPreferences") }]
       : []),
