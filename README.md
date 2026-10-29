@@ -104,6 +104,21 @@ The application supports the following environment variables:
 - **`SUPPORT_EMAIL`** (optional): Support contact email (defaults to "support@example.com")
 - **`NEXT_PUBLIC_APP_URL`**: Application URL for public access
 - **`NODE_ENV`**: Environment mode (development/production)
+- **`PUSHOVER_APP_TOKEN`** (optional): Pushover application token used to notify team captains. Never exposed to the client. Captains enter their own Pushover user key on their profile page (`/admin/profile`).
+- **`NOTIFICATIONS_ENABLED`** (optional): `true`/`false` override for sending captain notifications. Without it, notifications are only sent on Vercel production deployments (`VERCEL_ENV=production`) and suppressed everywhere else. The "Send test notification" button always works.
+
+### Captain notifications
+
+Team captains (users with the role `team_captain`, assigned to teams in the admin teams area) are notified when a player changes their participation for a tie of their team. Each captain configures channel, Pushover user key and time window under `/admin/profile`.
+
+To try real notifications on a Vercel preview deployment, scope the variables to the feature branch (all-preview scope would notify from every branch) and redeploy:
+
+```bash
+vercel env add NOTIFICATIONS_ENABLED preview feature/my-branch   # value: true
+vercel env add PUSHOVER_APP_TOKEN preview feature/my-branch
+```
+
+Check which database the preview uses and prefer a test captain with your own Pushover key.
 
 ### Useful Commands
 

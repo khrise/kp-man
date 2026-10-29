@@ -7,11 +7,13 @@ import * as db from "@/lib/db"
 export const dynamic = 'force-dynamic'
 
 export default async function TeamsPage() {
-  const [teams, seasons, players, currentSeason] = await Promise.all([
+  const [teams, seasons, players, currentSeason, captainCandidates, teamCaptains] = await Promise.all([
     db.getTeams(),
     db.getSeasons(),
     db.getPlayers(),
     db.getCurrentSeason(),
+    db.getCaptainCandidates(),
+    db.getAllTeamCaptains(),
   ])
 
   const teamsWithPlayers = await Promise.all(
@@ -19,6 +21,7 @@ export default async function TeamsPage() {
       const teamPlayers = await db.getTeamPlayers(team.id)
       return {
         ...team,
+        captainIds: teamCaptains.filter((c) => c.teamId === team.id).map((c) => c.userId),
         players: teamPlayers.map((player) => ({
           id: player.id,
           firstName: player.firstName,
@@ -39,6 +42,7 @@ export default async function TeamsPage() {
             seasons={seasons}
             players={players}
             currentSeasonId={currentSeason?.id ?? null}
+            captainCandidates={captainCandidates}
           />
         </main>
       </div>

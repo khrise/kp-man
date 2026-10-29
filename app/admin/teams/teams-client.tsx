@@ -30,6 +30,12 @@ type Team = {
   league: string | null
   teamSize: number
   players?: TeamPlayer[]
+  captainIds?: number[]
+}
+
+type CaptainCandidate = {
+  id: number
+  username: string
 }
 
 type Season = {
@@ -48,11 +54,13 @@ export function TeamsClient({
   seasons,
   players,
   currentSeasonId,
+  captainCandidates,
 }: {
   initialTeams: Team[]
   seasons: Season[]
   players: Player[]
   currentSeasonId: number | null
+  captainCandidates: CaptainCandidate[]
 }) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -70,6 +78,7 @@ export function TeamsClient({
     teamSize: "6",
     seasonId: seasons[0] ? String(seasons[0].id) : "",
     playerIds: [] as string[],
+    captainIds: [] as string[],
   })
 
   const handleMovePlayerToRank = (currentIndex: number, newRank: number) => {
@@ -93,6 +102,7 @@ export function TeamsClient({
       teamSize: String(team.teamSize),
       seasonId: String(team.seasonId),
       playerIds: team.players?.map((p) => String(p.id)) || [],
+      captainIds: team.captainIds?.map(String) || [],
     })
   }
 
@@ -104,6 +114,7 @@ export function TeamsClient({
     formDataObj.append("team_size", formData.teamSize)
     formDataObj.append("season_id", formData.seasonId)
     formDataObj.append("player_ids", JSON.stringify(formData.playerIds))
+    formDataObj.append("captain_ids", JSON.stringify(formData.captainIds))
 
     if (editingId !== null) {
       await updateTeamAction(String(editingId), formDataObj)
@@ -113,7 +124,7 @@ export function TeamsClient({
       setIsAdding(false)
     }
 
-    setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
+    setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [], captainIds: [] })
     setEnableRankInput(false) // Reset toggle state
     setShowAvailablePlayers(false) // Reset available players visibility
     router.refresh()
@@ -122,7 +133,7 @@ export function TeamsClient({
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
-    setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [] })
+    setFormData({ name: "", league: "", teamSize: "6", seasonId: seasons[0] ? String(seasons[0].id) : "", playerIds: [], captainIds: [] })
     setEnableRankInput(false) // Reset toggle state
     setShowAvailablePlayers(false) // Reset available players visibility
   }
@@ -265,6 +276,34 @@ export function TeamsClient({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="mt-6 space-y-2">
+                <Label>{t("teamCaptains")}</Label>
+                {captainCandidates.length === 0 ? (
+                  <p className="text-sm text-gray-500">{t("noCaptainCandidates")}</p>
+                ) : (
+                  <div className="flex flex-wrap gap-4">
+                    {captainCandidates.map((candidate) => (
+                      <label key={candidate.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300"
+                          checked={formData.captainIds.includes(String(candidate.id))}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              captainIds: e.target.checked
+                                ? [...formData.captainIds, String(candidate.id)]
+                                : formData.captainIds.filter((id) => id !== String(candidate.id)),
+                            })
+                          }
+                        />
+                        {candidate.username}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 space-y-4">

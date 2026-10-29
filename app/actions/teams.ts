@@ -3,6 +3,17 @@
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/db"
 
+async function applyCaptainIds(teamId: number, formData: FormData) {
+  const captainIds = formData.get("captain_ids") as string | null
+  if (captainIds === null) return
+
+  const parsed = (JSON.parse(captainIds) as Array<string | number>).map((id) => Number(id))
+  if (parsed.some((id) => Number.isNaN(id))) {
+    throw new Error("Invalid captain id")
+  }
+  await db.setTeamCaptains(teamId, parsed)
+}
+
 export async function createTeamAction(formData: FormData) {
   const seasonId = Number(formData.get("season_id"))
   if (Number.isNaN(seasonId)) {
@@ -36,6 +47,8 @@ export async function createTeamAction(formData: FormData) {
     })
     await db.setTeamPlayers(team.id, parsedPlayerIds)
   }
+
+  await applyCaptainIds(team.id, formData)
 
   revalidatePath("/admin/teams")
   return { success: true }
@@ -79,6 +92,8 @@ export async function updateTeamAction(id: string, formData: FormData) {
     })
     await db.setTeamPlayers(teamId, parsedPlayerIds)
   }
+
+  await applyCaptainIds(teamId, formData)
 
   revalidatePath("/admin/teams")
   return { success: true }

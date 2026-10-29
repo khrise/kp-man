@@ -4,14 +4,14 @@
 import { updateParticipationAction } from "@/app/actions/participations"
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }))
-jest.mock("@/lib/db", () => ({
-  upsertParticipation: jest.fn(),
+jest.mock("@/lib/notifications/dispatcher", () => ({
+  upsertParticipationAndNotify: jest.fn(),
 }))
 
-import * as db from "@/lib/db"
+import * as db from "@/lib/notifications/dispatcher"
 import { revalidatePath } from "next/cache"
 
-const mockDb = db as jest.Mocked<typeof db>
+const mockDb = { upsertParticipation: db.upsertParticipationAndNotify as jest.Mock }
 const mockRevalidatePath = revalidatePath as jest.Mock
 
 beforeEach(() => {

@@ -12,6 +12,7 @@ import { Plus, Edit, Trash2, Check, X, Key, Shield } from "lucide-react"
 import type { Player } from "@/lib/types"
 import {
   getUsers,
+  getUnassignedCaptainUsersAction,
   createUserAction,
   updateUserAction,
   updateUserPasswordAction,
@@ -36,6 +37,7 @@ export default function UsersPage() {
   const { t } = useTranslation()
   const [users, setUsers] = useState<UserWithPlayer[]>([])
   const [players, setPlayers] = useState<Player[]>([])
+  const [unassignedCaptains, setUnassignedCaptains] = useState<{ id: number; username: string }[]>([])
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [changingPasswordId, setChangingPasswordId] = useState<string | null>(null)
@@ -52,7 +54,12 @@ export default function UsersPage() {
   }, [])
 
   const loadData = async () => {
-    const [usersData, playersData] = await Promise.all([getUsers(), getPlayers()])
+    const [usersData, playersData, unassigned] = await Promise.all([
+      getUsers(),
+      getPlayers(),
+      getUnassignedCaptainUsersAction(),
+    ])
+    setUnassignedCaptains(unassigned)
     setUsers(usersData as UserWithPlayer[])
     setPlayers(playersData as Player[])
   }
@@ -156,6 +163,12 @@ export default function UsersPage() {
               {t("addUser")}
             </Button>
           </div>
+
+          {unassignedCaptains.length > 0 && (
+            <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              {t("unassignedCaptainsHint")} {unassignedCaptains.map((u) => u.username).join(", ")}
+            </div>
+          )}
 
           {(isAdding || editingId !== null) && (
             <Card className="mb-6">

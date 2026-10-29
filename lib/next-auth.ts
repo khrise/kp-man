@@ -24,6 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id
         token.username = user.username
+        token.role = user.role
       }
       return token
     },
@@ -33,6 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id
         // @ts-expect-error - suppress type issues for now
         session.user.username = token.username
+        session.user.role = token.role as string | undefined
       }
       return session
     },
@@ -72,6 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             id: user.id.toString(),
             username: user.username,
             email: user.email,
+            role: user.role,
           }
         } catch (error) {
           console.error("[AUTH] Auth error:", error)

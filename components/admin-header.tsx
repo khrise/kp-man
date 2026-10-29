@@ -29,6 +29,9 @@ export function AdminHeader() {
     { href: "/admin/ties", label: t("ties") },
     { href: "/admin/users", label: t("users") },
     { href: "/admin/settings", label: t("settings") },
+    ...(session?.user?.role === "team_captain"
+      ? [{ href: "/admin/profile", label: t("notificationPreferences") }]
+      : []),
   ]
 
   return (
