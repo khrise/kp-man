@@ -3,15 +3,16 @@
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
 import * as db from "@/lib/db"
-import { requireAdmin } from "@/lib/server/auth"
+import { Permission } from "@/lib/permissions"
+import { requirePermission } from "@/lib/server/auth"
 
 export async function getUsers() {
-  await requireAdmin()
+  await requirePermission(Permission.UsersManage)
   return await db.getUsersWithPlayerInfo()
 }
 
 export async function createUserAction(formData: FormData) {
-  await requireAdmin()
+  await requirePermission(Permission.UsersManage)
   const username = formData.get("username") as string
   const email = formData.get("email") as string
   const password = formData.get("password") as string
@@ -42,7 +43,7 @@ export async function createUserAction(formData: FormData) {
 }
 
 export async function updateUserAction(id: string, formData: FormData) {
-  await requireAdmin()
+  await requirePermission(Permission.UsersManage)
   const userId = Number(id)
   if (Number.isNaN(userId)) {
     throw new Error("Invalid user id")
@@ -73,7 +74,7 @@ export async function updateUserAction(id: string, formData: FormData) {
 }
 
 export async function updateUserPasswordAction(id: string, formData: FormData) {
-  await requireAdmin()
+  await requirePermission(Permission.UsersManage)
   const userId = Number(id)
   if (Number.isNaN(userId)) {
     throw new Error("Invalid user id")
@@ -93,7 +94,7 @@ export async function updateUserPasswordAction(id: string, formData: FormData) {
 }
 
 export async function deleteUserAction(id: string) {
-  await requireAdmin()
+  await requirePermission(Permission.UsersManage)
   const userId = Number(id)
   if (Number.isNaN(userId)) {
     throw new Error("Invalid user id")
@@ -105,6 +106,6 @@ export async function deleteUserAction(id: string) {
 }
 
 export async function getUnassignedCaptainUsersAction() {
-  await requireAdmin()
+  await requirePermission(Permission.UsersManage)
   return await db.getUnassignedCaptainUsers()
 }
