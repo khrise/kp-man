@@ -21,6 +21,7 @@ import { ParticipationCommentDialog } from "@/components/participation-comment-d
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useTranslation } from "@/lib/i18n"
 import { Season, Team } from "@/lib/types"
+import { parseTieAnchor, tieAnchorId } from "@/lib/tie-anchor"
 import { PlayerParticipationDto } from "@/lib/db"
 import { cn, getISOWeekInfo } from "@/lib/utils"
 
@@ -706,6 +707,25 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
 
   const weekGroups = useMemo(() => buildWeekGroups(filteredTies, sortBy), [filteredTies, sortBy])
 
+  // Deep link (#tie-<id>): widen the filters so the tie is listed, then scroll to it
+  const [anchoredTieId, setAnchoredTieId] = useState<number | null>(null)
+  const anchorHandled = useRef(false)
+  useEffect(() => {
+    if (anchorHandled.current) return
+    const id = parseTieAnchor(window.location.hash)
+    const target = id === null ? undefined : ties.find((tie) => tie.id === id)
+    if (!target) return
+    anchorHandled.current = true
+    setTimeFilter("all")
+    setSelectedTeamIds(null)
+    setAnchoredTieId(target.id)
+  }, [ties])
+
+  useEffect(() => {
+    if (anchoredTieId === null) return
+    document.getElementById(tieAnchorId(anchoredTieId))?.scrollIntoView({ block: "center" })
+  }, [anchoredTieId, weekGroups])
+
   const playerRankMeta = useMemo(() => {
     const byPlayer = new Map<
       number,
@@ -1259,7 +1279,11 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                       return (
                         <div
                           key={tie.id}
-                          className="rounded-lg bg-[#4a5f7a] p-6 shadow-lg min-w-[220px] md:min-w-[260px]"
+                          id={tieAnchorId(tie.id)}
+                          className={cn(
+                            "scroll-mt-24 rounded-lg bg-[#4a5f7a] p-6 shadow-lg min-w-[220px] md:min-w-[260px]",
+                            anchoredTieId === tie.id && "ring-2 ring-blue-300",
+                          )}
                         >
                           <div className="mb-3 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-blue-200 overflow-hidden">
                             <div className="flex items-center gap-2 flex-shrink-0">
