@@ -10,10 +10,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   getMyNotificationSettingsAction,
+  getNotificationStatusAction,
   saveMyNotificationSettingAction,
   sendTestNotificationAction,
   type NotificationSettingDto,
 } from "@/app/actions/notifications"
+import type { NotificationStatus } from "@/lib/notifications/guard"
 import { useTranslation } from "@/lib/i18n"
 
 const WINDOW_LABELS = {
@@ -29,6 +31,7 @@ type Feedback = { type: "success" | "error"; message: string } | null
 export default function ProfileClient() {
   const { t } = useTranslation()
   const [settings, setSettings] = useState<NotificationSettingDto[] | null>(null)
+  const [status, setStatus] = useState<NotificationStatus | null>(null)
   const [forbidden, setForbidden] = useState(false)
   const [feedback, setFeedback] = useState<Record<string, Feedback>>({})
 
@@ -36,6 +39,7 @@ export default function ProfileClient() {
     getMyNotificationSettingsAction()
       .then(setSettings)
       .catch(() => setForbidden(true))
+    getNotificationStatusAction().then(setStatus).catch(() => {})
   }, [])
 
   const update = (channel: string, patch: Partial<NotificationSettingDto>) =>
@@ -68,6 +72,18 @@ export default function ProfileClient() {
         <main className="mx-auto max-w-3xl px-6 py-8">
           <h2 className="text-3xl font-bold text-gray-900">{t("notificationPreferences")}</h2>
           <p className="mt-2 mb-6 text-gray-600">{t("notificationPreferencesDesc")}</p>
+
+          {status && (
+            <div
+              className={`mb-6 rounded-md border p-3 text-sm ${
+                status.enabled ? "border-green-200 bg-green-50 text-green-800" : "border-amber-200 bg-amber-50 text-amber-800"
+              }`}
+            >
+              <p className="font-medium">{status.enabled ? t("deliveryActive") : t("deliveryInactive")}</p>
+              <p>{t(`guardReason_${status.reason}`)}</p>
+              {!status.pushoverConfigured && <p className="mt-1">{t("pushoverTokenMissing")}</p>}
+            </div>
+          )}
 
           {forbidden && <p className="text-sm text-gray-600">{t("captainsOnly")}</p>}
 

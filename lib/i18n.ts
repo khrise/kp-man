@@ -255,6 +255,13 @@ export const translations = {
     testNotificationSent: "Testbenachrichtigung wurde gesendet.",
     settingsSaved: "Einstellungen gespeichert.",
     captainsOnly: "Diese Seite ist nur für Mannschaftskapitäne verfügbar.",
+    deliveryActive: "Benachrichtigungen sind auf dieser Instanz aktiv.",
+    deliveryInactive: "Benachrichtigungen sind auf dieser Instanz deaktiviert. Nur der Test-Button sendet.",
+    guardReason_override_true: "NOTIFICATIONS_ENABLED=true ist gesetzt.",
+    guardReason_override_false: "NOTIFICATIONS_ENABLED=false ist gesetzt.",
+    guardReason_production: "Produktionsumgebung (VERCEL_ENV=production).",
+    guardReason_not_production: "Keine Produktionsumgebung. Setze NOTIFICATIONS_ENABLED=true zum Aktivieren.",
+    pushoverTokenMissing: "PUSHOVER_APP_TOKEN ist nicht konfiguriert; es können keine Pushover-Nachrichten gesendet werden.",
 
     // Teams
     manageTeamsDesc: "Verwalten Sie Ihre Mannschaften",
@@ -619,6 +626,13 @@ export const translations = {
     testNotificationSent: "Test notification sent.",
     settingsSaved: "Settings saved.",
     captainsOnly: "This page is only available to team captains.",
+    deliveryActive: "Notifications are active on this instance.",
+    deliveryInactive: "Notifications are disabled on this instance. Only the test button sends.",
+    guardReason_override_true: "NOTIFICATIONS_ENABLED=true is set.",
+    guardReason_override_false: "NOTIFICATIONS_ENABLED=false is set.",
+    guardReason_production: "Production environment (VERCEL_ENV=production).",
+    guardReason_not_production: "Not a production environment. Set NOTIFICATIONS_ENABLED=true to enable.",
+    pushoverTokenMissing: "PUSHOVER_APP_TOKEN is not configured; Pushover messages cannot be sent.",
 
     // Teams
     manageTeamsDesc: "Manage your teams",

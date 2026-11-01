@@ -1,5 +1,5 @@
 import { isWithinWindow } from "@/lib/notifications/window"
-import { notificationsEnabled } from "@/lib/notifications/guard"
+import { getNotificationStatus, notificationsEnabled } from "@/lib/notifications/guard"
 
 const now = new Date("2026-01-01T12:00:00Z")
 const inDays = (d: number) => new Date(now.getTime() + d * 24 * 60 * 60 * 1000)
@@ -46,5 +46,17 @@ describe("notificationsEnabled", () => {
   it("NOTIFICATIONS_ENABLED overrides VERCEL_ENV", () => {
     expect(notificationsEnabled(env({ VERCEL_ENV: "preview", NOTIFICATIONS_ENABLED: "true" }))).toBe(true)
     expect(notificationsEnabled(env({ VERCEL_ENV: "production", NOTIFICATIONS_ENABLED: "false" }))).toBe(false)
+  })
+})
+
+describe("getNotificationStatus", () => {
+  const env = (vars: Record<string, string>) => vars as unknown as NodeJS.ProcessEnv
+  it("reports the reason and token presence without exposing the token", () => {
+    const status = getNotificationStatus(env({ VERCEL_ENV: "preview", PUSHOVER_APP_TOKEN: "secret" }))
+    expect(status).toEqual({ enabled: false, reason: "not_production", pushoverConfigured: true })
+    expect(getNotificationStatus(env({ VERCEL_ENV: "production" }))).toEqual({
+      enabled: true, reason: "production", pushoverConfigured: false,
+    })
+    expect(getNotificationStatus(env({ NOTIFICATIONS_ENABLED: "true" })).reason).toBe("override_true")
   })
 })

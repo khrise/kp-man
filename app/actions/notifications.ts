@@ -5,6 +5,7 @@ import { auth } from "@/lib/next-auth"
 import * as db from "@/lib/db"
 import { sendNotification } from "@/lib/notifications/dispatcher"
 import { buildTestMessage } from "@/lib/notifications/messages"
+import { getNotificationStatus, type NotificationStatus } from "@/lib/notifications/guard"
 import { getChannels } from "@/lib/notifications/registry"
 import { DEFAULT_WINDOW_MODE, isWindowMode } from "@/lib/notifications/types"
 
@@ -28,6 +29,11 @@ async function requireCaptain() {
     throw new Error("Only team captains can manage notification preferences")
   }
   return user
+}
+
+export async function getNotificationStatusAction(): Promise<NotificationStatus> {
+  await requireCaptain()
+  return getNotificationStatus()
 }
 
 export async function getMyNotificationSettingsAction(): Promise<NotificationSettingDto[]> {
