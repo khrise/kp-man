@@ -1,6 +1,13 @@
+export interface NotificationLink {
+  label: string
+  url: string
+}
+
 export interface NotificationMessage {
   title: string
   body: string
+  /** Providers render links in whatever way their channel supports */
+  links?: NotificationLink[]
 }
 
 export interface NotificationProvider {

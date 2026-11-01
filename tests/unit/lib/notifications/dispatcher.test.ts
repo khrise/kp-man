@@ -30,7 +30,7 @@ beforeEach(() => {
   registerProvider({ channel: "fake", send })
   send.mockResolvedValue(undefined)
   mockDb.getParticipationNotificationContext.mockResolvedValue({
-    tie: { id: 10, teamId: 1, opponent: "Rivals", tieDate, isHome: true, teamName: "H40" },
+    tie: { id: 10, teamId: 1, opponent: "Rivals", tieDate, isHome: true, teamName: "H40", accessCode: "ABCD" },
     player: { id: 5, firstName: "Anna", lastName: "Müller" },
   } as never)
   mockDb.getCaptainRecipientsForTeam.mockResolvedValue([
@@ -49,6 +49,15 @@ describe("notifyParticipationChange", () => {
     await notifyParticipationChange(part("confirmed"), part("declined"))
     expect(send).toHaveBeenCalledTimes(2)
     expect(send.mock.calls[1][1].body).toContain("Zugesagt → Abgesagt")
+  })
+
+  it("attaches public and admin lineup links when a base url is known", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://club.example"
+    await notifyParticipationChange(undefined, part("confirmed"))
+    expect(send.mock.calls[0][1].links).toEqual([
+      { label: "Spieltag öffnen", url: "https://club.example/ties/ABCD#tie-10" },
+      { label: "Aufstellung verwalten", url: "https://club.example/admin/ties/10/lineup" },
+    ])
   })
 
   it("notifies on a comment change but not when nothing changed", async () => {

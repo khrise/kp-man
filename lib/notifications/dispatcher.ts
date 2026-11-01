@@ -1,5 +1,6 @@
 import * as db from "@/lib/db"
 import { notificationsEnabled } from "./guard"
+import { buildTieLinks } from "./links"
 import { buildParticipationMessage } from "./messages"
 import { getProvider } from "./registry"
 import { isWindowMode, DEFAULT_WINDOW_MODE, type NotificationMessage } from "./types"
@@ -64,6 +65,7 @@ export async function notifyParticipationChange(
     previousStatus: previous?.status ?? null,
     status: current.status,
     comment: current.comment,
+    links: buildTieLinks(tie.id, tie.accessCode),
   })
 
   const nextTieId = recipients.some((r) => r.windowMode === "next_tie")

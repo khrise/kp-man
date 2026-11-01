@@ -1524,7 +1524,8 @@ export async function getParticipationNotificationContext(tieId: number, playerI
   const tie = await db
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
-    .select(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.isHome", "tm.name as teamName"])
+    .innerJoin("seasons as s", "s.id", "tm.seasonId")
+    .select(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.isHome", "tm.name as teamName", "s.accessCode"])
     .where("t.id", "=", tieId)
     .executeTakeFirst()
   const player = await db

@@ -1,4 +1,4 @@
-import type { NotificationMessage } from "./types"
+import type { NotificationLink, NotificationMessage } from "./types"
 
 type Status = "confirmed" | "maybe" | "declined"
 
@@ -16,6 +16,7 @@ export interface ParticipationChangeInfo {
   previousStatus: Status | null
   status: Status
   comment: string | null
+  links?: NotificationLink[]
 }
 
 function formatDate(date: Date): string {
@@ -41,7 +42,7 @@ export function buildParticipationMessage(info: ParticipationChangeInfo): Notifi
   ]
   if (info.comment) lines.push(`Kommentar: ${info.comment}`)
 
-  return { title: `Teilnahme geändert (${info.teamName})`, body: lines.join("\n") }
+  return { title: `Teilnahme geändert (${info.teamName})`, body: lines.join("\n"), links: info.links }
 }
 
 export function buildTestMessage(): NotificationMessage {
