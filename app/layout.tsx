@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
     headers(),
   ]);
   const title = `${clubName} Management`;
-  const description = `Manage your ${clubName.toLowerCase()} seasons, teams, and players`;
+  const description = `Manage your ${clubName} seasons, teams, and players`;
   // Proxies must overwrite forwarded headers with the public request origin.
   const host = (requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host"))
     ?.split(",")[0].trim();
