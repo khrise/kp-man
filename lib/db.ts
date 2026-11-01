@@ -1525,7 +1525,7 @@ export async function getParticipationNotificationContext(tieId: number, playerI
     .selectFrom("ties as t")
     .innerJoin("teams as tm", "tm.id", "t.teamId")
     .innerJoin("seasons as s", "s.id", "tm.seasonId")
-    .select(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.isHome", "tm.name as teamName", "s.accessCode"])
+    .select(["t.id", "t.teamId", "t.opponent", "t.tieDate", "t.isHome", "tm.name as teamName", "tm.teamSize", "s.accessCode"])
     .where("t.id", "=", tieId)
     .executeTakeFirst()
   const player = await db
@@ -1533,7 +1533,13 @@ export async function getParticipationNotificationContext(tieId: number, playerI
     .select(["id", "firstName", "lastName"])
     .where("id", "=", playerId)
     .executeTakeFirst()
-  return { tie, player }
+  const confirmed = await db
+    .selectFrom("participations")
+    .select((eb) => eb.fn.count<number>("id").as("count"))
+    .where("tieId", "=", tieId)
+    .where("status", "=", "confirmed")
+    .executeTakeFirst()
+  return { tie, player, confirmedCount: Number(confirmed?.count) || 0 }
 }
 
 export async function getUnassignedCaptainUsers(): Promise<{ id: number; username: string; email: string }[]> {

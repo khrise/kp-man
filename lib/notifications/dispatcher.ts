@@ -48,7 +48,7 @@ export async function notifyParticipationChange(
     return
   }
 
-  const { tie, player } = await db.getParticipationNotificationContext(current.tieId, current.playerId)
+  const { tie, player, confirmedCount } = await db.getParticipationNotificationContext(current.tieId, current.playerId)
   if (!tie || !player) return
 
   const recipients = (await db.getCaptainRecipientsForTeam(tie.teamId)).filter(
@@ -65,6 +65,8 @@ export async function notifyParticipationChange(
     previousStatus: previous?.status ?? null,
     status: current.status,
     comment: current.comment,
+    confirmedCount,
+    teamSize: tie.teamSize,
     links: buildTieLinks(tie.id, tie.accessCode),
   })
 

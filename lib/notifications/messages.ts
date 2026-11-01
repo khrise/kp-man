@@ -16,6 +16,8 @@ export interface ParticipationChangeInfo {
   previousStatus: Status | null
   status: Status
   comment: string | null
+  confirmedCount: number
+  teamSize: number
   links?: NotificationLink[]
 }
 
@@ -39,6 +41,7 @@ export function buildParticipationMessage(info: ParticipationChangeInfo): Notifi
     `${info.playerName}: ${change}`,
     `${info.teamName} vs. ${info.opponent}`,
     formatDate(info.tieDate),
+    `Zusagen: ${info.confirmedCount}/${info.teamSize}`,
   ]
   if (info.comment) lines.push(`Kommentar: ${info.comment}`)
 

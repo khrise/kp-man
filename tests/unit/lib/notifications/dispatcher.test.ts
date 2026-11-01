@@ -30,8 +30,9 @@ beforeEach(() => {
   registerProvider({ channel: "fake", send })
   send.mockResolvedValue(undefined)
   mockDb.getParticipationNotificationContext.mockResolvedValue({
-    tie: { id: 10, teamId: 1, opponent: "Rivals", tieDate, isHome: true, teamName: "H40", accessCode: "ABCD" },
+    tie: { id: 10, teamId: 1, opponent: "Rivals", tieDate, isHome: true, teamName: "H40", teamSize: 6, accessCode: "ABCD" },
     player: { id: 5, firstName: "Anna", lastName: "Müller" },
+    confirmedCount: 4,
   } as never)
   mockDb.getCaptainRecipientsForTeam.mockResolvedValue([
     { userId: 1, playerId: null, channel: "fake", target: "key", windowMode: "days_14" },
@@ -49,6 +50,11 @@ describe("notifyParticipationChange", () => {
     await notifyParticipationChange(part("confirmed"), part("declined"))
     expect(send).toHaveBeenCalledTimes(2)
     expect(send.mock.calls[1][1].body).toContain("Zugesagt → Abgesagt")
+  })
+
+  it("includes the number of confirmed players against the team size", async () => {
+    await notifyParticipationChange(undefined, part("confirmed"))
+    expect(send.mock.calls[0][1].body).toContain("Zusagen: 4/6")
   })
 
   it("attaches public and admin lineup links when a base url is known", async () => {
