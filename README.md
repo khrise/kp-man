@@ -29,6 +29,43 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Icons and social sharing
+
+The branding source files live in [`public/icons/`](./public/icons/).
+[`app/favicon.ico`](./app/favicon.ico) is a copy of
+[`public/icons/favicon.ico`](./public/icons/favicon.ico), so Next.js's automatic
+favicon link and clients requesting `/favicon.ico` use the same artwork.
+The root layout declares the PNG and Apple touch icons, plus Open Graph and
+Twitter previews using `/icons/social-preview.png` (1200 x 630).
+The Apple touch icon (180 x 180) and preview are derived from `icon.png`;
+a higher-resolution original can replace these derivatives for sharper artwork.
+When updating branding, update all these assets, including the root favicon copy.
+
+Sharing image URLs are absolute and resolved per request, not from `AUTH_URL`,
+`NEXTAUTH_URL`, a fixed site URL, or the Vercel deployment hostname.
+The layout reads the first `x-forwarded-host` and `x-forwarded-proto` values,
+falling back to `Host` and HTTPS (HTTP for localhost/loopback).
+Reading request headers makes metadata request-specific.
+
+Deployment checklist:
+
+- On Vercel, add each custom domain under the project's **Settings > Domains**
+  and configure the DNS records Vercel recommends. Vercel supplies the public
+  request host/protocol automatically; no custom proxy, header configuration,
+  or site URL environment variable is required. A DNS CNAME does not change
+  the domain in the browser or the resulting sharing image URL.
+- Only for self-hosting behind a reverse proxy: configure it to **overwrite**
+  forwarded host/protocol headers with the public domain and scheme, rather
+  than trusting client values. For direct HTTP hosting on a non-local domain,
+  supply `x-forwarded-proto: http`.
+- If adding a custom HTML cache, distinguish public hosts in its cache key.
+- Allow anonymous crawlers to fetch shared pages and the `/icons/*` and
+  `/favicon.ico` assets; deployment protection must not block them.
+- After deploying, inspect each domain's HTML for its own absolute `og:image`
+  and `twitter:image` URLs, then test a new share in WhatsApp. Browser and social
+  preview caches can retain older icons; clear browser site data and request a
+  re-scrape where supported, or share a fresh URL to check the new metadata.
+
 ## Participation Audit
 
 ### Captain comments
