@@ -445,7 +445,8 @@ export function LineupClient({
   auditHasMore = false,
   auditPageSize = 100,
 }: LineupClientProps) {
-  const { t, tWithParams } = useTranslation()
+  const { t, tWithParams, locale } = useTranslation()
+  const localeTag = locale === "de" ? "de-DE" : "en-GB"
   const router = useRouter()
   const canReopen = usePermission(Permission.LineupReopen)
   const [isLoading, setIsLoading] = useState(false)
@@ -695,7 +696,12 @@ Aufstellung: ${playerNames}`
             <p className="text-sm text-gray-500">
               {Number.isNaN(tieDate.getTime())
                 ? "—"
-                : `${tieDate.toLocaleDateString()} ${tieDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                : `${tieDate.toLocaleDateString(localeTag, {
+                  weekday: "short",
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })} ${tieDate.toLocaleTimeString(localeTag, { hour: "2-digit", minute: "2-digit" })}`}
             </p>
             <TieCaptainCommentEditor tieId={tie.id} comment={tie.captainComment}
               author={tie.captainCommentAuthor} onSaved={() => router.refresh()} />

@@ -904,7 +904,12 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="h-4 w-4" />
                         <span>
-                          {tie.tieDate.toLocaleDateString(localeTag)}{" "}
+                          {tie.tieDate.toLocaleDateString(localeTag, {
+                            weekday: "short",
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })}{" "}
                           {tie.tieDate.toLocaleTimeString(localeTag, { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>

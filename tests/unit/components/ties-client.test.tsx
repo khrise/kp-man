@@ -25,6 +25,14 @@ it("displays the tie captain comment and author in the overview", () => {
     seasons={[{ id: 1, name: "Summer" }]}
     currentSeasonId={1}
   />)
+  expect(screen.getByText((_, element) => element?.tagName === "SPAN" && element.textContent?.startsWith(
+    new Intl.DateTimeFormat("de-DE", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(new Date("2026-06-01T12:00:00Z")),
+  ))).toBeInTheDocument()
   expect(screen.getByText("Bring new balls")).toHaveClass("whitespace-pre-wrap", "break-words")
   expect(screen.getByText("commentBy Captain Player")).toBeInTheDocument()
   expect(screen.getByLabelText("confirmed: 2")).toHaveTextContent("2")
