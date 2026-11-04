@@ -1,5 +1,5 @@
 import React from "react"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import { TiesClient } from "@/app/admin/ties/ties-client"
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }))
@@ -26,5 +26,8 @@ it("displays the tie captain comment and author in the overview", () => {
   />)
   expect(screen.getByText("Bring new balls")).toHaveClass("whitespace-pre-wrap", "break-words")
   expect(screen.getByText("commentBy Captain Player")).toBeInTheDocument()
-  expect(screen.getByText("rsvps: 2 confirmed, 1 maybe, 1 declined")).toBeInTheDocument()
+  expect(screen.getByLabelText("confirmed: 2")).toHaveTextContent("2")
+  expect(within(screen.getByLabelText("confirmed: 2")).getByText("2")).toHaveClass("bg-green-100", "text-green-800")
+  expect(within(screen.getByLabelText("maybe: 1")).getByText("1")).toHaveClass("bg-yellow-100", "text-yellow-800")
+  expect(within(screen.getByLabelText("declined: 1")).getByText("1")).toHaveClass("bg-red-100", "text-red-800")
 })

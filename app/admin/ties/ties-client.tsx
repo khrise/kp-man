@@ -6,6 +6,7 @@ import { useState, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { parseTieAnchor, tieAnchorId } from "@/lib/tie-anchor"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -939,9 +940,16 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                               </span>
                             )}
                           </div>
-                          <div className="text-sm text-gray-700">
-                            {t("rsvps")}: {tie.confirmedCount} {t("confirmed").toLowerCase()},{" "}
-                            {tie.maybeCount} {t("maybe").toLowerCase()}, {tie.declinedCount} {t("declined").toLowerCase()}
+                          <div className="flex items-center gap-1" role="group" aria-label={t("rsvps")}>
+                            <span role="img" aria-label={`${t("confirmed")}: ${tie.confirmedCount}`} title={t("confirmed")}>
+                              <Badge variant="success">{tie.confirmedCount}</Badge>
+                            </span>
+                            <span role="img" aria-label={`${t("maybe")}: ${tie.maybeCount}`} title={t("maybe")}>
+                              <Badge variant="warning">{tie.maybeCount}</Badge>
+                            </span>
+                            <span role="img" aria-label={`${t("declined")}: ${tie.declinedCount}`} title={t("declined")}>
+                              <Badge variant="destructive">{tie.declinedCount}</Badge>
+                            </span>
                           </div>
                         </div>
 
