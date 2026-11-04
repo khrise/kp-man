@@ -33,6 +33,9 @@ type Tie = {
   lineupPlayers: { playerRank: number; firstName: string; lastName: string; status: string }[]
   problematicCount: number
   isLineupReady?: boolean
+  confirmedCount: number
+  maybeCount: number
+  declinedCount: number
 }
 
 type Team = {
@@ -935,6 +938,10 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                                 {t("lineupComplete")}
                               </span>
                             )}
+                          </div>
+                          <div className="text-sm text-gray-700">
+                            {t("rsvps")}: {tie.confirmedCount} {t("confirmed").toLowerCase()},{" "}
+                            {tie.maybeCount} {t("maybe").toLowerCase()}, {tie.declinedCount} {t("declined").toLowerCase()}
                           </div>
                         </div>
 

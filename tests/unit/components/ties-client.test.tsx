@@ -18,6 +18,7 @@ it("displays the tie captain comment and author in the overview", () => {
       captainComment: "Bring new balls", captainCommentAuthor: "Captain Player",
       seasonId: 1, teamName: "Team", seasonName: "Summer", teamSize: 6,
       lineupCount: 0, lineupPlayers: [], problematicCount: 0, isLineupReady: false,
+      confirmedCount: 2, maybeCount: 1, declinedCount: 1,
     }]}
     teams={[{ id: 1, seasonId: 1, name: "Team" }]}
     seasons={[{ id: 1, name: "Summer" }]}
@@ -25,4 +26,5 @@ it("displays the tie captain comment and author in the overview", () => {
   />)
   expect(screen.getByText("Bring new balls")).toHaveClass("whitespace-pre-wrap", "break-words")
   expect(screen.getByText("commentBy Captain Player")).toBeInTheDocument()
+  expect(screen.getByText("rsvps: 2 confirmed, 1 maybe, 1 declined")).toBeInTheDocument()
 })

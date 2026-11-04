@@ -134,13 +134,17 @@ describe("getTiesBySeasonId", () => {
 })
 
 describe("getTiesWithLineupInfo", () => {
-  it("returns ties enriched with teamSize, lineupCount, and lineupPlayers", async () => {
+  it("returns ties enriched with lineup details and RSVP counts", async () => {
     const season = await createSeason({ name: "S2", startDate: "2024-01-01", endDate: "2024-12-31", accessCode: "LUP1", isActive: true })
     const team = await createTeam({ seasonId: season.id, name: "Team B", league: null, teamSize: 4 })
     const player = await createPlayer({ firstName: "Anna", lastName: "Müller" })
-    await setTeamPlayers(team.id, [player.id])
+    const maybePlayer = await createPlayer({ firstName: "Bea", lastName: "Meier" })
+    const declinedPlayer = await createPlayer({ firstName: "Clara", lastName: "Schmidt" })
+    await setTeamPlayers(team.id, [player.id, maybePlayer.id, declinedPlayer.id])
     const tie = await createTie({ teamId: team.id, opponent: "Rivals", tieDate: "2024-06-15", location: null, isHome: true, notes: null })
     const participation = await upsertParticipation({ tieId: tie.id, playerId: player.id, status: "confirmed", comment: null })
+    await upsertParticipation({ tieId: tie.id, playerId: maybePlayer.id, status: "maybe", comment: null })
+    await upsertParticipation({ tieId: tie.id, playerId: declinedPlayer.id, status: "declined", comment: null })
     await updateParticipationLineup(participation.id, true)
 
     const ties = await getTiesWithLineupInfo()
@@ -149,6 +153,9 @@ describe("getTiesWithLineupInfo", () => {
     expect(found?.lineupCount).toBe(1)
     expect(found?.lineupPlayers).toHaveLength(1)
     expect(found?.problematicCount).toBe(0)
+    expect(found?.confirmedCount).toBe(1)
+    expect(found?.maybeCount).toBe(1)
+    expect(found?.declinedCount).toBe(1)
   })
 })
 
