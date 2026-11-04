@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import * as db from "@/lib/db"
+import { upsertParticipationAndNotify } from "@/lib/notifications/dispatcher"
 
 export async function updateParticipationAction(
   tieId: string,
@@ -19,7 +19,7 @@ export async function updateParticipationAction(
     throw new Error("Invalid player id")
   }
 
-  await db.upsertParticipation({
+  await upsertParticipationAndNotify({
     tieId: numericTieId,
     playerId: numericPlayerId,
     status,

@@ -60,6 +60,8 @@ export async function setupTestDatabase(): Promise<TestDatabaseContext> {
 export async function truncateAllTables(pool: Pool): Promise<void> {
   await pool.query(`
     TRUNCATE
+      notification_settings,
+      team_captains,
       participations,
       team_players,
       ties,

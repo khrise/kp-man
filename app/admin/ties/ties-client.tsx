@@ -2,8 +2,9 @@
 
 import type React from "react"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { parseTieAnchor, tieAnchorId } from "@/lib/tie-anchor"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -250,6 +251,25 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
 
     return sorted
   }, [normalisedTies, selectedSeasonFilter, selectedTeamFilter, sortOrder])
+
+  // Deep link (#tie-<id>): widen the filters so the tie is listed, then scroll to it
+  const [anchoredTieId, setAnchoredTieId] = useState<number | null>(null)
+  const anchorHandled = useRef(false)
+  useEffect(() => {
+    if (anchorHandled.current) return
+    const id = parseTieAnchor(window.location.hash)
+    const target = id === null ? undefined : normalisedTies.find((tie) => tie.id === id)
+    if (!target) return
+    anchorHandled.current = true
+    setSelectedSeasonFilter(String(target.seasonId))
+    setSelectedTeamFilter("all")
+    setAnchoredTieId(target.id)
+  }, [normalisedTies])
+
+  useEffect(() => {
+    if (anchoredTieId === null) return
+    document.getElementById(tieAnchorId(anchoredTieId))?.scrollIntoView({ block: "center" })
+  }, [anchoredTieId, filteredAndSortedTies])
 
   const handleEdit = (tie: Tie) => {
     setEditingId(tie.id)
@@ -857,7 +877,11 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
           filteredAndSortedTies.map((tie) => {
             console.log("Rendering tie with date:", tie.tieDate)
             return (
-              <Card key={tie.id}>
+              <Card
+                key={tie.id}
+                id={tieAnchorId(tie.id)}
+                className={`scroll-mt-24 ${anchoredTieId === tie.id ? "ring-2 ring-blue-500" : ""}`}
+              >
                 <CardContent className="p-6">
                   <div className="flex flex-col gap-4">
                     <div className="flex-1 min-w-0">
