@@ -21,6 +21,7 @@ jest.mock("@/lib/i18n", () => ({
   useTranslation: () => ({
     t: (key: string) => key,
     tWithParams: (key: string, params: Record<string, unknown>) => `${key}:${JSON.stringify(params)}`,
+    locale: "de",
   }),
 }))
 
@@ -40,6 +41,20 @@ const props: Props = {
   playersWithoutParticipation: [],
   lineupCount: 0, teamSize: 6,
 }
+
+it("displays the tie date with the localized weekday and zero-padded date", () => {
+  render(<LineupClient {...props} />)
+
+  const expectedDate = new Intl.DateTimeFormat("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date)
+  expect(screen.getByText((_, element) =>
+    element?.tagName === "P" && element.textContent?.startsWith(expectedDate),
+  )).toBeInTheDocument()
+})
 
 const entry: AuditEntry = {
   id: 1, participationId: 1, playerId: 1, tieId: 1,
