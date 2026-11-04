@@ -17,7 +17,8 @@ it("displays the tie captain comment and author in the overview", () => {
       location: "Home court", isHome: true, notes: null,
       captainComment: "Bring new balls", captainCommentAuthor: "Captain Player",
       seasonId: 1, teamName: "Team", seasonName: "Summer", teamSize: 6,
-      lineupCount: 0, lineupPlayers: [], problematicCount: 0, isLineupReady: false,
+      lineupCount: 1, lineupPlayers: [{ playerRank: 1, firstName: "Anna", lastName: "Müller", status: "confirmed" }],
+      problematicCount: 0, isLineupReady: false,
       confirmedCount: 2, maybeCount: 1, declinedCount: 1,
     }]}
     teams={[{ id: 1, seasonId: 1, name: "Team" }]}
@@ -27,7 +28,9 @@ it("displays the tie captain comment and author in the overview", () => {
   expect(screen.getByText("Bring new balls")).toHaveClass("whitespace-pre-wrap", "break-words")
   expect(screen.getByText("commentBy Captain Player")).toBeInTheDocument()
   expect(screen.getByLabelText("confirmed: 2")).toHaveTextContent("2")
-  expect(screen.getByText("RSVP:")).toBeInTheDocument()
+  const lineupPreview = screen.getByText("#1 Anna M.")
+  const rsvpLabel = screen.getByText("RSVP:")
+  expect(lineupPreview.compareDocumentPosition(rsvpLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(within(screen.getByLabelText("confirmed: 2")).getByText("2")).toHaveClass("bg-green-100", "text-green-800")
   expect(within(screen.getByLabelText("maybe: 1")).getByText("1")).toHaveClass("bg-yellow-100", "text-yellow-800")
   expect(within(screen.getByLabelText("declined: 1")).getByText("1")).toHaveClass("bg-red-100", "text-red-800")
