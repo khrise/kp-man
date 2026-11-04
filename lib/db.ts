@@ -465,6 +465,9 @@ export type TieWithLineupInfo = TieWithSeasonAndTeam & {
   lineupCount: number
   lineupPlayers: { playerRank: number; firstName: string; lastName: string; status: string }[]
   problematicCount: number
+  confirmedCount: number
+  maybeCount: number
+  declinedCount: number
 }
 
 export async function getTies(teamIds?: number[]): Promise<TieWithSeasonAndTeam[]> {
@@ -512,12 +515,27 @@ export async function getTiesWithLineupInfo(teamIds?: number[]): Promise<TieWith
       const lineupCount = lineupParticipations.length
       const problematicCount = lineupParticipations.filter((p) => p.status !== "confirmed").length
 
+      const participationCounts = await db
+        .selectFrom("participations as p")
+        .innerJoin("teamPlayers as tp", (join) =>
+          join.onRef("tp.playerId", "=", "p.playerId").on("tp.teamId", "=", tie.teamId),
+        )
+        .select(["p.status", sql<number>`count(*)`.as("count")])
+        .where("p.tieId", "=", tie.id)
+        .groupBy("p.status")
+        .execute()
+      const countForStatus = (status: "confirmed" | "maybe" | "declined") =>
+        Number(participationCounts.find((participation) => participation.status === status)?.count ?? 0)
+
       return {
         ...tie,
         teamSize,
         lineupCount,
         lineupPlayers: lineupParticipations,
         problematicCount,
+        confirmedCount: countForStatus("confirmed"),
+        maybeCount: countForStatus("maybe"),
+        declinedCount: countForStatus("declined"),
       }
     }),
   )
