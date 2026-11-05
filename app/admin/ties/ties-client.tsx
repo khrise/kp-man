@@ -925,6 +925,21 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                       </div>}
 
                       <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center gap-1" role="group" aria-label="RSVP">
+                          <span className="text-sm text-gray-600">RSVP:</span>
+                          <span role="img" aria-label={`${t("confirmed")}: ${tie.confirmedCount}`} title={t("confirmed")}>
+                            <Badge variant="success">{tie.confirmedCount}</Badge>
+                          </span>
+                          <span role="img" aria-label={`${t("maybe")}: ${tie.maybeCount}`} title={t("maybe")}>
+                            <Badge variant="warning">{tie.maybeCount}</Badge>
+                          </span>
+                          <span role="img" aria-label={`${t("declined")}: ${tie.declinedCount}`} title={t("declined")}>
+                            <Badge variant="destructive">{tie.declinedCount}</Badge>
+                          </span>
+                        </div>
+
+                        <hr className="my-2 border-gray-200" />
+
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                           <div className="flex items-center space-x-2 flex-wrap">
                             <Users className="h-4 w-4 text-gray-500" />
@@ -959,19 +974,6 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                             </p>
                           </div>
                         )}
-
-                        <div className="mt-2 flex items-center gap-1" role="group" aria-label="RSVP">
-                          <span className="text-sm text-gray-600">RSVP:</span>
-                          <span role="img" aria-label={`${t("confirmed")}: ${tie.confirmedCount}`} title={t("confirmed")}>
-                            <Badge variant="success">{tie.confirmedCount}</Badge>
-                          </span>
-                          <span role="img" aria-label={`${t("maybe")}: ${tie.maybeCount}`} title={t("maybe")}>
-                            <Badge variant="warning">{tie.maybeCount}</Badge>
-                          </span>
-                          <span role="img" aria-label={`${t("declined")}: ${tie.declinedCount}`} title={t("declined")}>
-                            <Badge variant="destructive">{tie.declinedCount}</Badge>
-                          </span>
-                        </div>
 
                         {/* Problem alert */}
                         {tie.problematicCount > 0 && (
