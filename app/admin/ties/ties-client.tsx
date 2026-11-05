@@ -938,6 +938,8 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                           </span>
                         </div>
 
+                        <hr className="my-2 border-gray-200" />
+
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                           <div className="flex items-center space-x-2 flex-wrap">
                             <Users className="h-4 w-4 text-gray-500" />
