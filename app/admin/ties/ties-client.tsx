@@ -925,7 +925,7 @@ export function TiesClient({ initialTies, teams, seasons, currentSeasonId }: Tie
                       </div>}
 
                       <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="mt-2 flex items-center gap-1" role="group" aria-label="RSVP">
+                        <div className="flex items-center gap-1" role="group" aria-label="RSVP">
                           <span className="text-sm text-gray-600">RSVP:</span>
                           <span role="img" aria-label={`${t("confirmed")}: ${tie.confirmedCount}`} title={t("confirmed")}>
                             <Badge variant="success">{tie.confirmedCount}</Badge>
