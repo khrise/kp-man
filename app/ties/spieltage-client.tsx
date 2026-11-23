@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Calendar, MapPin, Users, Download, LogOut, Eye, Filter, X, Check, Loader2, MessageSquare } from "lucide-react"
+import { Calendar, MapPin, Users, Download, LogOut, Eye, Filter, X, Check, Loader2, MessageSquare, Link } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -209,6 +209,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     Record<string, Record<number, SpieltageParticipation[]>>
   >({})
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
+  const [copyLinkFeedback, setCopyLinkFeedback] = useState<{ tieId: number; url: string; copied: boolean } | null>(null)
   const detailsCloseTimeoutRef = useRef<number | null>(null)
   const { t, tWithParams, locale } = useTranslation()
 
@@ -377,6 +378,16 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+  }
+
+  const copyTieLink = async (tieId: number) => {
+    const url = `${window.location.origin}${window.location.pathname}#${tieAnchorId(tieId)}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopyLinkFeedback({ tieId, url, copied: true })
+    } catch {
+      setCopyLinkFeedback({ tieId, url, copied: false })
+    }
   }
 
   useEffect(() => {
@@ -1285,7 +1296,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                             anchoredTieId === tie.id && "ring-2 ring-blue-300",
                           )}
                         >
-                          <div className="mb-3 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-blue-200 overflow-hidden">
+                          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-blue-200">
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <span className="inline-flex items-center justify-center rounded-full border border-blue-400/60 bg-[#2c3e50] px-3 py-1 text-[11px] font-semibold">
                                 {formatWeekday(tie.tieDate)}
@@ -1293,7 +1304,7 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                             </div>
                             {/* Lineup badges moved next to weekday badge (right-aligned) and slightly smaller. Ensure they don't overflow the card. */}
                             {tie.isLineupReady && (
-                              <div className="flex items-center gap-2 whitespace-nowrap flex-shrink-0 ml-2">
+                              <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
                                 <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800">
                                   {t("lineupComplete")}
                                 </span>
@@ -1304,7 +1315,27 @@ export function SpieltageClient({ accessCode, seasonId: propSeasonId }: Spieltag
                                 )}
                               </div>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => copyTieLink(tie.id)}
+                              aria-label={t("copyTieLink")}
+                              title={t("copyTieLink")}
+                              className="ml-auto shrink-0 rounded p-1 text-blue-100 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                            >
+                              <Link className="h-4 w-4" />
+                            </button>
                           </div>
+
+                          {copyLinkFeedback?.tieId === tie.id && (
+                            <p role="status" className="mb-3 break-all text-sm text-blue-100">
+                              {copyLinkFeedback.copied ? t("tieLinkCopied") : (
+                                <>
+                                  {t("copyTieLinkManually")}{" "}
+                                  <a href={copyLinkFeedback.url} className="underline">{copyLinkFeedback.url}</a>
+                                </>
+                              )}
+                            </p>
+                          )}
 
                           <h3 className="mb-3 text-xl font-semibold text-white">
                             {tie.teamName} {t("vs")} {tie.opponent}
